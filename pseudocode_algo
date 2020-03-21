@@ -1,0 +1,28 @@
+conformers = [conf0]
+for f in stretch_factor:
+    stretched_set = []
+    for c in conformers:
+        stretched_c = propagate c to the new stretch factor f smoothly
+        add stretched_c to stretched_set
+
+    stretched_set = compress(stretched_set)
+    
+    meta_set = []
+    for c in stretched_set:
+        metad_c = run metadynamics on c
+        add metad_c to meta_set
+
+    meta_set = compress(meta_set)
+
+    add meta_set to global conformers list
+
+def compress(set of conformers):
+    S is an overlap matrix
+    for i in range(len(set of conformers)):
+        for j in range(len(set of conformers)):
+            S[i,j] = overlap of conformers[i] and conformers[j]
+            # Frozen gaussian, or maybe even rmsd ?
+
+    diagonalize S (or SVD, or whatever) to obtain the most significant and
+          distinct conformers
+    return most significant conformers

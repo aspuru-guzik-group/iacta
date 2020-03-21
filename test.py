@@ -125,8 +125,9 @@ def combine(*molecules):
 # REACTION: Electrophilic aromatic substitution on aniline
 
 # Molecules
-mol_smiles = dict(aniline="c1ccccc1(N)",
-                 nitronium="[Al](Cl)(Cl)(Cl).ClCl")
+mol_smiles = dict(react1="CNNC(C)(C)",
+                  react2="C1CCCC1([Br])")
+
 
 # Optimize using xtb
 mol_xtbopt = {}
@@ -140,21 +141,28 @@ for name,smiles in mol_smiles.items():
     # Optimize molecule with xtb
     mol_xtbopt[name] = xtb_optimize(fn)
 
-# Set up reactions on aniline
-aniline = Chem.MolFromMolFile(mol_xtbopt['aniline'],
+
+# Set up reaction
+react2 = Chem.MolFromMolFile(mol_xtbopt['react2'],
                               removeHs=False)
-aniline_react = react(aniline, "C[H]")
+
+reactions = []
+F = 1.15
+for n in range(8):
+    print(F**n)
+    reactions += react(react2, "C[Br]", stretch_factor=F**n)
+
 
 # Load nitronium
-nitronium = Chem.MolFromMolFile(mol_xtbopt['nitronium'],
+react1 = Chem.MolFromMolFile(mol_xtbopt['react1'],
                                 removeHs=False)
 
 # Set up ts searches
 os.makedirs("ts/", exist_ok=True)
-for reaction_id,aniline_reagent in enumerate(aniline_react):
+for reaction_id,reagent in enumerate(reactions):
     folder = "ts/react%i/"% reaction_id
     os.makedirs(folder, exist_ok=True)
-    total,constr = combine(aniline_reagent, nitronium)
+    total,constr = combine(reagent, react1)
     Chem.MolToMolFile(total, folder+"init.mol")
     cfile = open(folder + ".constrains", "w")
     cfile.write(constr)
@@ -162,29 +170,6 @@ for reaction_id,aniline_reagent in enumerate(aniline_react):
 
     
 
-
-"""
-# Load molecules
-ethyl_cl = Chem.MolFromMolFile("ethyl_cl/xtbopt.mol",
-                               removeHs=False)
-fecl = Chem.MolFromMolFile("fecl/xtbopt.mol",
-                           removeHs=False)
-benzene = Chem.MolFromMolFile("benzene/xtbopt.mol",
-                              removeHs=False)
-
-react(get_bond(ethyl_cl, "CCl"), constraints)
-
-
-total, const = combine((ethyl_cl, fecl, benzene), constraints)
-
-
-# make the reaction directory
-os.makedirs("react1", exist_ok = True)
-Chem.MolToMolFile(total, "react1/init.mol")
-cfile = open("react1/.constrains", "w")
-cfile.write(const)
-cfile.close()
-"""        
 
 
 
