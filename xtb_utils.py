@@ -4,6 +4,22 @@ import shutil
 import os
 import tempfile
 
+
+def make_xcontrol(xcontrol_dictionary, fn):
+    f = open(fn, "w")
+    for key, val in xcontrol_dictionary.items():
+        if type(val) == tuple:
+            f.write("$" + str(key) + "\n")
+            for v in val:
+                f.write(v + "\n")
+            f.write("$end\n")
+        else:
+            f.write("$" + str(key) + str(val) + "\n")
+
+    f.close()
+    return fn
+            
+
 class xtb_run:
     def __init__(self, xtb, geom_file,
                  *args, cwd=".", xcontrol=None,
@@ -19,7 +35,7 @@ class xtb_run:
         
         self.args = [xtb]
         if xcontrol:
-            self.xcontrol = shutil.copy(xcontrol, self.dir)
+            self.xcontrol = make_xcontrol(xcontrol, self.dir + "/xcontrol")
             self.args += ["-I", os.path.basename(self.xcontrol)]
         else:
             self.xcontrol = None
@@ -83,11 +99,16 @@ class xtb_driver:
     def optimize(self, geom_file, out_file,
                  xcontrol=None,
                  log=None):
+        
         file_ext = geom_file[-3:]
+        return_files=[("xtbopt." + file_ext, out_file)]
+        if log:
+            return_files += [("xtbopt.log", log)]
+        
         opt = xtb_run(self.xtb_bin, geom_file, 
                       "--opt", *self.extra_args,
                       xcontrol=xcontrol,
-                      return_files=[("xtbopt." + file_ext, out_file)])
+                      return_files=return_files)
         return opt
 
 

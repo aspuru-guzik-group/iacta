@@ -20,36 +20,33 @@ Chem.MolToMolFile(combined, "init_guess.mol")
 
 # Optimize
 opt = xtb.optimize("init_guess.mol", "optimized_guess.mol")
+combined = Chem.MolFromMolFile(opt(), removeHs=False)
 
-# combined = Chem.MolFromMolFile("optimized_guess.mol",
-#                                removeHs=False)
+# Get the indices of the bond to stretch
+bond = get_bonds(combined, "CBr")[0]
 
-# # Get the indices of the bond to stretch
-# bond = get_bonds(combined, "CBr")[0]
+# Start the run
+stretch_factors = 1.1**np.arange(10)
 
-# # Start the run
-# stretch_factors = 1.1**np.arange(10)
+import os
+import shutil
+os.makedirs("conformers", exist_ok=True)
+os.makedirs("stretch", exist_ok=True)
+MolToXYZFile(combined, "conformers/0.xyz")
+conformers = ["0.xyz"]
 
-# import os
-# import shutil
-# os.makedirs("conformers", exist_ok=True)
-# os.makedirs("stretch", exist_ok=True)
-# MolToXYZFile(combined, "conformers/0.xyz")
-# conformers = ["0.xyz"]
+stretch = stretch_factors[0]
+xcontrol = {"constrain":
+            ("force constant = 0.5",
+             "distance: %i, %i, %f\n"% (bond[0],bond[1],
+                                        stretch * bond[2]))}
 
-# stretch = stretch_factors[0]
-# xcontrol = open("xcontrol", "w")
-# xcontrol.write("$constrain\n"+
-#                "  force constant = 0.5\n" +
-#                "  distance: %i, %i, %f\n"% (bond[0],bond[1],
-#                                             stretch * bond[2]) +
-#                "$end")
-# xcontrol.close()
-
-# for c in conformers:
-#     xtb.optimize("conformers/" + c, "stretch/" + c,
-#                  xcontrol="xcontrol",
-#                  log="stretch/" + c + ".log")
+jobs = []
+for c in conformers:
+    jobs += [xtb.optimize("conformers/" + c, "stretch/" + c,
+                          xcontrol=xcontrol,
+                          log="stretch/" + c + ".log")]
+    
 
 # stretch = stretch_factors[0]
 # xcontrol = open("xcontrol", "w")
