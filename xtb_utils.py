@@ -55,12 +55,25 @@ class xtb_run:
         if blocking:
             self.proc.wait()
 
+    def kill(self):
+        self.assert_running()
+        self.proc.kill()
+
     def assert_done(self):
         if self.proc is None:
             raise RuntimeError("Process not started")
         
         if self.proc.poll() is None:
             raise RuntimeError("Process not finished")
+
+    def assert_running(self):
+        if self.proc is None:
+            raise RuntimeError("Process not started")
+        
+        if self.proc.poll() is None:
+            pass
+        else:
+            raise RuntimeError("Process finished")
 
     def cp(self, file_in, file_out=""):
         # Copy a file from xtb to file_out in the parent directory.
