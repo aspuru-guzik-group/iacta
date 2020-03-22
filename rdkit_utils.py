@@ -3,6 +3,24 @@ from rdkit.Chem import AllChem, rdMolTransforms, rdmolops
 import numpy as np
 import copy
 
+def geom2xyz(atoms, x, y, z, comment=""):
+    """Transform a molecular geometry to a .xyz format string."""
+    geomstring = "%i\n%s\n"%(len(atoms), comment)
+    for i in range(len(atoms)):
+        geomstring += " {atom}\t{x}\t{y}\t{z}\n".format(atom=atoms[i],
+                                                        x=x[i],
+                                                        y=y[i],
+                                                        z=z[i])
+    geomstring = geomstring[:-1]
+    return geomstring
+
+def MolToXYZFile(mol, file, comment=""):
+    atoms = [at.GetSymbol() for at in mol.GetAtoms()]
+    x,y,z = mol.GetConformer().GetPositions().T
+    f = open(file, "w")
+    f.write(geom2xyz(atoms, x, y ,z, comment))
+    f.close()
+    
 def rdkit_generate_conformer(SMILES,
                               selenium_bugfix=True):
     """Generate conformer from SMILES using rdkit.
@@ -33,28 +51,10 @@ def get_bonds(mol, smarts):
     # Get bond
     bonds = []
     for i,j in subs:
-        bonds += [mol.GetBondBetweenAtoms(i,j)]
+        bonds += [(i+1,j+1,
+                   rdMolTransforms.GetBondLength(mol.GetConformer(), i, j))]
+        
     return bonds
-
-def react(mol, smarts, stretch_factor = 1.2):
-    bonds = get_bonds(mol, smarts)
-    
-    # Elongate bond
-    out = []
-    for bond in bonds:
-        begin = bond.GetBeginAtomIdx()
-        end = bond.GetEndAtomIdx()
-        length = rdMolTransforms.GetBondLength(
-            mol.GetConformer(), begin, end)
-
-        nmol = copy.deepcopy(mol)
-        rdMolTransforms.SetBondLength(nmol.GetConformer(),
-                                      begin, end,
-                                      length * stretch_factor)
-        out += [dict(mol=nmol,
-                     constraints=[(begin, end, length * stretch_factor)])]
-    return out
-
 
 def mix2(mol1, mol2, off=10.0):
     dir=np.array([0,0,1])
