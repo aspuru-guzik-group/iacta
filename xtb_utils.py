@@ -42,17 +42,21 @@ class xtb_run:
 
 
 class xtb_driver:
-    def __init__(self, path_to_xtb, xtb_args=["-T 1"]):
+    def __init__(self, path_to_xtb="xtb", xtb_args=["-T 1"]):
         self.extra_args = xtb_args
         self.xtb_bin = path_to_xtb
 
-    def optimize(self, geom_file, out_file):
+    def optimize(self, geom_file, out_file,
+                 xcontrol=None,
+                 log=None):
         file_ext = geom_file[-3:]
         opt = xtb_run(self.xtb_bin, geom_file,
-                      "--opt",
+                      "--opt", xcontrol=xcontrol,
                       *self.extra_args)
         opt.proc.wait()
         out = opt.cp("xtbopt." + file_ext, out_file)
+        if log:
+            opt.cp("xtbopt.log", log)
         opt.close()
         return out 
 
