@@ -83,19 +83,20 @@ class xtb_run:
 
     def close(self):
         self.assert_done()
-        self.out.close()
-        self.err.close()
-        shutil.rmtree(self.dir)
-
-    def __call__(self):
-        # Run xtb in a blocking manner, extract return files, close temporary
-        # directories.
-        self.start()
         output = []
         for file_in, file_out in self.return_files:
             output += [self.cp(file_in,file_out)]
+        
+        self.out.close()
+        self.err.close()
+        shutil.rmtree(self.dir)
+        return output
 
-        self.close()
+    def __call__(self, blocking=True):
+        # Run xtb in a blocking manner, extract return files, close temporary
+        # directories.
+        self.start(blocking=blocking)
+        output = self.close()
         
         if len(output) == 1:
             return output[0]
@@ -124,4 +125,10 @@ class xtb_driver:
                       return_files=return_files)
         return opt
 
-
+    def metadyn(self, geom_file, out_file, xcontrol=None):
+        return_files=[("xtb.trj", out_file)]
+        md = xtb_run("xtb", geom_file,
+                     "--metadyn",
+                     xcontrol=xcontrol,
+                     return_files=return_files)
+        return md

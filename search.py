@@ -33,35 +33,49 @@ import os
 import shutil
 os.makedirs("conformers", exist_ok=True)
 os.makedirs("stretch", exist_ok=True)
+os.makedirs("meta", exist_ok=True)
 MolToXYZFile(combined, "conformers/0.xyz")
 
 
-conformers = ["0.xyz"]
-stretch = stretch_factors[0]
-xcontrol = {"constrain":
-            ("force constant = 0.5",
-             "distance: %i, %i, %f"% (bond[0],bond[1],
-                                        stretch * bond[2]))}
-
-# jobs = []
-# for c in conformers:
-#     jobs += [xtb.optimize("conformers/" + c, "stretch/" + c,
-#                           xcontrol=xcontrol,
-#                           log="stretch/" + c + ".log")]
-
-
+xcontrol = {}
 # parameters from nanoreactor part of CREST paper
-xcontrol["metadyn"] = ("save=100", "kpush=%f" % (0.02*N),
-                       "alp=0.6")
-xcontrol["md"] = ("shake=0","step=0.5")
-xcontrol["wall"] = ("potential=logfermi",
-                    "sphere: auto, all")
+# xcontrol["metadyn"] = ("save=100", "kpush=%f" % (0.02*N),
+#                        "alp=0.6")
+# xcontrol["md"] = ("shake=0", "step=1",
+#                   "time=100")    # you probably want to change that to 10
 
+# parameters for conformer search, adapted from CREST
+xcontrol["metadyn"] = ("save=10","kpush=0.1", "alp=0.5")
+xcontrol["md"] = ("shake=2", "step=5", "time=%i"%(N//2))
+xcontrol["wall"] = ("potential=logfermi", "sphere: auto, all")
 
-metarun = xtb_utils.xtb_run("xtb",
-                            "conformers/0.xyz",
-                            "--metadyn",
-                            "--etemp 6000",
-                            xcontrol=xcontrol)
-metarun.start(False)
+conformers = [["0.xyz"]]
+
+# Step 1: stretch conformers
+stretch = stretch_factors[0] *1.3
+xcontrol["constrain"] = ("force constant = 0.5",
+                         "distance: %i, %i, %f"% (bond[0],bond[1],
+                                                  stretch * bond[2]))
+
+current = conformers[-1]
+new = []
+ojobs = []
+for c in current:
+    ojobs += [xtb.optimize("conformers/" + c,
+                          "stretch/" + c,
+                          xcontrol=xcontrol)]
+for j in ojobs:
+    j.start()
+    j.close()
+
+mjobs = []
+for c in current:
+    mjobs += [xtb.metadyn("stretch/"+c,
+                          "meta/"+c,
+                          xcontrol=xcontrol)]
+
+for j in mjobs:
+    j.start(False)
+    
+
 
