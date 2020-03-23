@@ -112,29 +112,15 @@ class xtb_driver:
 
     def optimize(self, geom_file, out_file,
                  xcontrol=None,
-                 level=None,
-                 compute_hessian=False,
                  log=None):
         
         file_ext = geom_file[-3:]
         return_files=[("xtbopt." + file_ext, out_file)]
         if log:
             return_files += [("xtbopt.log", log)]
-
-        if compute_hessian:
-            oflag = "--ohess"
-            if level is None:
-                level="vtight"
-
-            return_files += [("hessian", "hessian_" + out_file)]
-        else:
-            oflag = "--opt"
-            if level is None:
-                level="normal"
-            
+        
         opt = xtb_run(self.xtb_bin, geom_file, 
-                      oflag, level,
-                      *self.extra_args,
+                      "--opt", *self.extra_args,
                       xcontrol=xcontrol,
                       return_files=return_files)
         return opt

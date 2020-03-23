@@ -1,10 +1,8 @@
 import numpy as np
 from rdkit_utils import *
-import vibrations
 import xtb_utils
 import importlib
 importlib.reload(xtb_utils)
-importlib.reload(vibrations)
     
 
 xtb = xtb_utils.xtb_driver()
@@ -21,15 +19,10 @@ combined = mix2(react1, react2, off=5.0)
 Chem.MolToMolFile(combined, "init_guess.mol")
 
 # Optimize
-opt = xtb.optimize("init_guess.mol", "optimized_guess.mol",
-                   compute_hessian=True)
-opt()
-combined = Chem.MolFromMolFile("optimized_guess.mol",
-                               removeHs=False)
+opt = xtb.optimize("init_guess.mol", "optimized_guess.mol")
+combined = Chem.MolFromMolFile(opt(), removeHs=False)
 N = combined.GetNumAtoms()
-hessian = vibrations.load_xtb_hessian("hessian_optimized_guess.mol")
 
-"""
 # Get the indices of the bond to stretch
 bond = get_bonds(combined, "CBr")[0]
 
@@ -70,8 +63,7 @@ ojobs = []
 for c in current:
     ojobs += [xtb.optimize("conformers/" + c,
                           "stretch/" + c,
-                           level="loose",
-                           xcontrol=xcontrol)]
+                          xcontrol=xcontrol)]
 for j in ojobs:
     j.start()
     j.close()
@@ -81,22 +73,9 @@ for c in current:
     mjobs += [xtb.metadyn("stretch/"+c,
                           "meta/"+c,
                           xcontrol=xcontrol)]
+
 for j in mjobs:
-    j.start()
-    j.close()
+    j.start(False)
     
-# Load all the geometries
-import cclib
-coords = []
-for c in current:
-    parser = cclib.ccopen("meta/"+c)
-    data = parser.parse()
-    coords += [data.atomcoords]
-
-# coords is an array of Nconf x Natom x 3 of all the coordinates generated in
-# the metadynamics. Now we want to transform coords to internal coordinates,
-# filter it, optimize all the remaining geometries and filter again.
-coords = np.concatenate(coords)
 
 
-"""
