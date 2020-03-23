@@ -45,7 +45,7 @@ q0 = L.T.dot(vibrations.massweight(M, x0))
 bond = get_bonds(combined, "CI")[0]
 
 # Start the run
-stretch_factors = 1.2**np.arange(10)
+stretch_factors = 1.5**np.arange(1,10)
 
 import os
 import shutil
@@ -54,13 +54,13 @@ os.makedirs("stretch", exist_ok=True)
 os.makedirs("meta", exist_ok=True)
 os.makedirs("optim", exist_ok=True)
 
-
-
 # parameters from nanoreactor part of CREST paper
-# xcontrol["metadyn"] = ("save=100", "kpush=%f" % (0.02*N),
-#                        "alp=0.6")
-# xcontrol["md"] = ("shake=0", "step=1",
-#                   "time=100")    # you probably want to change that to 10
+# total_time = 0.5 * N
+# dumpstep = 1000 * total_time/50        # 50 structures
+# xmetadyn = ("save=100","kpush=0.2", "alp=0.8")
+# xmd = ("shake=0", "step=1",
+#                   "dump=%f"%dumpstep, "time=%f" % total_time)
+# xwall = ("potential=logfermi", "sphere: auto, all")
 
 # parameters for conformer search, adapted from CREST
 total_time = 0.5 * N
