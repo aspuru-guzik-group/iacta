@@ -153,7 +153,7 @@ for i in mtd_indices:
                     "reactions/current.xyz")
 
 
-    for j in range(i-1, 0, -1):
+    for j in range(i-1, -1, -1):
         print("     ----> backward %i out of %i" %(j+1, nconstraints))
 
         opt = xtb.multi_optimize("reactions/current.xyz",
