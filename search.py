@@ -10,7 +10,7 @@ importlib.reload(xtb_utils)
 
 # Initialize the xtb driver
 xtb = xtb_utils.xtb_driver()
-xtb.extra_args = ["-P 4", "-gfn 0"]
+xtb.extra_args = ["-gfn 2"]
 
 # STEP 0: INITIAL CONFORMER BUILDING / SETTING PARAMETERS
 # ---------------------------------------------------------------------------- 
@@ -41,9 +41,9 @@ atoms = np.array([at.GetSymbol() for at in combined.GetAtoms()])
 # Parameters for the search
 # -------------------------
 # bond stretch factors all
-stretch_factors = np.linspace(1.0, 3.0, 20)
+stretch_factors = np.linspace(1.0, 2.0, 40)
 # indices to start mtds at
-mtd_indices = [0,3,8,16]
+mtd_indices = [0,8,20,35]
 
 nconstraints = len(stretch_factors)
 def constraint(i):
@@ -53,7 +53,7 @@ def constraint(i):
     return xconstrain
 
 # number of mtd structures to generate at each stretch factor
-mtd_nstructures = 10
+mtd_nstructures = 40
 optlevel = "loose"
 
 # xTB additional parameters
@@ -61,7 +61,7 @@ xwall = ("potential=logfermi",
          "sphere: auto, all")
 
 # Metadynamics parameters (somewhat adapted from CREST)
-total_time = 0.2 * N            # TODO: set to 1.0
+total_time = 0.5 * N            # TODO: set to 1.0
 dumpstep = 1000 * total_time/mtd_nstructures
 xmetadyn = ("save=10", 
             "kpush=0.2",
