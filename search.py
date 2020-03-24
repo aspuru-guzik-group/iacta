@@ -10,7 +10,7 @@ importlib.reload(xtb_utils)
 
 # Initialize the xtb driver
 xtb = xtb_utils.xtb_driver()
-xtb.extra_args = ["-P 1", "-gfn1"]
+xtb.extra_args = ["-P 4", "-gfn 0"]
 
 # STEP 0: INITIAL CONFORMER BUILDING / SETTING PARAMETERS
 # ---------------------------------------------------------------------------- 
@@ -53,7 +53,8 @@ def constraint(i):
     return xconstrain
 
 # number of mtd structures to generate at each stretch factor
-mtd_nstructures = 20
+mtd_nstructures = 10
+optlevel = "loose"
 
 # xTB additional parameters
 xwall = ("potential=logfermi",
@@ -121,57 +122,56 @@ print("Performing reactions...")
 print("---------------------")
 os.makedirs("reactions", exist_ok=True)
 
-# for i in mtd_indices:
-i = 0
-print("MTD states: %i" %(i+1))
+for i in mtd_indices:
+    print("MTD states: %i" %(i+1))
 
-shutil.copy("metadyn/out%5.5i.xyz" % i,
-            "reactions/current.xyz")
-
-for j in range(i, nconstraints):
-    print("     ----> forward  %i out of %i" %(j+1, nconstraints))
-
-    opt = xtb.multi_optimize("reactions/current.xyz",
-                             "reactions/current.xyz",
-                             level="normal",
-                             xcontrol=dict(
-                                 wall=xwall,
-                                 constrain=constraint(j)))
-    opt()
-    shutil.copyfile("reactions/current.xyz",
-                    "reactions/prop%2.2i_%3.3i.xyz" % (i,j))
-
-print("     ----> forward to products")
-opt = xtb.multi_optimize("reactions/current.xyz",
-                         "reactions/products_%2.2i.xyz" %i,
-                         level="normal",
-                         xcontrol=dict(wall=xwall))
-opt()
-
-# copy starting point for backward reaction dynamics
-shutil.copyfile("reactions/prop%2.2i_%3.3i.xyz" % (i,i),
+    shutil.copy("metadyn/out%5.5i.xyz" % i,
                 "reactions/current.xyz")
 
+    for j in range(i, nconstraints):
+        print("     ----> forward  %i out of %i" %(j+1, nconstraints))
 
-for j in range(i-1, 0, -1):
-    print("     ----> backward %i out of %i" %(j+1, nconstraints))
+        opt = xtb.multi_optimize("reactions/current.xyz",
+                                 "reactions/current.xyz",
+                                 level=optlevel,
+                                 xcontrol=dict(
+                                     wall=xwall,
+                                     constrain=constraint(j)))
+        opt()
+        shutil.copyfile("reactions/current.xyz",
+                        "reactions/prop%2.2i_%3.3i.xyz" % (i,j))
 
+    print("     ----> forward to products")
     opt = xtb.multi_optimize("reactions/current.xyz",
-                             "reactions/current.xyz",
-                             level="normal",
-                             xcontrol=dict(
-                                 wall=xwall,
-                                 constrain=constraint(j)))
+                             "reactions/products_%2.2i.xyz" %i,
+                             level="tight",
+                             xcontrol=dict(wall=xwall))
     opt()
-    shutil.copyfile("reactions/current.xyz",
-                    "reactions/prop%2.2i_%3.3i.xyz" % (i,j))        
+
+    # copy starting point for backward reaction dynamics
+    shutil.copyfile("reactions/prop%2.2i_%3.3i.xyz" % (i,i),
+                    "reactions/current.xyz")
 
 
-print("     ----> backward to reactants")
-opt = xtb.multi_optimize("reactions/current.xyz",
-                         "reactions/reactants_%2.2i.xyz" % i,
-                         level="normal",
-                         xcontrol=dict(wall=xwall))
-opt()
+    for j in range(i-1, 0, -1):
+        print("     ----> backward %i out of %i" %(j+1, nconstraints))
+
+        opt = xtb.multi_optimize("reactions/current.xyz",
+                                 "reactions/current.xyz",
+                                 level=optlevel,
+                                 xcontrol=dict(
+                                     wall=xwall,
+                                     constrain=constraint(j)))
+        opt()
+        shutil.copyfile("reactions/current.xyz",
+                        "reactions/prop%2.2i_%3.3i.xyz" % (i,j))        
+
+
+    print("     ----> backward to reactants")
+    opt = xtb.multi_optimize("reactions/current.xyz",
+                             "reactions/reactants_%2.2i.xyz" % i,
+                             level="tight",
+                             xcontrol=dict(wall=xwall))
+    opt()
 
 
