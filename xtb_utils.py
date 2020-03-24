@@ -23,7 +23,7 @@ def make_xcontrol(xcontrol_dictionary, fn):
 class xtb_run:
     def __init__(self, xtb, geom_file,
                  *args, cwd=".", xcontrol=None,
-                 return_files=[],
+                 return_files=[], before_geometry="--",
                  block=True):
         self.dir = tempfile.mkdtemp(dir=cwd)
         self.out = open(self.dir + "/xtb.out", "w")
@@ -35,13 +35,13 @@ class xtb_run:
         
         self.args = [xtb]
         if xcontrol:
-            self.xcontrol = make_xcontrol(xcontrol, self.dir + "/xcontrol")
+            self.xcontrol = make_xcontrol(xcontrol, self.dir + "/.xcontrol")
             self.args += ["-I", os.path.basename(self.xcontrol)]
         else:
             self.xcontrol = None
 
         self.args += args
-        self.args += ["--", os.path.basename(self.coord)]
+        self.args += [before_geometry, os.path.basename(self.coord)]
         
         self.kwargs = dict(stderr=self.err,
                            stdout=self.out,
@@ -106,9 +106,10 @@ class xtb_run:
 
 
 class xtb_driver:
-    def __init__(self, path_to_xtb="xtb", xtb_args=["-T 1"]):
+    def __init__(self, path_to_xtb="", xtb_args=[]):
         self.extra_args = xtb_args
-        self.xtb_bin = path_to_xtb
+        self.xtb_bin = path_to_xtb + "xtb"
+        self.crest_bin = path_to_xtb + "crest"        
 
     def optimize(self, geom_file, out_file,
                  xcontrol=None,
@@ -135,6 +136,24 @@ class xtb_driver:
         opt = xtb_run(self.xtb_bin, geom_file, 
                       oflag, level,
                       *self.extra_args,
+                      xcontrol=xcontrol,
+                      return_files=return_files)
+        return opt
+
+    def multi_optimize(self, geom_file, out_file,
+                       xcontrol=None,
+                       level=None):
+        file_ext = geom_file[-3:]
+        return_files=[("crest_ensemble." + file_ext, out_file)]
+
+        if level is None:
+            level="normal"
+            
+        opt = xtb_run(self.crest_bin,
+                      geom_file,
+                      "-opt", level,
+                      *self.extra_args,
+                      before_geometry="-mdopt",
                       xcontrol=xcontrol,
                       return_files=return_files)
         return opt
