@@ -57,3 +57,6 @@ foreach my $mtd_index (@ARGV) {
 	close($fh);
     }
 }
+
+`obabel reactants_* -o smiles -xn > reactants.smi`;
+`obabel products_* -o smiles -xn > products.smi`;

@@ -16,10 +16,10 @@ xtb.extra_args = ["-gfn 2"]
 # ---------------------------------------------------------------------------- 
 
 # Molecules
-# smiles_react1="CNNC(C)(C)"
-# smiles_react2="C1CCCC1([Br])"
-smiles_react1="CI"
-smiles_react2="CS"
+smiles_react1="CNNC(C)(C)"
+smiles_react2="C1CCCC1([Br])"
+# smiles_react1="CI"
+# smiles_react2="CS"
 
 # Build conformers
 react1 = rdkit_generate_conformer(smiles_react1)
@@ -32,7 +32,7 @@ opt = xtb.optimize("init_guess.mol", "optimized_guess.mol")
 combined = Chem.MolFromMolFile(opt(), removeHs=False)
 
 # Get the indices of the bond to stretch
-bond = get_bonds(combined, "CI")[0]
+bond = get_bonds(combined, "CBr")[0]
 
 # Get additional molecular parameters
 N = combined.GetNumAtoms()
@@ -41,9 +41,9 @@ atoms = np.array([at.GetSymbol() for at in combined.GetAtoms()])
 # Parameters for the search
 # -------------------------
 # bond stretch factors all
-stretch_factors = np.linspace(1.0, 2.0, 40)
+stretch_factors = np.linspace(1.0, 3.0, 80)
 # indices to start mtds at
-mtd_indices = [0,8,20,35]
+mtd_indices = [0, 10, 20, 40]
 
 nconstraints = len(stretch_factors)
 def constraint(i):
@@ -53,25 +53,23 @@ def constraint(i):
     return xconstrain
 
 # number of mtd structures to generate at each stretch factor
-mtd_nstructures = 40
-optlevel = "loose"
+mtd_nstructures = 80
+optlevel = "tight"
 
 # xTB additional parameters
 xwall = ("potential=logfermi",
          "sphere: auto, all")
 
 # Metadynamics parameters (somewhat adapted from CREST)
-total_time = 0.5 * N            # TODO: set to 1.0
+total_time = 0.3 * N            # TODO: set to 1.0
 dumpstep = 1000 * total_time/mtd_nstructures
-xmetadyn = ("save=10", 
+xmetadyn = ("save=100", 
             "kpush=0.2",
             "alp=0.8")
 xmd = ("shake=0",
-       "step=1",
+       "step=2",
        "dump=%f"%dumpstep,
        "time=%f" % total_time)
-
-
 
 
 # STEP 1: Initial generation of guesses
@@ -144,7 +142,7 @@ for i in mtd_indices:
     print("     ----> forward to products")
     opt = xtb.multi_optimize("reactions/current.xyz",
                              "reactions/products_%2.2i.xyz" %i,
-                             level="tight",
+                             level=optlevel,
                              xcontrol=dict(wall=xwall))
     opt()
 
@@ -170,7 +168,7 @@ for i in mtd_indices:
     print("     ----> backward to reactants")
     opt = xtb.multi_optimize("reactions/current.xyz",
                              "reactions/reactants_%2.2i.xyz" % i,
-                             level="tight",
+                             level=optlevel,
                              xcontrol=dict(wall=xwall))
     opt()
 
