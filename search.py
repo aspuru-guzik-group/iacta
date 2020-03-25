@@ -1,25 +1,24 @@
 import numpy as np
 from rdkit_utils import *
+from react import *
 import xtb_utils
 import importlib
 import os
-import shutil
-import subprocess
 import cclib
 importlib.reload(xtb_utils)
 
 # Initialize the xtb driver
-xtb = xtb_utils.xtb_driver()
-xtb.extra_args = ["-gfn 2"]
+xtb = xtb_utils.xtb_driver(scratch="/local-scratch/clavigne")
+xtb.extra_args = ["-gfn1"]
 
 # STEP 0: INITIAL CONFORMER BUILDING / SETTING PARAMETERS
 # ---------------------------------------------------------------------------- 
 
 # Molecules
-smiles_react1="CNNC(C)(C)"
-smiles_react2="C1CCCC1([Br])"
-# smiles_react1="CI"
-# smiles_react2="CS"
+# smiles_react1="CNNC(C)(C)"
+# smiles_react2="C1CCCC1([Br])"
+smiles_react1="CI"
+smiles_react2="CS"
 
 # Build conformers
 react1 = rdkit_generate_conformer(smiles_react1)
@@ -32,144 +31,48 @@ opt = xtb.optimize("init_guess.mol", "optimized_guess.mol")
 combined = Chem.MolFromMolFile(opt(), removeHs=False)
 
 # Get the indices of the bond to stretch
-bond = get_bonds(combined, "CBr")[0]
+bond = get_bonds(combined, "CI")[0]
 
 # Get additional molecular parameters
 N = combined.GetNumAtoms()
 atoms = np.array([at.GetSymbol() for at in combined.GetAtoms()])
+params = default_parameters(N)
 
-# Parameters for the search
+# Constraints for the search
 # -------------------------
-# bond stretch factors all
-stretch_factors = np.linspace(1.0, 3.0, 80)
-# indices to start mtds at
-mtd_indices = [0, 10, 20, 40]
+stretch_factors = np.linspace(1.0, 3.0, 30)
+constraints = [("force constant = 0.5",
+                "distance: %i, %i, %f"% (bond[0],bond[1],
+                                         stretch * bond[2]))
+               for stretch in stretch_factors]
 
-nconstraints = len(stretch_factors)
-def constraint(i):
-    xconstrain = ("force constant = 0.5",
-                  "distance: %i, %i, %f"% (bond[0],bond[1],
-                                           stretch_factors[i] * bond[2]))
-    return xconstrain
-
-# number of mtd structures to generate at each stretch factor
-mtd_nstructures = 80
-optlevel = "tight"
-
-# xTB additional parameters
-xwall = ("potential=logfermi",
-         "sphere: auto, all")
-
-# Metadynamics parameters (somewhat adapted from CREST)
-total_time = 0.3 * N            # TODO: set to 1.0
-dumpstep = 1000 * total_time/mtd_nstructures
-xmetadyn = ("save=100", 
-            "kpush=0.2",
-            "alp=0.8")
-xmd = ("shake=0",
-       "step=2",
-       "dump=%f"%dumpstep,
-       "time=%f" % total_time)
 
 
 # STEP 1: Initial generation of guesses
 # ----------------------------------------------------------------------------
-os.makedirs("metadyn", exist_ok=True)
-MolToXYZFile(combined, "metadyn/current.xyz")
-
-print("Stretching initial structure to generate guesses for metadyn...")
-print("---------------------------------------------------------------")
-
-for i in range(nconstraints):
-    print("    %i out of %i" %(i+1, nconstraints))
-    opt = xtb.optimize("metadyn/current.xyz",
-                       "metadyn/current.xyz",
-                       level="tight",
-                       xcontrol=dict(
-                           wall=xwall,
-                           constrain=constraint(i)))
-    opt()
-    # add to metadyn starting structures
-    shutil.copy("metadyn/current.xyz", "metadyn/in%5.5i.xyz" % i)
+os.makedirs("output", exist_ok=True)
+MolToXYZFile(combined, "init_guess.xyz")
+generate_starting_structures(xtb,
+                             "init_guess.xyz",
+                             "output",
+                             constraints,
+                             params)
 
 
-# STEP 2: Metadynamics
-# ----------------------------------------------------------------------------
-print("")
-print("Performing metadyn...")
-print("---------------------")
-
-# TODO This part can be easily parallelized
-metajobs = []
-for i in mtd_indices:
-    print("    MTD - %i" %(i+1))
-    
-    metajobs += [xtb.metadyn("metadyn/in%5.5i.xyz" % i,
-                             "metadyn/out%5.5i.xyz" % i,
-                             xcontrol=dict(
-                                 wall=xwall,
-                                 constrain=constraint(i),
-                                 metadyn=xmetadyn,
-                                 md=xmd))]
-    metajobs[-1]()
-
-# STEP 3: Take the metadyn results and optimize them through the stretches
-# ----------------------------------------------------------------------------
-print("")
-print("Performing reactions...")
-print("---------------------")
-os.makedirs("reactions", exist_ok=True)
-
-for i in mtd_indices:
-    print("MTD states: %i" %(i+1))
-
-    shutil.copy("metadyn/out%5.5i.xyz" % i,
-                "reactions/current.xyz")
-
-    for j in range(i, nconstraints):
-        print("     ----> forward  %i out of %i" %(j+1, nconstraints))
-
-        opt = xtb.multi_optimize("reactions/current.xyz",
-                                 "reactions/current.xyz",
-                                 level=optlevel,
-                                 xcontrol=dict(
-                                     wall=xwall,
-                                     constrain=constraint(j)))
-        opt()
-        shutil.copyfile("reactions/current.xyz",
-                        "reactions/prop%2.2i_%3.3i.xyz" % (i,j))
-
-    print("     ----> forward to products")
-    opt = xtb.multi_optimize("reactions/current.xyz",
-                             "reactions/products_%2.2i.xyz" %i,
-                             level=optlevel,
-                             xcontrol=dict(wall=xwall))
-    opt()
-
-    # copy starting point for backward reaction dynamics
-    shutil.copyfile("reactions/prop%2.2i_%3.3i.xyz" % (i,i),
-                    "reactions/current.xyz")
+for mtd_index in [0, 5, 10]:
+    # STEP 2: Metadynamics search
+    # ---------------------------
+    metadynamics_search(xtb,
+                        mtd_index,
+                        "output",
+                        constraints,
+                        params)
 
 
-    for j in range(i-1, -1, -1):
-        print("     ----> backward %i out of %i" %(j+1, nconstraints))
-
-        opt = xtb.multi_optimize("reactions/current.xyz",
-                                 "reactions/current.xyz",
-                                 level=optlevel,
-                                 xcontrol=dict(
-                                     wall=xwall,
-                                     constrain=constraint(j)))
-        opt()
-        shutil.copyfile("reactions/current.xyz",
-                        "reactions/prop%2.2i_%3.3i.xyz" % (i,j))        
-
-
-    print("     ----> backward to reactants")
-    opt = xtb.multi_optimize("reactions/current.xyz",
-                             "reactions/reactants_%2.2i.xyz" % i,
-                             level=optlevel,
-                             xcontrol=dict(wall=xwall))
-    opt()
-
-
+    # STEP 3: Reactions
+    # -----------------
+    react(xtb,
+          mtd_index,
+          "output",
+          constraints,
+          params)

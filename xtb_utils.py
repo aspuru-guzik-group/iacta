@@ -22,10 +22,10 @@ def make_xcontrol(xcontrol_dictionary, fn):
 
 class xtb_run:
     def __init__(self, xtb, geom_file,
-                 *args, cwd=".", xcontrol=None,
+                 *args, scratch=".", cwd=".", xcontrol=None,
                  return_files=[], before_geometry="--",
                  block=True):
-        self.dir = tempfile.mkdtemp(dir=cwd)
+        self.dir = tempfile.mkdtemp(dir=scratch)
         self.out = open(self.dir + "/xtb.out", "w")
         self.err = open(self.dir + "/xtb.err", "w")
         self.coord = shutil.copy(geom_file, self.dir)
@@ -106,10 +106,12 @@ class xtb_run:
 
 
 class xtb_driver:
-    def __init__(self, path_to_xtb="", xtb_args=[]):
+    def __init__(self, path_to_xtb="", xtb_args=[],
+                 scratch="."):
         self.extra_args = xtb_args
         self.xtb_bin = path_to_xtb + "xtb"
-        self.crest_bin = path_to_xtb + "crest"        
+        self.crest_bin = path_to_xtb + "crest"
+        self.scratchdir = scratch
 
     def optimize(self, geom_file, out_file,
                  xcontrol=None,
@@ -137,6 +139,7 @@ class xtb_driver:
                       oflag, level,
                       *self.extra_args,
                       xcontrol=xcontrol,
+                      scratch=self.scratchdir,
                       return_files=return_files)
         return opt
 
@@ -155,6 +158,7 @@ class xtb_driver:
                       *self.extra_args,
                       before_geometry="-mdopt",
                       xcontrol=xcontrol,
+                      scratch=self.scratchdir,                      
                       return_files=return_files)
         return opt
 
@@ -163,5 +167,6 @@ class xtb_driver:
         md = xtb_run("xtb", geom_file,
                      "--metadyn",
                      xcontrol=xcontrol,
+                     scratch=self.scratchdir,                     
                      return_files=return_files)
         return md
