@@ -76,3 +76,11 @@ for mtd_index in [0, 5, 10]:
           "output",
           constraints,
           params)
+
+# TODO: make that more automated
+# to make trajectories, do
+#   cd output/reactions
+#   ../../transpose.pl 0 5 10
+
+
+
