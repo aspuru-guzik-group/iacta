@@ -53,7 +53,7 @@ foreach my $mtd_index (@ARGV) {
     {
 	my $prod = "products_$index_str.xyz";
 	open(my $fh, "<", $prod) or die "can't open file $prod, $!";
-	$mols += distribute($fh, ">>", $mols);
+	$mols = distribute($fh, ">>", $mols);
 	close($fh);
     }
 }
