@@ -2,10 +2,7 @@ import numpy as np
 from rdkit_utils import *
 from react import *
 import xtb_utils
-import importlib
 import os
-import cclib
-importlib.reload(xtb_utils)
 
 # Initialize the xtb driver
 xtb = xtb_utils.xtb_driver(scratch="/local-scratch/clavigne")
