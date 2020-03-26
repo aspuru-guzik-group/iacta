@@ -6,6 +6,27 @@ import tempfile
 
 
 def make_xcontrol(xcontrol_dictionary, fn):
+    """Transform a dictionary of parameters to an xTB xcontrol file.
+
+    Parameters:
+    -----------
+    xcontrol_dictionary (dict) : dictionary of items to include in the
+    xcontrol file. Values that are string will be rendered into $key val
+    pairs, while values that are tuples will be rendered into blocks:
+       $key
+         val[1]
+         val[2]
+         ...
+       $end
+
+    fn (str) : filename to save xcontrol file to.
+
+    Returns:
+    --------
+    str : filename fn.
+    """
+
+    
     f = open(fn, "w")
     for key, val in xcontrol_dictionary.items():
         if type(val) == tuple:
@@ -14,17 +35,50 @@ def make_xcontrol(xcontrol_dictionary, fn):
                 f.write(v + "\n")
             f.write("$end\n")
         else:
-            f.write("$" + str(key) + str(val) + "\n")
+            f.write("$" + str(key) + " " + str(val) + "\n")
 
     f.close()
     return fn
             
 
 class xtb_run:
-    def __init__(self, xtb, geom_file,
-                 *args, scratch=".", cwd=".", xcontrol=None,
-                 return_files=[], before_geometry="--",
-                 block=True):
+    def __init__(self, xtb, geom_file, *args,
+                 before_geometry="--",
+                 scratch=".", cwd=".",
+                 xcontrol=None,
+                 return_files=[]):
+        """Build a container for an xtb run.
+
+        Note: the xtb job is only *prepared* when the object is defined. To run
+        the job, use the __call__() or start(self) methods below.
+
+        Parameters:
+        ----------
+        xtb (str) : Path to xtb or crest binary.
+
+        geom_file (str) : Path to geometry file.
+
+        *args : additional arguments to pass to xtb.
+
+        Optional Parameters:
+        --------------------
+        before_geometry (str) : string placed before geom file, defaults to
+        "--".
+
+        scratch (str) : scratch directory where temporary files are placed.
+
+        cwd (str) : working directory where outputs are exported
+
+        xcontrol (dict) : dictionary of xcontrol options, interpreted using
+        make_xcontrol.
+
+        return_files (list) : list of tuples of filenames (filein, fileout) of
+        files to be copied out of the temporary run directory automatically
+        when close() is called. For example, [("xtbopt.xyz", "my_opt.xyz")]
+        will generate the file my_opt.xyz from the xtb optimized geometry
+        xtbopt.xyz in the run directory.
+        """
+
         self.dir = tempfile.mkdtemp(dir=scratch)
         self.out = open(self.dir + "/xtb.out", "w")
         self.err = open(self.dir + "/xtb.err", "w")
@@ -50,16 +104,19 @@ class xtb_run:
         self.proc = None
 
     def start(self, blocking=True):
+        """Start xtb job."""
         assert self.proc is None
         self.proc = subprocess.Popen(self.args, **self.kwargs)
         if blocking:
             self.proc.wait()
 
     def kill(self):
+        """Kill currently running xtb job."""
         self.assert_running()
         self.proc.kill()
 
     def assert_done(self):
+        """Raise RuntimeError if job is not done."""
         if self.proc is None:
             raise RuntimeError("Process not started")
         
@@ -67,6 +124,7 @@ class xtb_run:
             raise RuntimeError("Process not finished")
 
     def assert_running(self):
+        """Raise RuntimeError if job is not currently running."""
         if self.proc is None:
             raise RuntimeError("Process not started")
         
@@ -76,16 +134,24 @@ class xtb_run:
             raise RuntimeError("Process finished")
 
     def cp(self, file_in, file_out=""):
-        # Copy a file from xtb to file_out in the parent directory.
+        """Copy a file from the xtb temporary directory to cwd."""        
         self.assert_done()
         return shutil.copy(self.dir + "/" + file_in,
                            self.cwd + "/" + file_out)
 
-    def close(self):
-        self.assert_done()
-        output = []
-        for file_in, file_out in self.return_files:
-            output += [self.cp(file_in,file_out)]
+    def close(self, kill=False):
+        """Cleanup xtb job."""
+        if self.proc:        
+            if kill:
+                try:
+                    self.kill()
+                except RuntimeError:
+                    pass
+            else:
+                self.assert_done()
+            output = []
+            for file_in, file_out in self.return_files:
+                output += [self.cp(file_in,file_out)]
         
         self.out.close()
         self.err.close()
@@ -93,8 +159,7 @@ class xtb_run:
         return output
 
     def __call__(self, blocking=True):
-        # Run xtb in a blocking manner, extract return files, close temporary
-        # directories.
+        """Run xtb job and cleanup."""
         self.start(blocking=blocking)
         output = self.close()
         
@@ -106,18 +171,65 @@ class xtb_run:
 
 
 class xtb_driver:
-    def __init__(self, path_to_xtb="", xtb_args=[],
-                 scratch="."):
+    def __init__(self, path_to_xtb_binaries="",
+                 xtb_args=[], scratch="."):
+        """Utility driver for xtb runs.
+
+        Methods include optimize(), metadyn() and multi_optimize() for various
+        sort of xtb runs.
+
+        Optional parameters:
+        --------------------
+
+        path_to_xtb (str) : absolute path to folder containing xtb and crest.
+        Defaults to "" -> binaries are in $PATH.
+
+        xtb_args (list of str): additional arguments to pass to xtb (for
+        example, -gfn0, etc.). Default to [].
+
+        scratch (str) : scratch directory for xtb runs, defaults to ".".
+
+        """
         self.extra_args = xtb_args
         self.xtb_bin = path_to_xtb + "xtb"
         self.crest_bin = path_to_xtb + "crest"
         self.scratchdir = scratch
 
-    def optimize(self, geom_file, out_file,
+    def optimize(self,
+                 geom_file,
+                 out_file,
                  xcontrol=None,
                  level=None,
                  compute_hessian=False,
                  log=None):
+        """Optimize a molecule.
+
+        Parameters:
+        -----------
+
+        geom_file (str) : path to the file containing the molecular geometry.
+
+        out_file (str): path to file where optimized geometry is saved.
+
+        Optional Parameters:
+        --------------------
+
+        xcontrol (dict) : xcontrol dictionary to be interpreted by
+        make_xcontrol.
+
+        level (str) : Optimization level. Defaults to "normal" if
+        compute_hessian is False, or to "tight" otherwise.
+
+        compute_hessian (bool) : Compute Hessian if True. Hessian file is
+        saved to hessian_+ out_file.
+
+        log (str) : If set, additionally output the xtb geometry log.
+
+        Returns:
+        --------
+
+        xtb_run : The optimization job. Run using xtb_run().
+        """
         
         file_ext = geom_file[-3:]
         return_files=[("xtbopt." + file_ext, out_file)]
@@ -139,13 +251,36 @@ class xtb_driver:
                       oflag, level,
                       *self.extra_args,
                       xcontrol=xcontrol,
-                      scratch=self.scratchdir,
                       return_files=return_files)
         return opt
 
-    def multi_optimize(self, geom_file, out_file,
+    def multi_optimize(self,
+                       geom_file, out_file,
                        xcontrol=None,
                        level=None):
+        """Optimize many molecules in parallel using crest -mdopt.
+
+        Parameters:
+        -----------
+
+        geom_file (str) : path to the file containing the molecular geometries.
+
+        out_file (str): path to file where optimized geometries are saved.
+
+        Optional Parameters:
+        --------------------
+
+        xcontrol (dict) : xcontrol dictionary to be interpreted by
+        make_xcontrol.
+
+        level (str) : Optimization level. Defaults to "normal" if
+        compute_hessian is False, or to "tight" otherwise.
+
+        Returns:
+        --------
+
+        xtb_run : The optimization job. Run using xtb_run().
+        """
         file_ext = geom_file[-3:]
         return_files=[("crest_ensemble." + file_ext, out_file)]
 
@@ -162,7 +297,32 @@ class xtb_driver:
                       return_files=return_files)
         return opt
 
-    def metadyn(self, geom_file, out_file, xcontrol=None):
+    def metadyn(self,
+                geom_file, out_file,
+                xcontrol=None):
+        """Run metadynamics on a molecule.
+
+        Parameters:
+        -----------
+
+        geom_file (str) : path to the file containing the initial molecular
+        geometries.
+
+        out_file (str): path to file where results are saved.
+
+        Optional Parameters:
+        --------------------
+
+        xcontrol (dict) : xcontrol dictionary to be interpreted by
+        make_xcontrol.
+
+        Returns:
+        --------
+
+        xtb_run : The metadynamics job. Run using xtb_run().
+
+        """
+        
         return_files=[("xtb.trj", out_file)]
         md = xtb_run("xtb", geom_file,
                      "--metadyn",
