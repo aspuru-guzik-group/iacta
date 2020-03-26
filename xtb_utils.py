@@ -191,8 +191,8 @@ class xtb_driver:
 
         """
         self.extra_args = xtb_args
-        self.xtb_bin = path_to_xtb + "xtb"
-        self.crest_bin = path_to_xtb + "crest"
+        self.xtb_bin = path_to_xtb_binaries + "xtb"
+        self.crest_bin = path_to_xtb_binaries + "crest"
         self.scratchdir = scratch
 
     def optimize(self,
