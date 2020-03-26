@@ -5,8 +5,8 @@ import xtb_utils
 import os
 
 # Initialize the xtb driver
-xtb = xtb_utils.xtb_driver(scratch="/local-scratch/clavigne")
-xtb.extra_args = ["-gfn1"]
+xtb = xtb_utils.xtb_driver()
+xtb.extra_args = ["-gfn2"]
 
 # STEP 0: INITIAL CONFORMER BUILDING / SETTING PARAMETERS
 # ---------------------------------------------------------------------------- 
@@ -56,7 +56,8 @@ generate_starting_structures(xtb,
                              params)
 
 
-for mtd_index in [0, 5, 10]:
+nmols = 0
+for mtd_index in [0,5,10]:
     # STEP 2: Metadynamics search
     # ---------------------------
     metadynamics_search(xtb,
@@ -68,16 +69,14 @@ for mtd_index in [0, 5, 10]:
 
     # STEP 3: Reactions
     # -----------------
-    react(xtb,
-          mtd_index,
-          "output",
-          constraints,
-          params)
+    trajs = react(xtb,
+                  mtd_index,
+                  "output",
+                  constraints,
+                  params)
 
-# TODO: make that more automated
-# to make trajectories, do
-#   cd output/reactions
-#   ../../transpose.pl 0 5 10
+    dump_trajectories(trajs, "output", offset=nmols)
+    nmols += len(trajs)
 
 
 

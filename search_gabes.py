@@ -29,7 +29,7 @@ generate_starting_structures(xtb,
                              constraints,
                              params)
 
-
+nmols = 0
 for mtd_index in [0, 5, 10, 20]:
     # STEP 2: Metadynamics search
     # ---------------------------
@@ -42,12 +42,14 @@ for mtd_index in [0, 5, 10, 20]:
 
     # STEP 3: Reactions
     # -----------------
-    react(xtb,
+    trajs = react(xtb,
           mtd_index,
           "output_gabes",
           constraints,
           params)
-
+    
+    dump_trajectories(trajs, "output_gabes", offset=nmols)
+    nmols += len(trajs)
 
 
 

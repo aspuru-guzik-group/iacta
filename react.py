@@ -221,58 +221,114 @@ def react(xtb,
         print("Performing reactions on constraint %i" % (mtd_index+1))
 
     react_path = output_folder + "/reactions"
+    trajectories = {}
     os.makedirs(react_path, exist_ok=True)
 
-    shutil.copy(output_folder + "/metadyn/out%5.5i.xyz" % mtd_index,
-                react_path + "/current.xyz")
+    # current file
+    curr = react_path + "/current.xyz"
+    shutil.copy(output_folder + "/metadyn/out%5.5i.xyz" % mtd_index, curr)
 
     for j in range(mtd_index, len(constraints)):
         if verbose:
             print("     ----> forward  %i out of %i" %(j+1, len(constraints)))
 
-        opt = xtb.multi_optimize(react_path + "/current.xyz",
-                                 react_path + "/current.xyz",
+        opt = xtb.multi_optimize(curr,
+                                 curr,
                                  level=parameters["optlevel"],
                                  xcontrol=dict(
                                      wall=parameters["wall"],
                                      constrain=constraints[j]))
         opt()
-        shutil.copyfile(react_path + "/current.xyz",
-                        react_path + "/prop%2.2i_%3.3i.xyz" % (mtd_index,j))
+        read_ensemble_xyz(trajectories, curr)
+        
+        if j == mtd_index:
+            # Copy starting point for backward trajectory
+            shutil.copyfile(curr,
+                            react_path + "/prop%2.2i.xyz" % (mtd_index))
 
     if verbose:
         print("     ----> forward to products")
         
-    opt = xtb.multi_optimize(react_path + "/current.xyz",
-                             react_path + "/products_%2.2i.xyz" %mtd_index,
+    opt = xtb.multi_optimize(curr,
+                             curr,
                              level=parameters["optlevel"],
                              xcontrol=dict(wall=parameters["wall"]))
     opt()
+    read_ensemble_xyz(trajectories, curr)
 
-    # copy starting point for backward reaction dynamics
-    shutil.copyfile(react_path + "/prop%2.2i_%3.3i.xyz" % (mtd_index,mtd_index),
-                    react_path + "/current.xyz")
+    # copy starting point for backward
+    shutil.copyfile(react_path + "/prop%2.2i.xyz" % (mtd_index),
+                    curr)
 
 
     for j in range(mtd_index-1, -1, -1):
         if verbose:
             print("     ----> backward %i out of %i" %(j+1, len(constraints)))
 
-        opt = xtb.multi_optimize(react_path + "/current.xyz",
-                                 react_path + "/current.xyz",
+        opt = xtb.multi_optimize(curr,
+                                 curr,
                                  level=parameters["optlevel"],
                                  xcontrol=dict(
                                      wall=parameters["wall"],
                                      constrain=constraints[j]))
         opt()
-        shutil.copyfile(react_path + "/current.xyz",
-                        react_path + "/prop%2.2i_%3.3i.xyz" % (mtd_index,j))
-
+        read_ensemble_xyz(trajectories, curr,
+                          prepend=True)        
+        
     if verbose:
         print("     ----> backward to reactants")
         
-    opt = xtb.multi_optimize(react_path + "/current.xyz",
-                             react_path + "/reactants_%2.2i.xyz" % mtd_index,
+    opt = xtb.multi_optimize(curr,
+                             curr,
                              level=parameters["optlevel"],
                              xcontrol=dict(wall=parameters["wall"]))
     opt()
+    read_ensemble_xyz(trajectories, curr,
+                      prepend=True)            
+        
+    return trajectories
+
+
+def read_ensemble_xyz(trajs, filepath, prepend=False):
+    """Read an ensemble xyz file and append or prepend to molecular trajectories."""
+    
+    file_in = open(filepath, 'r')
+    mol_index = 0
+    # Load molecules
+    with open(filepath, 'r') as f:
+        while True:
+            first_line = file_in.readline()
+            # EOF -> blank line
+            if not first_line:
+                break
+                
+            this_mol = first_line
+            natoms = int(first_line.rstrip())
+        
+            for i in range(natoms+1):
+                this_mol += file_in.readline()
+
+            if mol_index in trajs:
+                pass
+            else:
+                trajs[mol_index] = []
+            
+            if prepend:
+                trajs[mol_index].insert(0, this_mol)
+            else:
+                trajs[mol_index].append(this_mol)
+                
+            mol_index += 1
+
+    return trajs
+
+def dump_trajectories(trajectories, output_folder, offset=0):
+    traj_path  = output_folder + "/trajs"
+    os.makedirs(traj_path, exist_ok=True)
+    for index, trajectory in trajectories.items():
+        with open(traj_path + "/mol%4.4i.xyz" % (index+offset), "w") as f:
+            for step in trajectory:
+                f.write(step)
+            
+
+
