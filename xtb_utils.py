@@ -251,6 +251,7 @@ class xtb_driver:
                       oflag, level,
                       *self.extra_args,
                       xcontrol=xcontrol,
+                      scratch=self.scratchdir,
                       return_files=return_files)
         return opt
 
