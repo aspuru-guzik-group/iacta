@@ -31,8 +31,8 @@ params = react.default_parameters(N)
 
 # Constraints for the search
 # -------------------------
-bond_lengths = np.linspace(1.3, 1.65, 21)
-constraints = [("force constant = 0.5",
+bond_lengths = np.linspace(1.3, 1.75, 21)
+constraints = [("force constant = 1.25",
                 "distance: %i, %i, %f"% (1,2, length))
                for length in bond_lengths]
 mtd_indices = [0, 5, 10, 15, 20]
