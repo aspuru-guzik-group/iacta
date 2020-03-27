@@ -44,7 +44,7 @@ def make_xcontrol(xcontrol_dictionary, fn):
 class xtb_run:
     def __init__(self, xtb, geom_file, *args,
                  before_geometry="--",
-                 scratch=".", cwd=".",
+                 scratch=".", 
                  xcontrol=None,
                  return_files=[]):
         """Build a container for an xtb run.
@@ -67,8 +67,6 @@ class xtb_run:
 
         scratch (str) : scratch directory where temporary files are placed.
 
-        cwd (str) : working directory where outputs are exported
-
         xcontrol (dict) : dictionary of xcontrol options, interpreted using
         make_xcontrol.
 
@@ -83,7 +81,6 @@ class xtb_run:
         self.out = open(self.dir + "/xtb.out", "w")
         self.err = open(self.dir + "/xtb.err", "w")
         self.coord = shutil.copy(geom_file, self.dir)
-        self.cwd = cwd
         self.return_files = return_files   # list of files to take out when
                                            # run finishes
         
@@ -134,10 +131,11 @@ class xtb_run:
             raise RuntimeError("Process finished")
 
     def cp(self, file_in, file_out=""):
-        """Copy a file from the xtb temporary directory to cwd."""        
+        """Copy a file from the xtb temporary directory to file_out."""        
         self.assert_done()
-        return shutil.copy(self.dir + "/" + file_in,
-                           self.cwd + "/" + file_out)
+        if file_out == "":
+            file_out = os.path.basename(file_in)
+        return shutil.copy(self.dir + "/" + file_in, file_out)
 
     def close(self, kill=False):
         """Cleanup xtb job."""
