@@ -4,22 +4,15 @@ import react
 import xtb_utils
 import os
 
-import importlib
-importlib.reload(xtb_utils)
-importlib.reload(react)
-
 # Initialize the xtb driver
 xtb = xtb_utils.xtb_driver()
 xtb.extra_args = ["-gfn2"]
 
 # STEP 0: INITIAL CONFORMER BUILDING / SETTING PARAMETERS
 # ---------------------------------------------------------------------------- 
-
 # Molecules
-# smiles_react1="CNNC(C)(C)"
-# smiles_react2="C1CCCC1([Br])"
-smiles_react1="CI"
-smiles_react2="CS"
+smiles_react1="CNNC(C)(C)"
+smiles_react2="C1CCCC1([Br])"
 
 # Build conformers
 react1 = rdkit_generate_conformer(smiles_react1)
@@ -48,14 +41,14 @@ constraints = [("force constant = 0.5",
                for stretch in stretch_factors]
 mtd_indices = [0, 5, 10]
 
-"""
+
 # STEP 1: Initial generation of guesses
 # ----------------------------------------------------------------------------
 os.makedirs("output", exist_ok=True)
 MolToXYZFile(combined, "initial_guess.xyz")
 react.generate_initial_structures(
     xtb, "output",
-    "init_guess.xyz",
+    "initial_guess.xyz",
     constraints,
     params)
 
@@ -67,7 +60,6 @@ react.metadynamics_search(
     constraints,
     params,
     nthreads=2)
-"""
 
 # STEP 2: Reactions
 # ----------------------------------------------------------------------------
