@@ -370,13 +370,25 @@ def read_trajectory(filepath):
             structures += [this_mol]
     return structures,energies
 
-def dump_trajectories(trajectories, output_folder, offset=0):
-    traj_path  = output_folder + "/trajs"
-    os.makedirs(traj_path, exist_ok=True)
-    for index, trajectory in trajectories.items():
-        with open(traj_path + "/mol%4.4i.xyz" % (index+offset), "w") as f:
-            for step in trajectory:
-                f.write(step)
-            
+def dump_succ_opt(output_folder, structures, energies, opt_indices, full=True):
+    os.makedirs(output_folder, exist_ok=True)
+    # Dump the optimized structures
+    for stepi, oi in enumerate(opt_indices):
+        with open(output_folder + "/opt%4.4i.xyz" % stepi, "w") as f:
+            f.write(structures[oi])
+
+    # Dump indices of optimized structures, energies of optimized structures,
+    # all energies and all structures
+    np.savetxt(output_folder + "/Eopt", np.array(energies)[opt_indices], fmt="%15.8f")
+
+    if full:
+        np.savetxt(output_folder + "/indices", opt_indices, fmt="%i")
+        np.savetxt(output_folder + "/E", energies, fmt="%15.8f")
+        with open(output_folder + "/log.xyz", "w") as f:
+            for s in structures:
+                f.write(s)
+
+
+
 
 
