@@ -29,13 +29,16 @@ def make_xcontrol(xcontrol_dictionary, fn):
     
     f = open(fn, "w")
     for key, val in xcontrol_dictionary.items():
-        if type(val) == tuple:
-            f.write("$" + str(key) + "\n")
-            for v in val:
-                f.write(v + "\n")
-            f.write("$end\n")
+        if val is None:
+            pass
         else:
-            f.write("$" + str(key) + " " + str(val) + "\n")
+            if type(val) == tuple:
+                f.write("$" + str(key) + "\n")
+                for v in val:
+                    f.write(v + "\n")
+                f.write("$end\n")
+            else:
+                f.write("$" + str(key) + " " + str(val) + "\n")
 
     f.close()
     return fn
