@@ -41,72 +41,39 @@ params = react.default_parameters(N, nmtd=10)
 
 # Constraints for the search
 # -------------------------
-stretch_factors = np.linspace(1.0, 3.0, 40)
+stretch_factors = np.linspace(1.0, 3.0, 20)
 constraints = [("force constant = 0.5",
                 "distance: %i, %i, %f"% (bond[0],bond[1],
                                          stretch * bond[2]))
                for stretch in stretch_factors]
-mtd_indices = [0, 5, 10, 15]
+mtd_indices = [0, 5, 10]
 
-
-
+"""
 # STEP 1: Initial generation of guesses
 # ----------------------------------------------------------------------------
-out = "output"
-os.makedirs(out, exist_ok=True)
-MolToXYZFile(combined, out + "/initial_geom.xyz")
+os.makedirs("output", exist_ok=True)
+MolToXYZFile(combined, "initial_guess.xyz")
+react.generate_initial_structures(
+    xtb, "output",
+    "init_guess.xyz",
+    constraints,
+    params)
 
-nthreads = 2
-from concurrent.futures import ThreadPoolExecutor
-verbose = True
+# STEP 2: Metadynamics
+# ----------------------------------------------------------------------------
+react.metadynamics_search(
+    xtb, "output",
+    mtd_indices,
+    constraints,
+    params,
+    nthreads=2)
+"""
 
-if verbose:
-    print("Performing initial stretching...")
-    
-structures, energies, opt_indices = react.successive_optimization(
-    xtb, "init_guess.xyz",
-    constraints, params)
-react.dump_succ_opt(out + "/init", structures,energies,opt_indices)
-
-with ThreadPoolExecutor(max_workers=nthreads) as pool:
-    for mtd_index in mtd_indices:
-        pool.submit(
-            react.metadynamics_job(
-                xtb, mtd_index,
-                out+"/init", out+"/metadyn",
-                constraints, params))
-
-
-# load all the structures
-meta = out+"/metadyn"
-freact = out+"/reacts"
-os.makedirs(freact, exist_ok=True)
-
-
-nreact = 0
-with ThreadPoolExecutor(max_workers=nthreads) as pool:
-    for mtd_index in mtd_indices:
-        structures, energies = react.read_trajectory(
-            meta + "/mtd%4.4i.xyz" % mtd_index)
-        
-        if verbose:
-            print("starting MTD job %i..." % mtd_index)
-
-
-        for s in structures:
-            rjob = react.reaction_job(xtb,
-                                      s,
-                                      mtd_index,
-                                      freact + "/react%5.5i/" % nreact,
-                                      constraints,
-                                      params,
-                                      verbose=verbose)
-            pool.submit(rjob)
-            nreact = nreact + 1
-                           
-
-
-                      
-
-
-
+# STEP 2: Reactions
+# ----------------------------------------------------------------------------
+react.react(
+    xtb, "output",
+    mtd_indices,
+    constraints,
+    params,
+    nthreads=4)
