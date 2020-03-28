@@ -3,7 +3,7 @@ from rdkit import Chem
 from rdkit_utils import fractional2bondtype
 from xtb_utils import read_xtb_output
 
-def xtb2smiles(xyzfile):
+def xtb2smiles(xyzfile, sanitize=True):
     """Transform the result of an xtb run into a smiles.
 
     Parameters:
@@ -28,8 +28,11 @@ def xtb2smiles(xyzfile):
         em.AddBond(i,j,order=fractional2bondtype(fract_order))
 
     m = em.GetMol()
-    m = Chem.RemoveHs(m)
-    Chem.SanitizeMol(m)
+    if sanitize:
+        m = Chem.RemoveHs(m, sanitize=1)
+        Chem.SanitizeMol(m)
+    else:
+        m = Chem.RemoveHs(m, sanitize=0)
     return Chem.MolToSmiles(m)
 
 
