@@ -1,5 +1,13 @@
 import pybel
 import numpy as np
+import glob
+
+class ReactionPathway:
+    def __init__(self, species, minima, barriers, id):
+        self.species = tuple(species)
+        self.minima = minima
+        self.barriers = barriers
+        self.id = id
 
 def xyz2smiles(xyzfile):
     output = []
@@ -20,41 +28,63 @@ def analyze_reaction(react_folder):
 
     Returns:
     -------
-    mols (list of str) : smiles for each of the reactant, product and
-    intermediate species in the reaction.
-
-    energies (ndarray) : energy values for each of the species.
-
-    barriers (ndarray) : barrier energy between each of the species, defined
-    as the maximum energy reached between species.
+    A populated ReactionPathway object
     """
-
-
-    smiles = xyz2smiles(react_folder + "/opt.xyz")
-    E = np.loadtxt(react_folder + "/Eopt")
+    try:
+        smiles = xyz2smiles(react_folder + "/opt.xyz")
+    except OSError:
+        # run did not converge
+        return None
     
-    mols = [smiles[0]]
-    energies = []
+    E = np.loadtxt(react_folder + "/Eopt")
+    pathway = [smiles[0]]
+    minima = []
     barriers = []
     last = 0
 
     # loop through smiles and detect changes
     for si,s in enumerate(smiles):
-        if s == mols[-1]:
+        if s == pathway[-1]:
             pass
         else:
             # we have a state change at index=si
             # minimum energy point for the current state
             minE_point = np.argmin(E[last:si]) + last
-            energies += [E[minE_point]]
+            minima += [E[minE_point]]
             # Energy barrier height
             # maximum of energy between the minimum and the state change
             barriers += [np.max(E[minE_point:si])]
 
-            mols += [s]           # save the new state
+            pathway += [s]           # save the new state
             last = si
-    energies += [np.min(E[last:])]
-    return mols, energies, barriers
+    minima += [np.min(E[last:])]
+    return ReactionPathway(pathway, minima, barriers, react_folder)
 
-react_folder = "./output/react00000"
-mols,energies,barriers = analyze_reaction(react_folder)
+
+def read_all_reactions(output_folder, verbose=True):
+    folders = glob.glob(output_folder + "/react[0-9]*")
+    pathways = {}
+    if verbose:
+        print("Found %i reactions. Loading..." % len(folders), end="")
+
+    failed = []
+    for f in folders:
+        rpath = analyze_reaction(f)
+        if rpath:
+            if rpath.species in pathways:
+                pathways[rpath.species] += [rpath]
+            else:
+                pathways[rpath.species] = [rpath]
+        else:
+            failed += [f]
+            
+    if verbose:
+        print("  done.")
+        print("  successful: %i    failed: %i "
+              % (len(folders)-len(failed), len(failed)))
+        print("  unique reaction pathways: %i"% len(pathways))
+        print("  chemical species: %i" % len(species))
+    return pathways
+
+pathways = read_all_reactions("output")
+
