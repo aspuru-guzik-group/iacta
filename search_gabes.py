@@ -1,5 +1,4 @@
 import numpy as np
-from rdkit_utils import *
 from react import *
 import xtb_utils
 import os
