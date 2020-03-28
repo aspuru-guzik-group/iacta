@@ -7,12 +7,6 @@ import os
 xtb = xtb_utils.xtb_driver()
 xtb.extra_args = ["-gfn2"]
 
-# TODO REMOVE RDKIT
-# Optimize the combined molecule
-# opt = xtb.optimize("da.mol", "da.mol")
-# combined = Chem.MolFromMolFile("da.mol", removeHs=False)
-# MolToXYZFile(combined, "initial_guess.xyz")
-
 # Get additional molecular parameters
 N = 19
 params = react.default_parameters(N)
@@ -31,7 +25,7 @@ mtd_indices = [0, 5, 10, 15, 20]
 os.makedirs("output", exist_ok=True)
 react.generate_initial_structures(
     xtb, "output",
-    "initial_guess.xyz",
+    "init_DielsAlder.xyz",
     constraints,
     params)
 
