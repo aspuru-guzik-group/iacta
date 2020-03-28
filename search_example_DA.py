@@ -2,21 +2,25 @@ import numpy as np
 import react
 import xtb_utils
 import os
+import pybel
 
 # Initialize the xtb driver
 xtb = xtb_utils.xtb_driver()
 xtb.extra_args = ["-gfn2"]
 
 # Get additional molecular parameters
-N = 19
+mol = next(pybel.readfile("xyz", "./init_DielsAlder.xyz"))
+N = len(mol.atoms)
+bond = (1,2)
+eq_length = eq_length = mol.OBMol.GetBond(*bond).GetEquibLength()
 params = react.default_parameters(N)
 
 # Constraints for the search
 # -------------------------
-bond_lengths = np.linspace(1.3, 1.75, 21)
+stretch_factors = np.linspace(0.95, 1.4, 21)
 constraints = [("force constant = 1.25",
-                "distance: %i, %i, %f"% (1,2, length))
-               for length in bond_lengths]
+                "distance: %i, %i, %f"% (*bond, eq_length * stretch))
+               for stretch in stretch_factors]
 mtd_indices = [0, 5, 10, 15, 20]
 
 
