@@ -68,11 +68,13 @@ def read_all_reactions(output_folder, verbose=True):
         print("Found %i reactions. Loading..." % len(folders), end="")
 
     failed = []
+    species = set()
     for f in folders:
         rpath = analyze_reaction(f)
         if rpath:
+            species.update(rpath.species)
             if rpath.species in pathways:
-                pathways[rpath.species] += [rpath]
+                pathways[rpath.species].append(rpath)
             else:
                 pathways[rpath.species] = [rpath]
         else:
@@ -84,7 +86,9 @@ def read_all_reactions(output_folder, verbose=True):
               % (len(folders)-len(failed), len(failed)))
         print("  unique reaction pathways: %i"% len(pathways))
         print("  chemical species: %i" % len(species))
-    return pathways
+    return pathways,species
 
+# pathways, species = read_all_reactions("output")
+# main_reactant = xyz2smiles("./output/init/opt0000.xyz")
 
 
