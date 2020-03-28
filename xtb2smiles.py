@@ -4,7 +4,7 @@ from rdkit import Chem
 from rdkit_utils import fractional2bondtype
 from xtb_utils import read_xtb_output
 
-def xtb2smiles(xyzfile, sanitize=True):
+def xtb2smiles(xyzfile, sanitize=False):
     """Transform the result of an xtb run into a smiles.
 
     Parameters:
@@ -22,7 +22,7 @@ def xtb2smiles(xyzfile, sanitize=True):
 
     for atom, charge in zip(atoms, charges):
         new_atom = Chem.Atom(atom)
-        new_atom.SetFormalCharge(int(charge))
+        new_atom.SetFormalCharge(int(round(charge)))
         em.AddAtom(new_atom)
 
     for i,j,fract_order in wbo:

@@ -379,6 +379,8 @@ def read_charges(filepath):
 
 def read_xtb_output(xyzfile):
     dir = os.path.dirname(xyzfile)
+    if not dir:
+        dir = "."
     # Read in the xyz file
     atoms, positions = read_xyz(xyzfile)
     # Read in wbo file
