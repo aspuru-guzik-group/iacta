@@ -3,7 +3,7 @@ import subprocess
 import shutil
 import os
 import tempfile
-
+import pybel
 
 def make_xcontrol(xcontrol_dictionary, fn):
     """Transform a dictionary of parameters to an xTB xcontrol file.
@@ -388,4 +388,14 @@ def read_xtb_output(xyzfile):
     # Read in partial charges
     charges = read_charges(dir + "/charges")
     return atoms, charges, positions, wbo
+
+def xyz2smiles(xyzfile):
+    output = []
+    for m in pybel.readfile("xyz",xyzfile):
+        output+= [m.write(format="smi", opt={"c":1,"n":1}).rstrip()]
+    if len(output) == 1:
+        return output[0]
+    else:
+        return output
+
 
