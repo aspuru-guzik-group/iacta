@@ -79,3 +79,20 @@ def mix2(mol1, mol2, off=10.0):
     return combined
 
 
+def fractional2bondtype(fract_order):
+    """Return an rdkit bond type guess from a fractional order."""
+    if fract_order < 0.75:
+        # if xtb thinks its a bond, its probably a single bond, even if the
+        # order is low...
+        return Chem.BondType.SINGLE
+    else:
+        o = int(round(fract_order * 2))
+        if o % 2 == 0:
+            # if o = 2 x bond order is even, we have an integer bond order
+            # (single double etc.). Thus o // 2 is the bond order.
+            return Chem.BondType.values[o//2]
+        else:
+            # Otherwise, we have a half integer bond order. These are assigned
+            # values equal to 6 + bond order aka, 7 for 1.5, 8 for 2.5
+            return Chem.BondType.values[o//2 + 6]
+
