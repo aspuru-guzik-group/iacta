@@ -86,5 +86,5 @@ def read_all_reactions(output_folder, verbose=True):
         print("  chemical species: %i" % len(species))
     return pathways
 
-pathways = read_all_reactions("output")
+
 
