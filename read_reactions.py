@@ -81,7 +81,7 @@ def analyze_reaction(react_folder,
         pathway += [smiles[minE_point]]
 
     if len(pathway) == 0:
-        print("warning: problem with trajectory in ", react_folder)
+        # print("warning: problem with trajectory in ", react_folder)
         return None
         
     # If the same molecule appears twice in a row, that means we have a
@@ -111,12 +111,11 @@ def analyze_reaction(react_folder,
     else:
         nbarriers = []
 
-
-
     return ReactionPathway(npathway, nminima, nbarriers, react_folder)
 
 
 def read_all_reactions(output_folder, verbose=True):
+    """Read and parse all reactions in a given folder."""
     folders = glob.glob(output_folder + "/react[0-9]*")
     if verbose:
         print("Parsing folder <%s>, with" % output_folder)
@@ -153,101 +152,119 @@ def read_all_reactions(output_folder, verbose=True):
         print("  with %i unique chemical species" % len(species))
     return pathways,species
 
+def build_rate_matrix(pathways, species, temperature=300.0):
+    """Build the matrix of rate from pathways."""
+    kbT = constants.kb * temperature # (eV)
+    pref = kbT/constants.hbar * 1e6        # ns^-1
+
+    N = len(species)
+    R = np.zeros((N,N))
+    Z = np.zeros((N,N))             # number of pathways contributing to i->j
+    for p in pathways:
+        for i in range(len(p.species)-1):
+            ri = species[p.species[i]]
+            Ei = p.minima[i]
+            rj = species[p.species[i+1]]
+            Ej = p.minima[i+1]
+            barrier = p.barriers[i]
+
+            if ri == rj:
+                raise RuntimeError("pathway with %s -> %s"
+                                   % (species[ri], species[rj]))
+
+            # Rate from i -> j
+            k_ij= np.exp(-(barrier-Ei) * constants.hartree_ev/kbT)
+            R[rj, ri] += k_ij
+            Z[rj, ri] += 1
+
+            # Reverse rate j<-i by detailed balance.
+            k_ji= k_ij * np.exp(-(Ei-Ej) * constants.hartree_ev/kbT)
+            R[ri, rj] += k_ji
+            Z[ri, rj] += 1
+
+    for i in range(N):
+        for j in range(N):
+            if Z[i,j] > 0:
+                R[i,j] *= pref/Z[i,j]
+
+    for i in range(N):
+        R[i,i] = 0
+        R[i,i] = -np.sum(R[:,i])
+
+    return R
+
+if __name__ == "__main__":
+    from scipy.integrate import odeint
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="Summarize reaction products"
+        )
+
+    parser.add_argument("folder", help="Folder containing the react*** files.")
+    args = parser.parse_args()
+    # TODO: add temperature, times as arguments too maybe?
+    folder =args.folder
+
+    # TODO: make this an argument
+    reactant = xyz2smiles("./output/init/opt0000.xyz")
 
 
-pathways, species = read_all_reactions("output")
+    pathways, species = read_all_reactions(folder)
+    print("Setting up a system of rate equations at T=300 K...")
+    R = build_rate_matrix(pathways, species)
+    print("Chosen reactant : ", reactant)
+    reactant_id = species[reactant]
+    N = len(species)
 
-T = 300.0
-print("Setting up a system of rate equations at T=%f..." % T)
+    # set initial vector
+    y0 = np.zeros(N)
+    y0[reactant_id] = 1.0
 
-kbT = constants.kb * T # (eV)
-pref = kbT/constants.hbar * 1e6        # ns^-1
+    # define DE system
+    def f(v,t):
+        return R.dot(v)
 
-N = len(species)
-R = np.zeros((N,N))
-Z = np.zeros((N,N))             # number of pathways contributing to i->j
-for p in pathways:
-    for i in range(len(p.species)-1):
-        ri = species[p.species[i]]
-        Ei = p.minima[i]
-        rj = species[p.species[i+1]]
-        Ej = p.minima[i+1]
-        barrier = p.barriers[i]
+    # Time axis
+    ts = np.logspace(-1,6, 1000)
 
-        if ri == rj:
-            print("wat")
+    print(" .... solving rate equations ....")
+    y = odeint(f,y0,ts)
 
-        # Rate from i -> j
-        k_ij= np.exp(-(barrier-Ei) * constants.hartree_ev/kbT)
-        R[rj, ri] += k_ij
-        Z[rj, ri] += 1
-        
-        # Reverse rate j<-i by detailed balance.
-        k_ji= k_ij * np.exp(-(Ei-Ej) * constants.hartree_ev/kbT)
-        R[ri, rj] += k_ji
-        Z[ri, rj] += 1
+    # short time
+    y_short = y[1]
+    y_long = y[-1]
 
-for i in range(N):
-    for j in range(N):
-        if Z[i,j] > 0:
-            R[i,j] *= pref/Z[i,j]
-            
-for i in range(N):
-    R[i,i] = 0
-    R[i,i] = -np.sum(R[:,i])
+    spec2 = dict(zip(species.values(), species.keys()))
+    # sort the smiles by population
+    pops_smiles_short = sorted(zip(y_short,
+                                   [spec2[i] for i in range(N)]),
+                               reverse=True)
 
-reactant = xyz2smiles("./output/init/opt0000.xyz")
-print("Chosen reactant : ", reactant)
-reactant_id = species[reactant]
+    pops_smiles_long = sorted(zip(y_long,
+                                   [spec2[i] for i in range(N)]),
+                               reverse=True)
 
-y0 =np.zeros(N)
-y0[reactant_id] = 1.0
+    # print out summary
+    print("\n\n ======== SUMMARY OF REACTION PRODUCTS =========")
+    print("... t → 0 products ...")
+    print("   % total     % products        Molecule")
+    for pop, smi in pops_smiles_short:
+        if smi == reactant:
+            ratio = "  ---  "
+        else:
+            ratio = "%7.4f"%(100*pop/(1-y_short[reactant_id]))
+        print("   %7.4f" % (100*pop) +
+              "        " + ratio+
+              "        " + smi)
 
-def f(v,t):
-    return R.dot(v)
-
-from scipy.integrate import odeint
-ts = np.logspace(-1,6, 1000)
-
-print(" .... solving rate equations ....")
-y = odeint(f,y0,ts)
-
-# short time
-y_short = y[1]
-y_long = y[-1]
-
-
-spec2 = dict(zip(species.values(), species.keys()))
-# silly...
-pops_smiles_short = sorted(zip(y_short,
-                               [spec2[i] for i in range(N)]),
-                           reverse=True)
-
-pops_smiles_long = sorted(zip(y_long,
-                               [spec2[i] for i in range(N)]),
-                           reverse=True)
-
-
-print("\n\n ======== SUMMARY OF REACTION PRODUCTS =========")
-print("... t → 0 products ...")
-print("   % total     % products        Molecule")
-for pop, smi in pops_smiles_short:
-    if smi == reactant:
-        ratio = "  ---  "
-    else:
-        ratio = "%7.4f"%(100*pop/(1-y_short[reactant_id]))
-    print("   %7.4f" % (100*pop) +
-          "        " + ratio+
-          "        " + smi)
-
-print("\n")
-print("... → ∞ products ...")
-print("   % total     % products        Molecule")
-for pop, smi in pops_smiles_long:
-    if smi == reactant:
-        ratio = "       "
-    else:
-        ratio = "%7.4f"%(100*pop/(1-y_long[reactant_id]))
-    print("   %7.4f" % (100*pop) +
-          "        " + ratio+
-          "        " + smi)
+    print("\n")
+    print("... → ∞ products ...")
+    print("   % total     % products        Molecule")
+    for pop, smi in pops_smiles_long:
+        if smi == reactant:
+            ratio = "       "
+        else:
+            ratio = "%7.4f"%(100*pop/(1-y_long[reactant_id]))
+        print("   %7.4f" % (100*pop) +
+              "        " + ratio+
+              "        " + smi)
