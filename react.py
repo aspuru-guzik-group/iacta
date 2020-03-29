@@ -42,7 +42,7 @@ def default_parameters(Natoms,
     # Metadynamics parameters (somewhat adapted from CREST)
     total_time = 0.5 * Natoms
     dumpstep = 1000 * total_time/nmtd
-    parameters["metadyn"] = ("save=100", 
+    parameters["metadyn"] = ("save=%i" % nmtd, 
                              "kpush=0.2",
                              "alp=0.8")
     parameters["md"] = ("shake=0",
