@@ -23,7 +23,7 @@ parser.add_argument("-T",
                     type=int, default=1)
 parser.add_argument("-s",
                     help="Bond stretch limits. Defaults to (1.0, 3.0)",
-                    nargs=2, default=[1.0,3.0])
+                    nargs=2,type=float, default=[1.0,3.0])
 parser.add_argument("-sn",
                     help="Number of bond stretches. Defaults to 30.",
                     type=int, default=30)
@@ -33,7 +33,7 @@ parser.add_argument("-mtdi",
 parser.add_argument("--force",
                     help="Force constant of the stretch, defaults to 1.25", default=1.25,
                     type=int)
-parser.add_argument("--opt",
+parser.add_argument("--no-opt",
                     help="Start with an xtb optimization (defaults to true).",
                     action="store_true")
 parser.add_argument("--gfn",
@@ -54,7 +54,7 @@ init = shutil.copy(args.init_xyz, out_dir)
 xtb = xtb_utils.xtb_driver()
 xtb.extra_args = ["--gfn " + args.gfn, "--etemp " + args.etemp]
 
-if args.opt:
+if not args.no_opt:
     xtb.optimize(init, init, level="vtight")
 
 
