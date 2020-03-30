@@ -74,6 +74,12 @@ params = react.default_parameters(N)
 # Constraints for the search
 # -------------------------
 stretch_factors = np.linspace(args.s[0], args.s[1], args.sn)
+print("Stretching bond between atoms %s%i and %s%i"
+      %(atoms[bond[0]-1],bond[0], atoms[bond[1]-1],bond[1]))
+print("    with force constant %f" % args.force)
+print("    between %7.2f and %7.2f A"
+      % (min(stretch_factors)*bond[2], max(stretch_factors)*bond[2]))
+print("    discretized with %i points" % len(stretch_factors))
 constraints = [("force constant = %f" % args.force,
                 "distance: %i, %i, %f"% (bond[0],bond[1],
                                          stretch * bond[2]))

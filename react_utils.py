@@ -256,7 +256,10 @@ def read_trajectory(filepath):
 
             comment_line = f.readline()
             this_mol += comment_line
-            energies += [float(comment_line[8:24])]
+            try:
+                energies += [float(comment_line[8:24])]
+            except ValueError:
+                energies += [np.nan]
         
             for i in range(natoms):
                 this_mol += f.readline()
