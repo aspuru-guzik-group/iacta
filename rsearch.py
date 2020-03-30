@@ -43,6 +43,11 @@ parser.add_argument("--etemp",
                     help="Electronic temperature. Defaults to 300 K", default="300.0",
                     type=str)
 
+if "LOCALSCRATCH" in os.environ:
+    scratch = os.environ["LOCALSCRATCH"]
+else:
+    print("warning: $LOCALSCRATCH not set")
+    scratch = "."
 
 args = parser.parse_args()
 out_dir = args.o
@@ -51,7 +56,7 @@ os.makedirs(out_dir)
 init = shutil.copy(args.init_xyz, out_dir)
 
 # Initialize the xtb driver
-xtb = xtb_utils.xtb_driver()
+xtb = xtb_utils.xtb_driver(scratch=scratch)
 xtb.extra_args = ["--gfn " + args.gfn, "--etemp " + args.etemp]
 
 if not args.no_opt:
