@@ -66,8 +66,8 @@ if not args.no_opt:
 # Get additional molecular parameters
 atoms, positions = xtb_utils.read_xyz(init)
 N = len(atoms)
-bond_length0 = positions[args.atoms[0]-1] - positions[args.atoms[1]-1]
-bond_length0 = np.sqrt(bond_length0.dot(bond_length0))
+bond_length0 = np.sqrt(np.sum((positions[args.atoms[0]-1] -
+                               positions[args.atoms[1]-1])**2))
 bond = (args.atoms[0], args.atoms[1], bond_length0)
 params = react.default_parameters(N)
 
@@ -77,8 +77,9 @@ stretch_factors = np.linspace(args.s[0], args.s[1], args.sn)
 print("Stretching bond between atoms %s%i and %s%i"
       %(atoms[bond[0]-1],bond[0], atoms[bond[1]-1],bond[1]))
 print("    with force constant %f" % args.force)
-print("    between %7.2f and %7.2f A"
-      % (min(stretch_factors)*bond[2], max(stretch_factors)*bond[2]))
+print("    between %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
+      % (min(stretch_factors)*bond[2], max(stretch_factors)*bond[2],
+         min(stretch_factors), max(stretch_factors)))
 print("    discretized with %i points" % len(stretch_factors))
 constraints = [("force constant = %f" % args.force,
                 "distance: %i, %i, %f"% (bond[0],bond[1],
