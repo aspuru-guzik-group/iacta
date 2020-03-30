@@ -9,18 +9,19 @@ class ReactionPathway:
         self.minima = minima
         self.barriers = barriers
         self.id = id
+        self.nreactions = len(set(self.species))
 
-def xyz2smiles(xyzfile):
+def xyz2smiles(xyzfile, chiral=False):
     output = []
     for m in pybel.readfile("xyz",xyzfile):
-        output+= [m.write(format="smi", opt={"c":1,"n":1}).rstrip()]
+        output+= [m.write(format="smi", opt={"c":1,"n":1,
+                                             "i":chiral*1}).rstrip()]
     if len(output) == 1:
         return output[0]
     else:
         return output
 
-def analyze_reaction(react_folder,
-                     smallest_barrier=1e-3):
+def read_reaction(react_folder, barrier_tol):
     """Extract chemical quantities from a reaction.
 
     Parameters:
@@ -44,77 +45,83 @@ def analyze_reaction(react_folder,
         return None
     
     E = np.loadtxt(react_folder + "/Eopt")
-    pathway = []
-    minima = []
-    barriers = []
-    last = 0
-    last_smiles = smiles[0]
+    mols = [smiles[0]]
+    regions = []
+    rstart = 0
 
     # loop through smiles and detect changes
     for si,s in enumerate(smiles):
-        if s == last_smiles:
+        if s == mols[-1]:
             pass
         else:
-            # we have a state change at index=si
-            # minimum energy point for the current state
-            minE_point = np.argmin(E[last:si]) + last
-            minE = E[minE_point]
-            barrier_height = np.max(E[minE_point:si])
-            # We only record the change if the barrier exists.
-            if barrier_height - minE > smallest_barrier:
-                minima += [E[minE_point]]
-                # Energy barrier height
-                # maximum of energy between the minimum and the state change
-                barriers += [np.max(E[minE_point:si])]
-                pathway += [smiles[minE_point]]
+            mols += [s]
+            regions += [(rstart,si)]
+            rstart = si
 
-            last_smiles = s
-            last = si
+    regions += [(rstart, len(smiles))]
 
-    # If the last point was not itself a reaction, then we add the last
-    # molecule to the list.
-    if last == si:
-        pass
-    else:
-        minE_point = np.argmin(E[last:si]) + last
-        minima += [E[minE_point]]
-        pathway += [smiles[minE_point]]
+    # Refine regions by merging those that have barriers less than
+    # barrier_tol. This is nasty but it works.
+    refined = []
+    while True:
+        if len(regions) == 0:
+            break
+           
+        if len(regions) == 1:
+            refined += [regions.pop()]
+            break
 
-    if len(pathway) == 0:
-        # print("warning: problem with trajectory in ", react_folder)
-        return None
-        
-    # If the same molecule appears twice in a row, that means we have a
-    # conformation change with a barrier, but still no reaction
-    npathway = [pathway[0]]
-    nminima = [minima[0]]
+        current = regions.pop(0)
+        current_imin = np.argmin(E[current[0]:current[1]]) + current[0]
+        current_Emin = E[current_imin]
+        # iterate over remaining regions
+        while regions:
+            future = regions[0]
+            future_imin = np.argmin(E[future[0]:future[1]]) + future[0]
+            future_Emin = E[future_imin]
 
-    if len(barriers)>0:
-        # we have some sort of reaction or conformer change with barriers
-        nbarriers = [barriers[0]]
+            # barrier is the max between the two minima (inclusive
+            barrier = np.max(E[current_imin:future_imin+1])
 
-        for i in range(1,len(pathway)):
-            if pathway[i] == pathway[i-1]:
-                # No transformation, just another conformer
+            # if the barrier is to small, we merge current and future regions.
+            if ((barrier < (current_Emin + barrier_tol))
+                or (barrier < (future_Emin + barrier_tol))):
+                current = (current[0], future[1])
 
-                # update barriers with the current max barrier and minima with the
-                # current min minima.
-                nminima[-1] = min(nminima[-1], minima[i])
-                if i< len(pathway)-1:                
-                    nbarriers[-1] = max(nbarriers[-1], barriers[i])
+                # current_imin = np.argmin(E[current[0]:current[1]]) + current[0]
+                # current_Emin = E[current_imin]
+                
+                # if the minima of future is below the minima of current, we
+                # switch the minima of current to the minima of future.
+                if future_Emin < current_Emin:
+                    current_Emin = future_Emin
+                    current_imin = future_imin
+                    
+                # pop the one we just melded in
+                regions.pop(0)
+
+
+            # Otherwise, we break out of the inner loop and save current
             else:
-                npathway += [pathway[i]]
-                nminima += [minima[i]]
+                break
+        refined +=[current[:]]
 
-                if i< len(pathway)-1:
-                    nbarriers += [barriers[i]]
-    else:
-        nbarriers = []
+    # Save all those quantities
+    Emin = []
+    imins = []
+    mols = []
+    for r in refined:
+        imin = np.argmin(E[r[0]:r[1]]) + r[0]
+        imins += [imin]
+        Emin += [E[imin]]
+        mols += [smiles[imin]]
+    barrier = []
+    for k in range(len(refined)-1):
+        barrier += [np.max(E[imins[k]:imins[k+1]+1])]
+            
+    return ReactionPathway(mols, Emin, barrier, react_folder)
 
-    return ReactionPathway(npathway, nminima, nbarriers, react_folder)
-
-
-def read_all_reactions(output_folder, verbose=True):
+def read_all_reactions(output_folder, Etol, verbose=True):
     """Read and parse all reactions in a given folder."""
     folders = glob.glob(output_folder + "/react[0-9]*")
     if verbose:
@@ -127,9 +134,9 @@ def read_all_reactions(output_folder, verbose=True):
     species = {}
     index = 0
     for f in folders:
-        rpath = analyze_reaction(f)
+        rpath = read_reaction(f, Etol)
         if rpath:
-            if len(rpath.species)>1:
+            if rpath.nreactions>1:
                 for spec in rpath.species:
                     if spec in species:
                         pass
@@ -149,38 +156,46 @@ def read_all_reactions(output_folder, verbose=True):
         print(" - %6i with no reactions" % len(noreact))
         print("--------------")
         print(" = %6i reactions found" % len(pathways))
-        print("  with %i unique chemical species" % len(species))
+        print("    with %6i distinct stable species" % len(species))
     return pathways,species
 
-def build_rate_matrix(pathways, species, temperature=300.0):
+# kbT / hbar = 1/beta hbar = 1/beta (Eh^-1) * 1/hbar(eV fs) * 27 eV / hartree
+EYRING_PREF = 1/constants.hbar * constants.hartree_ev # fs^-1
+def build_rate_matrix(pathways, species, beta):
     """Build the matrix of rate from pathways."""
-    kbT = constants.kb * temperature # (eV)
-    pref = kbT/constants.hbar * 1e6        # ns^-1
-
     N = len(species)
     R = np.zeros((N,N))
     Z = np.zeros((N,N))             # number of pathways contributing to i->j
+    pref = EYRING_PREF / beta
     for p in pathways:
         for i in range(len(p.species)-1):
+            # species index into R
             ri = species[p.species[i]]
-            Ei = p.minima[i]
             rj = species[p.species[i+1]]
+            
+            # minima
+            Ei = p.minima[i]
             Ej = p.minima[i+1]
+            
+            # barrier
             barrier = p.barriers[i]
 
             if ri == rj:
-                raise RuntimeError("pathway with %s -> %s"
-                                   % (species[ri], species[rj]))
+                # This is a pathway between two conformers or a reaction that
+                # went to an intermeidate and failed. so we don't include it.
+                # TODO: Find a better approach?
+                pass
+            else:
+                # Rate from i -> j
+                k_i2j= np.exp(-(barrier-Ei) * beta)
+                R[rj, ri] += k_i2j
+                Z[rj, ri] += 1
 
-            # Rate from i -> j
-            k_ij= np.exp(-(barrier-Ei) * constants.hartree_ev/kbT)
-            R[rj, ri] += k_ij
-            Z[rj, ri] += 1
+                # # Reverse rate j<-i by detailed balance.
+                k_j2i = np.exp(-(barrier-Ej) * beta)
 
-            # Reverse rate j<-i by detailed balance.
-            k_ji= k_ij * np.exp(-(Ei-Ej) * constants.hartree_ev/kbT)
-            R[ri, rj] += k_ji
-            Z[ri, rj] += 1
+                R[ri, rj] += k_j2i
+                Z[ri, rj] += 1
 
     for i in range(N):
         for j in range(N):
@@ -193,6 +208,8 @@ def build_rate_matrix(pathways, species, temperature=300.0):
 
     return R
 
+
+
 if __name__ == "__main__":
     from scipy.integrate import odeint
     import argparse
@@ -201,17 +218,22 @@ if __name__ == "__main__":
         )
 
     parser.add_argument("folder", help="Folder containing the react*** files.")
+    parser.add_argument("--temp", type=float, default=298.15,
+                        help="Temperature for the kinetic rate model.")
     args = parser.parse_args()
-    # TODO: add temperature, times as arguments too maybe?
     folder =args.folder
+    temperature = args.temp
+
+    kbT = constants.kb * temperature
+    beta = 1/(kbT / constants.hartree_ev)
 
     # TODO: make this an argument
-    reactant = xyz2smiles("./output/init/opt0000.xyz")
-
-
-    pathways, species = read_all_reactions(folder)
-    print("Setting up a system of rate equations at T=300 K...")
-    R = build_rate_matrix(pathways, species)
+    reactant = xyz2smiles(folder + "/init/opt0000.xyz")
+    pathways, species = read_all_reactions(folder, 0.5 * kbT/constants.hartree_ev)
+    
+    print("Setting up a system of rate equations at T=%f K..." % temperature)
+    R = build_rate_matrix(pathways, species, beta)
+    print(np.max(R), np.min(R))
     print("Chosen reactant : ", reactant)
     reactant_id = species[reactant]
     N = len(species)
@@ -225,46 +247,41 @@ if __name__ == "__main__":
         return R.dot(v)
 
     # Time axis
-    ts = np.logspace(-1,6, 1000)
-
+    ts = np.array([0, 100, 10000, 1e6, 1e9, 1e12])
     print(" .... solving rate equations ....")
     y = odeint(f,y0,ts)
-
-    # short time
-    y_short = y[1]
-    y_long = y[-1]
-
     spec2 = dict(zip(species.values(), species.keys()))
-    # sort the smiles by population
-    pops_smiles_short = sorted(zip(y_short,
-                                   [spec2[i] for i in range(N)]),
-                               reverse=True)
+    def print_summary(y):
+        # sort the smiles by population
+        pops_smiles = sorted(zip(y,
+            [spec2[i] for i in range(N)]),
+            reverse=True)
 
-    pops_smiles_long = sorted(zip(y_long,
-                                   [spec2[i] for i in range(N)]),
-                               reverse=True)
-
+        print("   % total     % products       Molecule")
+        for pop, smi in pops_smiles:
+            if smi == reactant:
+                ratio = " -------"
+            else:
+                ratio = "%8.4f"%(100*pop/(1-y[reactant_id]))
+            print("  %8.4f" % (100*pop) +
+                  "       " + ratio+
+                  "       " + smi)
     # print out summary
     print("\n\n ======== SUMMARY OF REACTION PRODUCTS =========")
-    print("... t → 0 products ...")
-    print("   % total     % products        Molecule")
-    for pop, smi in pops_smiles_short:
-        if smi == reactant:
-            ratio = "  ---  "
-        else:
-            ratio = "%7.4f"%(100*pop/(1-y_short[reactant_id]))
-        print("   %7.4f" % (100*pop) +
-              "        " + ratio+
-              "        " + smi)
+    print("... at 100 fs ...")
+    print_summary(y[1])
 
-    print("\n")
-    print("... → ∞ products ...")
-    print("   % total     % products        Molecule")
-    for pop, smi in pops_smiles_long:
-        if smi == reactant:
-            ratio = "       "
-        else:
-            ratio = "%7.4f"%(100*pop/(1-y_long[reactant_id]))
-        print("   %7.4f" % (100*pop) +
-              "        " + ratio+
-              "        " + smi)
+    print("... at 10 ps ...")
+    print_summary(y[2])
+
+    print("... at 1 ns ...")
+    print_summary(y[3])
+
+    print("... at 1 μs ...")
+    print_summary(y[4])
+
+    print("... at 1 ms ...")
+    print_summary(y[4])
+
+
+
