@@ -7,8 +7,9 @@ react_utils.
 
 def default_parameters(Natoms,
                        nmtd=80,
+                       optlevel="tight",
                        shake=0,
-                       optlevel="tight"):
+                       log_level=0):
     """Generate a dictionary of default parameters for the reaction search.
 
     The parameters are loosely based on those described in the CREST paper.
@@ -29,6 +30,9 @@ def default_parameters(Natoms,
     shake (int) : SHAKE level (0, 1 or 2). If SHAKE is > 0, the time
     parameters are adjusted to go faster.
 
+    log_level (int) : Logging level. 0 -> normal, 1-> intermediate
+    optimization steps. 2 -> keep all temp files (TODO: not implemented yet).
+
     Returns:
     --------
 
@@ -38,6 +42,14 @@ def default_parameters(Natoms,
     parameters = {}
     parameters["nmtd"] = nmtd
     parameters["optlevel"] = optlevel
+
+    # Logging
+    if log_level > 0:
+        parameters["log_opt_steps"] = True
+    else:
+        parameters["log_opt_steps"] = False
+
+    
     # xTB additional parameters
     parameters["wall"] = ("potential=logfermi",
                           "sphere: auto, all")
@@ -79,7 +91,8 @@ def generate_initial_structures(xtb_driver,
         constraints, parameters, verbose=verbose)
 
     react_utils.dump_succ_opt(workdir + "/init",
-                        structures,energies,opt_indices)
+                              structures,energies,opt_indices,
+                              extra=parameters["log_opt_steps"])
     if verbose:
         print("Done!\n")
 

@@ -236,7 +236,7 @@ def reaction_job(xtb,
                       bopt[::-1] + fopt,
                       concat=True,
                       # TODO: turn this into an option
-                      extra=False)
+                      extra=parameters["log_opt_steps"])
         
     return react_job
                   

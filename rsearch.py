@@ -50,6 +50,9 @@ parser.add_argument("--shake-level",
                     +" with parameters that permit bond-breaking, specifically shake=0,"
                     +" but at a slower pace than if shake is set to 1 or 2. Defaults to 0.",
                     default=0, type=int)
+parser.add_argument("--log-level",
+                    help="Level of debug printout (see react.py for details).",
+                    default=0, type=int)
 
 
 if "LOCALSCRATCH" in os.environ:
@@ -59,12 +62,16 @@ else:
     scratch = "."
 
 args = parser.parse_args()
+
+# Prepare output files
+# --------------------
 out_dir = args.o
 os.makedirs(out_dir)
-# copy the initial file over
-init = shutil.copy(args.init_xyz, out_dir)
+init = shutil.copy(args.init_xyz,
+                   out_dir)
 
 # Initialize the xtb driver
+# -------------------------
 xtb = xtb_utils.xtb_driver(scratch=scratch)
 xtb.extra_args = ["--gfn " + args.gfn, "--etemp " + args.etemp]
 
@@ -72,14 +79,19 @@ if not args.no_opt:
     xtb.optimize(init, init, level="vtight")
 
 # Get additional molecular parameters
+# -----------------------------------
 atoms, positions = xtb_utils.read_xyz(init)
 N = len(atoms)
 bond_length0 = np.sqrt(np.sum((positions[args.atoms[0]-1] -
                                positions[args.atoms[1]-1])**2))
 bond = (args.atoms[0], args.atoms[1], bond_length0)
+
+# Initialize parameters
+# ---------------------
 params = react.default_parameters(N,
                                   shake=args.shake_level,
-                                  nmtd=args.mtdn)
+                                  nmtd=args.mtdn,
+                                  log_level=args.log_level)
 
 # Constraints for the search
 # -------------------------
