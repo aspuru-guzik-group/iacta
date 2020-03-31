@@ -35,7 +35,7 @@ parser.add_argument("-mtdn",
                     type=int, default=80)
 parser.add_argument("--force",
                     help="Force constant of the stretch, defaults to 1.25", default=1.25,
-                    type=int)
+                    type=float)
 parser.add_argument("--no-opt",
                     help="Start with an xtb optimization (defaults to true).",
                     action="store_true")
