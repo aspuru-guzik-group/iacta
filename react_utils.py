@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import numpy as np
 import tempfile
+import re
 
 def successive_optimization(xtb,
                             initial_xyz,
@@ -256,10 +257,9 @@ def read_trajectory(filepath):
 
             comment_line = f.readline()
             this_mol += comment_line
-            try:
-                energies += [float(comment_line[8:24])]
-            except ValueError:
-                energies += [np.nan]
+            # first number on comment_line
+            m = re.search('-?[0-9]*\.[0-9]*', comment_line)       
+            energies += [float(m.group())]
         
             for i in range(natoms):
                 this_mol += f.readline()
