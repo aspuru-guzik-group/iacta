@@ -48,6 +48,7 @@ class xtb_run:
                  before_geometry="--",
                  scratch=".", 
                  xcontrol=None,
+                 delete=True,
                  return_files=[]):
         """Build a container for an xtb run.
 
@@ -72,15 +73,27 @@ class xtb_run:
         xcontrol (dict) : dictionary of xcontrol options, interpreted using
         make_xcontrol.
 
+        delete (bool) : If true, delete all temporary files after run.
+        Defaults to true
+
         return_files (list) : list of tuples of filenames (filein, fileout) of
         files to be copied out of the temporary run directory automatically
         when close() is called. For example, [("xtbopt.xyz", "my_opt.xyz")]
         will generate the file my_opt.xyz from the xtb optimized geometry
         xtbopt.xyz in the run directory.
+
         """
 
         self.dir = tempfile.mkdtemp(dir=scratch)
-        self.out = open(self.dir + "/xtb.out", "w")
+        self.delete = delete
+        if self.delete:
+            # The xtb output can be extremely large so if we are going to
+            # delete it, we are better enough never making it in the first
+            # place.
+            self.out = subprocess.DEVNULL
+        else:
+            self.out = open(self.dir + "/xtb.out", "w")
+            
         self.err = open(self.dir + "/xtb.err", "w")
         self.coord = shutil.copy(geom_file, self.dir)
         self.return_files = return_files   # list of files to take out when
@@ -152,10 +165,13 @@ class xtb_run:
             output = []
             for file_in, file_out in self.return_files:
                 output += [self.cp(file_in,file_out)]
-        
-        self.out.close()
+
         self.err.close()
-        shutil.rmtree(self.dir)
+        if self.delete:
+            shutil.rmtree(self.dir)
+        else:
+            self.out.close()
+
         return output
 
     def __call__(self, blocking=True):
