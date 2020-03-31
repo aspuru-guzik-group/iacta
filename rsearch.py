@@ -30,6 +30,9 @@ parser.add_argument("-sn",
 parser.add_argument("-mtdi",
                     help="Indices of the stretches where MTD is done.",
                     type=int, nargs="+", default=[0, 5, 10])
+parser.add_argument("-mtdn",
+                    help="Number of guesses to generate at each MTD index.",
+                    type=int, default=80)
 parser.add_argument("--force",
                     help="Force constant of the stretch, defaults to 1.25", default=1.25,
                     type=int)
@@ -42,6 +45,12 @@ parser.add_argument("--gfn",
 parser.add_argument("--etemp",
                     help="Electronic temperature. Defaults to 300 K", default="300.0",
                     type=str)
+parser.add_argument("--shake-level",
+                    help="If this is 0, the metadynamics run will be performed"
+                    +" with parameters that permit bond-breaking, specifically shake=0,"
+                    +" but at a slower pace than if shake is set to 1 or 2. Defaults to 0.",
+                    default=0, type=int)
+
 
 if "LOCALSCRATCH" in os.environ:
     scratch = os.environ["LOCALSCRATCH"]
@@ -62,14 +71,15 @@ xtb.extra_args = ["--gfn " + args.gfn, "--etemp " + args.etemp]
 if not args.no_opt:
     xtb.optimize(init, init, level="vtight")
 
-
 # Get additional molecular parameters
 atoms, positions = xtb_utils.read_xyz(init)
 N = len(atoms)
 bond_length0 = np.sqrt(np.sum((positions[args.atoms[0]-1] -
                                positions[args.atoms[1]-1])**2))
 bond = (args.atoms[0], args.atoms[1], bond_length0)
-params = react.default_parameters(N)
+params = react.default_parameters(N,
+                                  shake=args.shake_level,
+                                  nmtd=args.mtdn)
 
 # Constraints for the search
 # -------------------------
@@ -104,6 +114,7 @@ react.metadynamics_search(
     constraints,
     params,
     nthreads=args.T)
+
 
 # STEP 2: Reactions
 # ----------------------------------------------------------------------------

@@ -7,6 +7,7 @@ react_utils.
 
 def default_parameters(Natoms,
                        nmtd=80,
+                       shake=0,
                        optlevel="tight"):
     """Generate a dictionary of default parameters for the reaction search.
 
@@ -17,14 +18,16 @@ def default_parameters(Natoms,
 
     Natoms (int) : number of atoms.
 
+    Optional Parameters:
+    --------------------
     nmtd (int) : number of structures to extract from the metadynamics
     portion.
 
-    Optional Parameters:
-    --------------------
-
     optlevel (str) : Optimization level to used throughout. Defaults to
     "tight".
+
+    shake (int) : SHAKE level (0, 1 or 2). If SHAKE is > 0, the time
+    parameters are adjusted to go faster.
 
     Returns:
     --------
@@ -45,10 +48,17 @@ def default_parameters(Natoms,
     parameters["metadyn"] = ("save=%i" % nmtd, 
                              "kpush=0.2",
                              "alp=0.8")
-    parameters["md"] = ("shake=0",
-                        "step=2",
-                        "dump=%f"%dumpstep,
-                        "time=%f" % total_time)
+
+    if shake == 0:
+        parameters["md"] = ("shake=0",
+                            "step=2",
+                            "dump=%f" % dumpstep,
+                            "time=%f" % total_time)
+    else:
+        parameters["md"] = ("shake=%i" % shake,
+                            "step=10",
+                            "dump=%f" % dumpstep,
+                            "time=%f" % total_time)
 
     return parameters
 
