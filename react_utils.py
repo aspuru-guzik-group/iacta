@@ -235,7 +235,8 @@ def reaction_job(xtb,
                       be[::-1] + fe,
                       bopt[::-1] + fopt,
                       concat=True,
-                      extra=True)
+                      # TODO: turn this into an option
+                      extra=False)
         
     return react_job
                   
@@ -269,7 +270,7 @@ def read_trajectory(filepath):
 
 def dump_succ_opt(output_folder, structures, energies, opt_indices,
                   concat=False,
-                  extra=True):
+                  extra=False):
     os.makedirs(output_folder, exist_ok=True)
     
 
