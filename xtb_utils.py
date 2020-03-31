@@ -271,49 +271,6 @@ class xtb_driver:
                       return_files=return_files)
         return opt
 
-    def multi_optimize(self,
-                       geom_file, out_file,
-                       xcontrol=None,
-                       level=None):
-        """Optimize many molecules in parallel using crest -mdopt.
-
-        Parameters:
-        -----------
-
-        geom_file (str) : path to the file containing the molecular geometries.
-
-        out_file (str): path to file where optimized geometries are saved.
-
-        Optional Parameters:
-        --------------------
-
-        xcontrol (dict) : xcontrol dictionary to be interpreted by
-        make_xcontrol.
-
-        level (str) : Optimization level. Defaults to "normal" if
-        compute_hessian is False, or to "tight" otherwise.
-
-        Returns:
-        --------
-
-        xtb_run : The optimization job. Run using xtb_run().
-        """
-        file_ext = geom_file[-3:]
-        return_files=[("crest_ensemble." + file_ext, out_file)]
-
-        if level is None:
-            level="normal"
-            
-        opt = xtb_run(self.crest_bin,
-                      geom_file,
-                      "-opt", level,
-                      *self.extra_args,
-                      before_geometry="-mdopt",
-                      xcontrol=xcontrol,
-                      scratch=self.scratchdir,                      
-                      return_files=return_files)
-        return opt
-
     def metadyn(self,
                 geom_file, out_file,
                 xcontrol=None):
