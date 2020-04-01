@@ -212,7 +212,7 @@ def reaction_job(xtb,
         fstructs, fe, fopt = successive_optimization(
             xtb, output_folder + "/initial.xyz",
             # None -> no constraint = products
-            constraints[mtd_index:] + [None],
+            constraints[mtd_index:],
             parameters,
             verbose=False)          # otherwise its way too verbose
 
@@ -224,7 +224,7 @@ def reaction_job(xtb,
         bstructs, be, bopt = successive_optimization(
             xtb, output_folder + "/initial_backward.xyz",
             # None -> no constraint = reactants  
-            constraints[mtd_index-1:-1:-1] + [None],
+            constraints[mtd_index-1:-1:-1],
             parameters,
             verbose=False)          # otherwise its way too verbose
 
