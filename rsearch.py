@@ -34,7 +34,8 @@ parser.add_argument("-mtdn",
                     help="Number of guesses to generate at each MTD index.",
                     type=int, default=80)
 parser.add_argument("--force",
-                    help="Force constant of the stretch, defaults to 1.25", default=1.25,
+                    help="Force constant of the stretch, defaults to 1.25",
+                    default=1.25,
                     type=float)
 parser.add_argument("--no-opt",
                     help="Start with an xtb optimization (defaults to true).",
@@ -43,7 +44,12 @@ parser.add_argument("--gfn",
                     help="gfn version. Defaults to GFN 2", default="2",
                     type=str)
 parser.add_argument("--etemp",
-                    help="Electronic temperature. Defaults to 300 K", default="300.0",
+                    help="Electronic temperature. Defaults to 300 K",
+                    default="300.0",
+                    type=str)
+parser.add_argument("--opt-level",
+                    help="Optimization level. Defaults to vtight.",
+                    default="vtight",
                     type=str)
 parser.add_argument("--shake-level",
                     help="If this is 0, the metadynamics run will be performed"
@@ -96,6 +102,7 @@ bond = (args.atoms[0], args.atoms[1], bond_length0)
 params = react.default_parameters(N,
                                   shake=args.shake_level,
                                   nmtd=args.mtdn,
+                                  optlevel=args.opt_level,
                                   log_level=args.log_level)
 
 # Constraints for the search
