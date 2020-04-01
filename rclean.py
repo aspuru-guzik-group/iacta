@@ -48,26 +48,99 @@ ev2kcal = 23.061
 kcal2hartree = 1/(hartree2ev*ev2kcal)
     
 args = parser.parse_args()
+workdir = args.folder
+
+# TODO: refine a specific reactant
+reactant = xyz2smiles(workdir + "/init/opt0000.xyz")
+threshold = 60.0
 
 # Prepare output files
 # --------------------
-workdir = args.folder
 # TODO: make an overwite? argument
 os.makedirs(workdir + "/reactions", exist_ok=True)
 
-# Read all pathways and species
-pathways, species = read_all_pathways(workdir, args.b * kcal2hartree)
-
-# Dump:
-
-# 
-
-
-"""
 # Initialize the xtb driver
 # -------------------------
 xtb = xtb_utils.xtb_driver(scratch=scratch)
 xtb.extra_args = ["--gfn " + args.gfn, "--etemp " + args.etemp]
+
+# Read all pathways and species
+# -----------------------------
+reactions = read_all_pathways(workdir, args.b * kcal2hartree)
+
+
+import tempfile
+import react_utils
+from concurrent.futures import ThreadPoolExecutor
+
+optimizing = set()
+nthreads = 4
+jobs = []
+def opt_a_geom(xtb,folder,index,workdir):
+    # Load the XYZ file and save it in the right spot
+    fdc, current = tempfile.mkstemp(suffix=".xyz", dir=xtb.scratchdir)
+    xyzprod = react_utils.read_trajectory(folder+"/opt.xyz", index)
+    with open(current,"w") as f:
+        f.write(xyzprod)
+    # optimize
+    return xtb.optimize(current,
+                        workdir+"/reactions/opt_prod_%5.5i.xyz"%k,
+                               level="vtight")
+
+with ThreadPoolExecutor(max_workers=nthreads) as pool:
+    for k, row in reactions.iterrows():
+        print(k,row)
+        folder = row.folder
+        if (folder,row.prodI) in optimizing:
+            pass                    # we already did this one
+        else:
+            # Add to set
+            optimizing.add((folder, row.prodI))
+            jobs += [opt_a_geom(xtb, folder, row.prodI, workdir)]
+            pool.submit(jobs[-1])
+
+        if (folder,row.reactI) in optimizing:
+            pass                    # we already did this one
+        else:
+            # Add to set
+            optimizing.add((folder, row.reactI))
+            jobs += [opt_a_geom(xtb, folder, row.reactI, workdir)]
+            pool.submit(jobs[-1])
+
+# # reactions forward
+# forward = pd.DataFrame(dict(
+#     reactSMILES=reactions.reactSMILES,
+#     prodSMILES=reactions.prodSMILES,
+#     folder=reactions.folder,
+#     barrier=(reactions.tsE - reactions.reactE)*hartree2ev*ev2kcal))
+
+# backward = pd.DataFrame(dict(
+#     prodSMILES=reactions.reactSMILES,
+#     reactSMILES=reactions.prodSMILES,
+#     folder=reactions.folder,
+#     barrier=(reactions.tsE - reactions.prodE)*hartree2ev*ev2kcal))
+# allreacts = forward.append(backward)
+
+# print("Summary of approximate reaction barriers (kcal / mol)")
+# pivot = allreacts.pivot_table(values=["barrier"],
+#                               index=["reactSMILES", "prodSMILES"],
+#                               aggfunc=["min", "mean", "max"])
+# print(pivot)
+
+
+# print("Chosen reactant : ", reactant)
+# print("Products with barrier < %9.2f:" % threshold)
+# product_pivot = pivot.loc[reactant].reset_index()
+# products = product_pivot.prodSMILES[product_pivot[("min","barrier")]<threshold]
+# print(products)
+
+
+
+
+
+
+"""
+
 
 if not args.no_opt:
     xtb.optimize(init, init, level="vtight")

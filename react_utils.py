@@ -242,10 +242,11 @@ def reaction_job(xtb,
                   
 
 
-def read_trajectory(filepath):
+def read_trajectory(filepath, index=None):
     """Read an xyz file containing a trajectory."""
     structures = []
     energies = []
+    k = 0
     with open(filepath, 'r') as f:
         while True:
             first_line = f.readline()
@@ -265,7 +266,13 @@ def read_trajectory(filepath):
             for i in range(natoms):
                 this_mol += f.readline()
 
-            structures += [this_mol]
+            if index is None:
+                structures += [this_mol]
+            else:
+                if k == index:
+                    return this_mol
+                
+            k+=1
     return structures,energies
 
 def dump_succ_opt(output_folder, structures, energies, opt_indices,
