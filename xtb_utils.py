@@ -305,8 +305,9 @@ class xtb_driver:
         """
         
         return_files=[("xtb.trj", out_file)]
-        md = xtb_run("xtb", geom_file,
+        md = xtb_run(self.xtb_bin, geom_file,
                      "--metadyn",
+                     *self.extra_args,
                      xcontrol=xcontrol,
                      prefix="MTD",
                      delete=self.delete,
