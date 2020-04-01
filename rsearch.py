@@ -72,7 +72,12 @@ init = shutil.copy(args.init_xyz,
 
 # Initialize the xtb driver
 # -------------------------
-xtb = xtb_utils.xtb_driver(scratch=scratch)
+if args.log_level>1:
+    delete=False
+else:
+    delete=True
+xtb = xtb_utils.xtb_driver(scratch=scratch,
+                           delete=delete)
 xtb.extra_args = ["--gfn " + args.gfn, "--etemp " + args.etemp]
 
 if not args.no_opt:

@@ -46,7 +46,8 @@ def make_xcontrol(xcontrol_dictionary, fn):
 class xtb_run:
     def __init__(self, xtb, geom_file, *args,
                  before_geometry="--",
-                 scratch=".", 
+                 scratch=".",
+                 prefix="",
                  xcontrol=None,
                  delete=True,
                  return_files=[]):
@@ -84,7 +85,7 @@ class xtb_run:
 
         """
 
-        self.dir = tempfile.mkdtemp(dir=scratch)
+        self.dir = tempfile.mkdtemp(dir=scratch, prefix=prefix)
         self.delete = delete
         if self.delete:
             # The xtb output can be extremely large so if we are going to
@@ -188,6 +189,7 @@ class xtb_run:
 
 class xtb_driver:
     def __init__(self, path_to_xtb_binaries="",
+                 delete=True,
                  xtb_args=[], scratch="."):
         """Utility driver for xtb runs.
 
@@ -203,6 +205,8 @@ class xtb_driver:
         xtb_args (list of str): additional arguments to pass to xtb (for
         example, -gfn0, etc.). Default to [].
 
+        delete (bool) : if true, delete run files after runs have completed.
+
         scratch (str) : scratch directory for xtb runs, defaults to ".".
 
         """
@@ -210,6 +214,7 @@ class xtb_driver:
         self.xtb_bin = path_to_xtb_binaries + "xtb"
         self.crest_bin = path_to_xtb_binaries + "crest"
         self.scratchdir = scratch
+        self.delete=delete
 
     def optimize(self,
                  geom_file,
@@ -267,7 +272,9 @@ class xtb_driver:
                       oflag, level,
                       *self.extra_args,
                       xcontrol=xcontrol,
+                      prefix="OPT",
                       scratch=self.scratchdir,
+                      delete=self.delete,
                       return_files=return_files)
         return opt
 
@@ -301,6 +308,8 @@ class xtb_driver:
         md = xtb_run("xtb", geom_file,
                      "--metadyn",
                      xcontrol=xcontrol,
+                     prefix="MTD",
+                     delete=self.delete,
                      scratch=self.scratchdir,                     
                      return_files=return_files)
         return md
