@@ -277,7 +277,41 @@ class xtb_driver:
                       delete=self.delete,
                       return_files=return_files)
         return opt
+    
+    def screen(self,
+              geom_file, out_file,
+              xcontrol=None):
+        """Run crest -screen on a set of molecules
 
+        Parameters:
+        -----------
+
+        geom_file (str) : path to the file containing the initial molecular
+        geometries.
+
+        out_file (str): path to file where results are saved.
+
+        Optional Parameters:
+        --------------------
+
+        Returns:
+        --------
+
+        xtb_run : The crest job. Run using xtb_run().
+
+        """
+        
+        return_files=[("crest_ensemble.xyz", out_file)]
+        md = xtb_run("crest", geom_file,
+                     "-screen",
+                     *self.extra_args,
+                     xcontrol=xcontrol,
+                     prefix="SCREEN",
+                     delete=self.delete,
+                     scratch=self.scratchdir,                     
+                     return_files=return_files)
+        return md
+    
     def metadyn(self,
                 geom_file, out_file,
                 xcontrol=None):

@@ -53,11 +53,10 @@ workdir = args.folder
 # TODO: refine a specific reactant
 reactant = xyz2smiles(workdir + "/init/opt0000.xyz")
 threshold = 60.0
-
+nthreads = 4
 # Prepare output files
 # --------------------
-# TODO: make an overwite? argument
-os.makedirs(workdir + "/reactions", exist_ok=True)
+
 
 # Initialize the xtb driver
 # -------------------------
@@ -68,64 +67,25 @@ xtb.extra_args = ["--gfn " + args.gfn, "--etemp " + args.etemp]
 # -----------------------------
 reactions = read_all_pathways(workdir, args.b * kcal2hartree)
 
+# reactions forward
+forward = pd.DataFrame(dict(
+    reactSMILES=reactions.reactSMILES,
+    prodSMILES=reactions.prodSMILES,
+    folder=reactions.folder,
+    barrier=(reactions.tsE - reactions.reactE)*hartree2ev*ev2kcal))
 
-import tempfile
-import react_utils
-from concurrent.futures import ThreadPoolExecutor
+backward = pd.DataFrame(dict(
+    prodSMILES=reactions.reactSMILES,
+    reactSMILES=reactions.prodSMILES,
+    folder=reactions.folder,
+    barrier=(reactions.tsE - reactions.prodE)*hartree2ev*ev2kcal))
+allreacts = forward.append(backward)
 
-optimizing = set()
-nthreads = 4
-jobs = []
-def opt_a_geom(xtb,folder,index,workdir):
-    # Load the XYZ file and save it in the right spot
-    fdc, current = tempfile.mkstemp(suffix=".xyz", dir=xtb.scratchdir)
-    xyzprod = react_utils.read_trajectory(folder+"/opt.xyz", index)
-    with open(current,"w") as f:
-        f.write(xyzprod)
-    # optimize
-    return xtb.optimize(current,
-                        workdir+"/reactions/opt_prod_%5.5i.xyz"%k,
-                               level="vtight")
-
-with ThreadPoolExecutor(max_workers=nthreads) as pool:
-    for k, row in reactions.iterrows():
-        print(k,row)
-        folder = row.folder
-        if (folder,row.prodI) in optimizing:
-            pass                    # we already did this one
-        else:
-            # Add to set
-            optimizing.add((folder, row.prodI))
-            jobs += [opt_a_geom(xtb, folder, row.prodI, workdir)]
-            pool.submit(jobs[-1])
-
-        if (folder,row.reactI) in optimizing:
-            pass                    # we already did this one
-        else:
-            # Add to set
-            optimizing.add((folder, row.reactI))
-            jobs += [opt_a_geom(xtb, folder, row.reactI, workdir)]
-            pool.submit(jobs[-1])
-
-# # reactions forward
-# forward = pd.DataFrame(dict(
-#     reactSMILES=reactions.reactSMILES,
-#     prodSMILES=reactions.prodSMILES,
-#     folder=reactions.folder,
-#     barrier=(reactions.tsE - reactions.reactE)*hartree2ev*ev2kcal))
-
-# backward = pd.DataFrame(dict(
-#     prodSMILES=reactions.reactSMILES,
-#     reactSMILES=reactions.prodSMILES,
-#     folder=reactions.folder,
-#     barrier=(reactions.tsE - reactions.prodE)*hartree2ev*ev2kcal))
-# allreacts = forward.append(backward)
-
-# print("Summary of approximate reaction barriers (kcal / mol)")
-# pivot = allreacts.pivot_table(values=["barrier"],
-#                               index=["reactSMILES", "prodSMILES"],
-#                               aggfunc=["min", "mean", "max"])
-# print(pivot)
+print("Summary of approximate reaction barriers (kcal / mol)")
+pivot = allreacts.pivot_table(values=["barrier"],
+                              index=["reactSMILES", "prodSMILES"],
+                              aggfunc=["min", "mean", "max"])
+print(pivot)
 
 
 # print("Chosen reactant : ", reactant)
@@ -133,6 +93,46 @@ with ThreadPoolExecutor(max_workers=nthreads) as pool:
 # product_pivot = pivot.loc[reactant].reset_index()
 # products = product_pivot.prodSMILES[product_pivot[("min","barrier")]<threshold]
 # print(products)
+
+from concurrent.futures import ThreadPoolExecutor
+import react_utils
+# Optimize and sort
+# -----------------
+species = list(set([s for s in reactions.prodSMILES.values]
+              +[s for s in reactions.reactSMILES.values]))
+print("%i unique SMILES molecules"% len(species))
+
+
+# Make the SMILES file
+with open(workdir+"/smiles", "w") as f:
+    for i in range(len(species)):
+        f.write(species[i]+"\n")
+
+
+optimizing = {}
+os.makedirs(workdir + "/mols")
+for k, row in reactions.iterrows():
+    folder = row.folder
+    index = row.prodI
+    smiles = row.prodSMILES
+    if (folder,index) in optimizing:
+        pass                    # we already did this one
+    else:
+        xyzprod = react_utils.read_trajectory(folder+"/opt.xyz", row.prodI)
+        
+        # Add to set of stuff we found already
+        optimizing[(folder, row.prodI)] = k
+        
+        # also add it to the right file
+        with open(workdir+"/mols/%5.5i.xyz"%species.index(smiles), "a") as f:
+            f.write(xyzprod)
+f.close()
+
+
+
+
+
+
 
 
 
