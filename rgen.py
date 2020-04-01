@@ -25,14 +25,16 @@ parser.add_argument("-s",
                     help="Bond stretch limits. Defaults to (1.0, 3.0)",
                     nargs=2,type=float, default=[1.0,3.0])
 parser.add_argument("-sn",
-                    help="Number of bond stretches. Defaults to 30.",
+                    help="Number of bond stretches. Defaults to 20.",
                     type=int, default=30)
 parser.add_argument("-mtdi",
-                    help="Indices of the stretches where MTD is done.",
-                    type=int, nargs="+", default=[0, 5, 10])
+                    help="Indices of the stretches where MTD is done."
+                    +" Defaults to 1 every 5 points.",
+                    type=int, nargs="+", default=[])
 parser.add_argument("-mtdn",
-                    help="Number of guesses to generate at each MTD index.",
-                    type=int, default=80)
+                    help="Number of guesses to generate at each MTD index."
+                    +" Defaults to 10.",
+                    type=int, default=50)
 parser.add_argument("--force",
                     help="Force constant of the stretch, defaults to 1.25",
                     default=1.25,
@@ -49,7 +51,7 @@ parser.add_argument("--etemp",
                     type=str)
 parser.add_argument("--opt-level",
                     help="Optimization level. Defaults to vtight.",
-                    default="vtight",
+                    default="loose",
                     type=str)
 parser.add_argument("--shake-level",
                     help="If this is 0, the metadynamics run will be performed"
@@ -119,7 +121,11 @@ constraints = [("force constant = %f" % args.force,
                 "distance: %i, %i, %f"% (bond[0],bond[1],
                                          stretch * bond[2]))
                for stretch in stretch_factors]
-mtd_indices = args.mtdi
+
+if args.mtdi:
+    mtd_indices = args.mtdi
+else:
+    mtd_indices = np.arange(0, args.sn, 5)
 
 
 # STEP 1: Initial generation of guesses
