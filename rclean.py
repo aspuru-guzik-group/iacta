@@ -115,22 +115,27 @@ for k, row in reactions.iterrows():
     folder = row.folder
     index = row.prodI
     smiles = row.prodSMILES
-    if (folder,index) in optimizing:
-        pass                    # we already did this one
-    else:
-        xyzprod = react_utils.read_trajectory(folder+"/opt.xyz", row.prodI)
-        
-        # Add to set of stuff we found already
-        optimizing[(folder, row.prodI)] = k
-        
-        # also add it to the right file
-        with open(workdir+"/mols/%5.5i.xyz"%species.index(smiles), "a") as f:
-            f.write(xyzprod)
+    for folder,index,smiles in [(row.folder, row.prodI, row.prodSMILES),
+                                (row.folder, row.reactI, row.reactSMILES)]:
+        if (folder,index) in optimizing:
+            pass                    # we already did this one
+        else:
+            xyzprod = react_utils.read_trajectory(folder+"/opt.xyz", index)
+
+            # Add to set of stuff we found already
+            optimizing[(folder, index)] = k
+
+            # also add it to the right file
+            with open(workdir+"/mols/%5.5i.xyz"%species.index(smiles), "a") as f:
+                f.write(xyzprod)
 f.close()
 
-
-
-
+from concurrent.futures import ThreadPoolExecutor
+with ThreadPoolExecutor(max_workers=nthreads) as pool:
+    for i in range(len(species)):
+        pool.submit(
+            xtb.screen(workdir+"/mols/%5.5i.xyz" % i,
+                       workdir+"/mols/%5.5i.xyz" % i))
 
 
 

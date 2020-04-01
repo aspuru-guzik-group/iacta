@@ -302,15 +302,15 @@ class xtb_driver:
         """
         
         return_files=[("crest_ensemble.xyz", out_file)]
-        md = xtb_run("crest", geom_file,
-                     "-screen",
-                     *self.extra_args,
-                     xcontrol=xcontrol,
-                     prefix="SCREEN",
-                     delete=self.delete,
-                     scratch=self.scratchdir,                     
-                     return_files=return_files)
-        return md
+        job = xtb_run(self.crest_bin, geom_file,
+                      *self.extra_args,
+                      xcontrol=xcontrol,
+                      prefix="SCREEN",
+                      before_geometry="-screen",
+                      delete=False,
+                      scratch=self.scratchdir,                     
+                      return_files=return_files)
+        return job
     
     def metadyn(self,
                 geom_file, out_file,
