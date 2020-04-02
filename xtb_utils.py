@@ -85,7 +85,7 @@ class xtb_run:
 
         """
 
-        self.dir = tempfile.mkdtemp(dir=scratch, prefix=prefix)
+        self.dir = tempfile.mkdtemp(dir=scratch, prefix="tmp_" + prefix)
         self.delete = delete
         if self.delete:
             # The xtb output can be extremely large so if we are going to
@@ -193,8 +193,8 @@ class xtb_driver:
                  xtb_args=[], scratch="."):
         """Utility driver for xtb runs.
 
-        Methods include optimize(), metadyn() and multi_optimize() for various
-        sort of xtb runs.
+        Methods include optimize(), metadyn() etc. for various sort of xtb
+        runs.
 
         Optional parameters:
         --------------------
@@ -215,6 +215,7 @@ class xtb_driver:
         self.crest_bin = path_to_xtb_binaries + "crest"
         self.scratchdir = scratch
         self.delete=delete
+
 
     def optimize(self,
                  geom_file,
@@ -277,6 +278,46 @@ class xtb_driver:
                       delete=self.delete,
                       return_files=return_files)
         return opt
+
+    def gradient(self,
+                 geom_file,
+                 out_file,
+                 xcontrol=None):
+        """Compute a gradient for a molecule.
+
+        Parameters:
+        -----------
+
+        geom_file (str) : path to the file containing the molecular geometry.
+
+        out_file (str): path to file where the gradient is saved.
+
+        Optional Parameters:
+        --------------------
+
+        xcontrol (dict) : xcontrol dictionary to be interpreted by
+        make_xcontrol.
+
+        Returns:
+        --------
+
+        xtb_run : The gradient job. Run using xtb_run().
+        """
+        
+        # file_ext = geom_file[-3:]
+        # return_files=[("xtbopt." + file_ext, out_file)]
+
+        return_files = [("gradient",out_file)]
+        grad = xtb_run(self.xtb_bin, geom_file,
+                       "--grad",
+                       *self.extra_args,
+                       xcontrol=xcontrol,
+                       prefix="GRAD",
+                       scratch=self.scratchdir,
+                       delete=self.delete,
+                       return_files=return_files)
+        return grad
+        
     
     def screen(self,
               geom_file, out_file,
