@@ -54,8 +54,8 @@ def successive_optimization(xtb,
 
     """
     if not constraints:
-        # nothing to do, return nothing but formatted right
-        return np.array([]), np.array([]), np.array([]), np.array([])
+        # nothing to do
+        return [], [], [], []
 
     # Make scratch files
     fdc, current = tempfile.mkstemp(suffix=".xyz", dir=xtb.scratchdir)
@@ -100,7 +100,8 @@ def successive_optimization(xtb,
         opt_indices += [len(structures)-1]
         opt_grads += [newg]
         if verbose:
-            print("   nsteps=%4i   Energy=%9.5f Eh  |∇E=%9.5f|"%(len(news), newe[-1], np.sum(abs(newg))))
+            print("   nsteps=%4i   Energy=%9.5f Eh  |∇E=%9.5f|"%
+                  (len(news),newe[-1],np.sum(abs(newg))))
 
     os.remove(current)
     os.remove(log)
@@ -241,19 +242,23 @@ def reaction_job(xtb,
             verbose=False)          # otherwise its way too verbose
 
 
+
+        structures = bstructs[::-1] + fstructs
+        indices = bopt[::-1]  + fopt
+        energies = be[::-1] + fe
+        gradients = bgrads[::-1] + fgrads
+        
         # Dump forward reaction and backward reaction quantities as a raw npz
         # file that includes gradients
-        np.savez(output_folder+"/raw.npz",
-                 structures=bstructs[bopt][::-1] + fstructs[fopt],
-                 energies=be[bopt][::-1] + fe[fopt],
-                 gradients=bgrads + fgrads)
+        np.savez(output_folder+"/opt_raw.npz",
+                 structures=[structures[i] for i in indices],
+                 energies=[energies[i] for i in indices],
+                 gradients=gradients)
 
         if parameters["log_opt_steps"]:
             # Dump inefficient raw text output
             dump_succ_opt(output_folder,
-                          bstructs[::-1] + fstructs,
-                          be[::-1] + fe,
-                          bopt[::-1] + fopt,
+                          structures, energies, indices,
                           concat=True,
                           extra=parameters["log_opt_steps"])
         

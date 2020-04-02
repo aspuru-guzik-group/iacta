@@ -15,17 +15,11 @@ parser.add_argument("folder",
                     type=str)
 parser.add_argument("-b",
                     help="Minimum barrier size between species (in kcal/mol)."
-                    +" Defaults to 2 kcal/mol.", default=2.0,
+                    +" Defaults to 0.5 kcal/mol.", default=0.5,
                     type=float)
 parser.add_argument("-T",
                     help="Number of threads to use.",
                     type=int, default=1)
-"""
-also add no opt ts
-parser.add_argument("--no-opt",
-                    help="Start with an xtb optimization (defaults to true).",
-                    action="store_true")
-"""
 parser.add_argument("--gfn",
                     help="gfn version. Defaults to GFN 2", default="2",
                     type=str)
@@ -51,13 +45,15 @@ kcal2hartree = 1/(hartree2ev*ev2kcal)
 args = parser.parse_args()
 workdir = args.folder
 
+output = np.load(workdir + "/react00000/react.npz")
+
+"""
 # TODO: refine a specific reactant
 reactant = xyz2smiles(workdir + "/init/opt0000.xyz")
 threshold = 60.0
 nthreads = 4
 # Prepare output files
 # --------------------
-
 
 # Initialize the xtb driver
 # -------------------------
@@ -82,7 +78,7 @@ backward = pd.DataFrame(dict(
     barrier=(reactions.tsE - reactions.prodE)*hartree2ev*ev2kcal))
 allreacts = forward.append(backward)
 
-print("Summary of approximate reaction barriers (kcal / mol)")
+print("Summary of *approximate* reaction barriers (kcal / mol)")
 pivot = allreacts.pivot_table(values=["barrier"],
                               index=["reactSMILES", "prodSMILES"],
                               aggfunc=["min", "mean", "max"])
@@ -138,14 +134,12 @@ with ThreadPoolExecutor(max_workers=nthreads) as pool:
             xtb.screen(workdir+"/mols/%5.5i.xyz" % i,
                        workdir+"/mols/%5.5i.xyz" % i))
 
+# Now that this is done
 
 
 
 
 
-
-
-"""
 
 
 if not args.no_opt:

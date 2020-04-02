@@ -75,7 +75,7 @@ def read_trajectory(filepath, index=None):
             # first number on comment_line
             m = re.search('-?[0-9]*\.[0-9]*', comment_line)
             if m:
-                E = m.group()
+                E = float(m.group())
             else:
                 E = np.nan
                 
