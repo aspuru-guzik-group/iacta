@@ -50,8 +50,8 @@ parser.add_argument("--etemp",
                     default="300.0",
                     type=str)
 parser.add_argument("--opt-level",
-                    help="Optimization level. Defaults to vtight.",
-                    default="loose",
+                    help="Optimization level. Defaults to normal.",
+                    default="normal",
                     type=str)
 parser.add_argument("--shake-level",
                     help="If this is 0, the metadynamics run will be performed"
