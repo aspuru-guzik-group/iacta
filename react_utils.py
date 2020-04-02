@@ -4,6 +4,7 @@ import subprocess
 import numpy as np
 import tempfile
 import re
+from io_utils import read_trajectory
 
 def successive_optimization(xtb,
                             initial_xyz,
@@ -240,41 +241,6 @@ def reaction_job(xtb,
         
     return react_job
                   
-
-
-def read_trajectory(filepath, index=None):
-    """Read an xyz file containing a trajectory."""
-    structures = []
-    energies = []
-    k = 0
-    with open(filepath, 'r') as f:
-        while True:
-            first_line = f.readline()
-            # EOF -> blank line
-            if not first_line:
-                break
-                
-            this_mol = first_line
-            natoms = int(first_line.rstrip())
-
-            comment_line = f.readline()
-            this_mol += comment_line
-            # first number on comment_line
-            m = re.search('-?[0-9]*\.[0-9]*', comment_line)       
-            energies += [float(m.group())]
-        
-            for i in range(natoms):
-                this_mol += f.readline()
-
-            if index is None:
-                structures += [this_mol]
-            else:
-                if k == index:
-                    return this_mol
-                
-            k+=1
-    return structures,energies
-
 def dump_succ_opt(output_folder, structures, energies, opt_indices,
                   concat=False,
                   extra=False):

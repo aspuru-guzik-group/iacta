@@ -1,6 +1,7 @@
 import numpy as np
 import react
 import xtb_utils
+import io_utils
 import os
 import shutil
 import argparse
@@ -152,7 +153,7 @@ if not args.no_opt:
 
 # Get additional molecular parameters
 # -----------------------------------
-atoms, positions = xtb_utils.read_xyz(init)
+atoms, positions = io_utils.read_xyz(init)
 N = len(atoms)
 bond_length0 = np.sqrt(np.sum((positions[args.atoms[0]-1] -
                                positions[args.atoms[1]-1])**2))
