@@ -92,6 +92,24 @@ def read_trajectory(filepath, index=None):
             k+=1
     return structures,energies
 
+def xyz2numpy(string):
+    """Read an xyz file."""
+    lines = string.split("\n")
+    first_line = lines[0]
+
+    natoms = int(first_line.rstrip())
+    comment_line = lines[1]
+    
+    atoms = []
+    positions = np.zeros((natoms, 3))
+    for i in range(natoms):
+        line = lines[i+2]
+        positions[i,:] = np.fromstring(line[2:],
+                                       count=3, sep=" ")
+        atoms += [line[0:2].rstrip().lstrip()]
+    return atoms, positions, comment_line
+
+# TODO USE ABOVE IN THIS DEFINITION
 def read_xyz(filepath, index=0):
     """Read an xyz file."""
     with open(filepath, 'r') as f:

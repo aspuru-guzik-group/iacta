@@ -4,7 +4,7 @@ import subprocess
 import numpy as np
 import tempfile
 import re
-from io_utils import read_trajectory, read_xtb_gradient
+from io_utils import read_trajectory, read_xtb_gradient, xyz2numpy
 
 def successive_optimization(xtb,
                             initial_xyz,
@@ -241,17 +241,23 @@ def reaction_job(xtb,
             parameters,
             verbose=False)          # otherwise its way too verbose
 
-
-
         structures = bstructs[::-1] + fstructs
         indices = bopt[::-1]  + fopt
         energies = be[::-1] + fe
         gradients = bgrads[::-1] + fgrads
+
+        opt_xyz = []
+        for i in indices:
+            atoms, xyz, comment = xyz2numpy(structures[i])
+            opt_xyz += [xyz]
+        
+
         
         # Dump forward reaction and backward reaction quantities as a raw npz
         # file that includes gradients
         np.savez(output_folder+"/opt_raw.npz",
-                 structures=[structures[i] for i in indices],
+                 atoms=atoms,
+                 structures=opt_xyz,
                  energies=[energies[i] for i in indices],
                  gradients=gradients)
 
