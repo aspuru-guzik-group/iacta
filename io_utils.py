@@ -73,14 +73,18 @@ def read_trajectory(filepath, index=None):
             comment_line = f.readline()
             this_mol += comment_line
             # first number on comment_line
-            m = re.search('-?[0-9]*\.[0-9]*', comment_line)       
-            energies += [float(m.group())]
-        
+            m = re.search('-?[0-9]*\.[0-9]*', comment_line)
+            if m:
+                E = m.group()
+            else:
+                E = np.nan
+                
             for i in range(natoms):
                 this_mol += f.readline()
 
             if index is None:
                 structures += [this_mol]
+                energies += [E]
             else:
                 if k == index:
                     return this_mol

@@ -54,8 +54,8 @@ def successive_optimization(xtb,
 
     """
     if not constraints:
-        # nothing to do
-        return [], [], []
+        # nothing to do, return nothing but formatted right
+        return np.array([]), np.array([]), np.array([]), np.array([])
 
     # Make scratch files
     fdc, current = tempfile.mkstemp(suffix=".xyz", dir=xtb.scratchdir)
@@ -243,10 +243,10 @@ def reaction_job(xtb,
 
         # Dump forward reaction and backward reaction quantities as a raw npz
         # file that includes gradients
-        np.savez(output_folder+"raw.npz",
-                 structures = bstructs[bopt][::-1] + fstructs[fopt],
-                 energies = be[bopt][::-1] + fe[fopt],
-                 gradients = bgrads + fgrads)
+        np.savez(output_folder+"/raw.npz",
+                 structures=bstructs[bopt][::-1] + fstructs[fopt],
+                 energies=be[bopt][::-1] + fe[fopt],
+                 gradients=bgrads + fgrads)
 
         if parameters["log_opt_steps"]:
             # Dump inefficient raw text output

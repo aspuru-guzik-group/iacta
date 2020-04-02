@@ -28,11 +28,11 @@ parser.add_argument("-s",
 parser.add_argument("-sn",
                     help="Number of bond stretches. Defaults to 20.",
                     type=int, default=30)
-parser.add_argument("-mtdi",
+parser.add_argument("--mtdi",
                     help="Indices of the stretches where MTD is done."
                     +" Defaults to 1 every 5 points.",
                     type=int, nargs="+", default=[])
-parser.add_argument("-mtdn",
+parser.add_argument("--mtdn",
                     help="Number of guesses to generate at each MTD index."
                     +" Defaults to 10.",
                     type=int, default=50)
