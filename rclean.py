@@ -45,7 +45,27 @@ kcal2hartree = 1/(hartree2ev*ev2kcal)
 args = parser.parse_args()
 workdir = args.folder
 
-output = np.load(workdir + "/react00000/react.npz")
+import rmsd
+rmsd_threshold = 0.7
+
+output = np.load(workdir + "/react00000/opt_raw.npz")
+structures = output["structures"]
+x1 = structures[0]
+energies = output["energies"]
+grads = np.sum(abs(output["gradients"]), (1,2))
+
+x0 = structures[0]
+y = []
+for i in range(len(structures)):
+    y += [rmsd.quaternion_rmsd(x0,structures[i])]
+    
+    if y[-1] > rmsd_threshold:
+        x0 = structures[i]
+        y[-1] = 0
+
+# rmsds = [0]+[rmsd.kabsch_rmsd(structures[i-1],structures[i]) for i in range(1,len(structures))]
+rmsds = [rmsd.quaternion_rmsd(structures[0], structures[i]) for i in range(len(structures))]
+
 
 """
 # TODO: refine a specific reactant
