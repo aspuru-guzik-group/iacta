@@ -2,128 +2,64 @@ import pybel
 import numpy as np
 import glob
 import pandas as pd
+from rmsd import rmsd
 
-def xyz2smiles(xyzfile, chiral=False):
-    output = []
-    for m in pybel.readfile("xyz",xyzfile):
-        output+= [m.write(format="smi", opt={"c":1,"n":1,
-                                             "i":chiral*1}).rstrip()]
-    if len(output) == 1:
-        return output[0]
-    else:
-        return output
+def xyz2smiles(atoms, xyz, chiral=False):
+    string = "%i\n\n" % len(atoms)
+    for i in range(len(atoms)):
+        string += "%s\t%f\t%f\t%f\n" % (atoms[i], *xyz[i])
 
-def read_a_pathway(react_folder, barrier_tol):
-    """Extract chemical quantities from a reaction.
+    mol = pybel.readstring("xyz",string)
+    return mol.write(format="smi", opt={"c":1,"n":1,"i":chiral*1}).rstrip()
 
-    Parameters:
-    -----------
-    react_folder (str) : folder storing the reaction data, obtained from the
-    reaction_job() routine in react.py.
 
-    barrier_tol (float) : smallest barrier height to consider a molecule
-    a true metastable intermediate, in Hartree.
+def split_output(folder, rmsd_threshold):
+    output = np.load(folder + "/opt_raw.npz")    
+    structures = output["structures"]
+    x1 = structures[0]
+    energies = output["energies"]
+    atoms = output["atoms"]
+    grads = abs(np.sum(output["gradients"], (1,2)))
+    # Take the lowest energy structure as the reference (doesn't really matter
+    # though I think)
+    x0 = structures[0]
 
-    Returns:
-    -------
-    A populated ReactionPathway object
-    """
-    try:
-        smiles = xyz2smiles(react_folder + "/opt.xyz")
-    except OSError:
-        # run did not converge
-        return None
+    rmsd_split = []
+    start = 0
+    rmsds = []
+    # Split into structures based on rmsd
+    for i in range(len(structures)):
+        rmsds += [rmsd(x0,structures[i])]
+
+    start = 0
+    for i in range(1,len(structures)):
+        if abs(rmsds[i] - rmsds[i-1]) > rmsd_threshold:
+            rmsd_split += [(start,i)]
+            start = i
+    rmsd_split += [(start,len(structures))]
+
+    # Minima of the gradients are those states we keep. These are either TS or
+    # minima
+    indices = [start + np.argmin(grads[start:end]) for start,end in rmsd_split]
     
-    E = np.loadtxt(react_folder + "/Eopt")
-    mols = [smiles[0]]
-    regions = []
-    rstart = 0
+    smiles = []
+    E = []
+    structs =[]
+    for i in indices:
+        smiles += [xyz2smiles(atoms,structures[i])]
+        E += [energies[i]]
+        structs +=[structures[i]]
 
-    # loop through smiles and detect changes
-    for si,s in enumerate(smiles):
-        if s == mols[-1]:
-            pass
-        else:
-            mols += [s]
-            regions += [(rstart,si)]
-            rstart = si
+    out = dict(cmpds=smiles,
+               energies=E,
+               structures=structs,
+               folder=folder)
+               
 
-    regions += [(rstart, len(smiles))]
-
-    # Refine regions by merging those that have barriers less than
-    # barrier_tol. This is nasty but it works.
-    refined = []
-    while True:
-        if len(regions) == 0:
-            break
-           
-        if len(regions) == 1:
-            refined += [regions.pop()]
-            break
-
-        current = regions.pop(0)
-        current_imin = np.argmin(E[current[0]:current[1]]) + current[0]
-        current_Emin = E[current_imin]
-        # iterate over remaining regions
-        while regions:
-            future = regions[0]
-            future_imin = np.argmin(E[future[0]:future[1]]) + future[0]
-            future_Emin = E[future_imin]
-
-            # barrier is the max between the two minima (inclusive
-            barrier = np.max(E[current_imin:future_imin+1])
-
-            # if the barrier is to small, we merge current and future regions.
-            if ((barrier < (current_Emin + barrier_tol))
-                or (barrier < (future_Emin + barrier_tol))):
-                current = (current[0], future[1])
-
-                # current_imin = np.argmin(E[current[0]:current[1]]) + current[0]
-                # current_Emin = E[current_imin]
-                
-                # if the minima of future is below the minima of current, we
-                # switch the minima of current to the minima of future.
-                if future_Emin < current_Emin:
-                    current_Emin = future_Emin
-                    current_imin = future_imin
-                    
-                # pop the one we just melded in
-                regions.pop(0)
-
-
-            # Otherwise, we break out of the inner loop and save current
-            else:
-                break
-        refined +=[current[:]]
-
-    # Save all those quantities
-    iMols = []
-    iTS = []
-    
-    for r in refined:
-        imin = np.argmin(E[r[0]:r[1]]) + r[0]
-        iMols += [imin]
-
-    out = []
-    for k in range(len(refined)-1):
-        iTS = np.argmax(E[iMols[k]:iMols[k+1]+1]) + iMols[k]
-        out += [{
-            "folder":react_folder,
-            # mol1
-            "reactSMILES":smiles[iMols[k]],
-            "reactE": E[iMols[k]],
-            "reactI": iMols[k],
-            # ts
-            "tsSMILES":smiles[iTS],
-            "tsE":E[iTS],
-            "tsI":iTS,
-            # mol2
-            "prodSMILES":smiles[iMols[k+1]],
-            "prodE": E[iMols[k+1]],
-            "prodI": iMols[k+1]}]
     return out
 
-def read_all_pathways(output_folder, Etol, verbose=True):
+
+def read_all_pathways(output_folder, rmsd_threshold, verbose=True):
     """Read and parse all reactions in a given folder."""
     folders = glob.glob(output_folder + "/react[0-9]*")
     if verbose:
@@ -135,13 +71,14 @@ def read_all_pathways(output_folder, Etol, verbose=True):
     pathways = []
     i = 0
     for f in folders:
-        rpath = read_a_pathway(f, Etol)
-        if rpath is None:
+        try:
+            rpath = split_output(f, rmsd_threshold)
+        except FileNotFoundError:
             # Convergence failed
             failed += [f]
         else:
-            if len(rpath)>0:
-                pathways += rpath
+            if len(rpath["cmpds"])>0:
+                pathways += [rpath]
                 i+= 1
             else:
                 # No reaction in this pathway
@@ -149,11 +86,11 @@ def read_all_pathways(output_folder, Etol, verbose=True):
             
     if verbose:
         print(" - %6i that did not converge" % len(failed))
-        print(" - %6i with no reactions" % len(noreact))
+        print(" - %6i with only one species" % len(noreact))
         print("--------------")
-        print(" = %6i multi-reaction pathways" % len(pathways))
-        print(" = %6i reactions total" % len(pathways))
-    return pd.DataFrame(pathways)
+        print(" = %6i multi-molecules pathways" % len(pathways))
+
+    return pathways
 
 # # kbT / hbar = 1/beta hbar = 1/beta (Eh^-1) * 1/hbar(eV fs) * 27 eV / hartree
 # # EYRING_PREF = 1/constants.hbar * constants.hartree_ev # fs^-1
