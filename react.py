@@ -86,7 +86,7 @@ def generate_initial_structures(xtb_driver,
         print("-----------------------------------------------------------------")
         print("Performing initial stretching...")
 
-    structures, energies, opt_indices = react_utils.successive_optimization(
+    structures, energies, opt_indices, opt_grads = react_utils.successive_optimization(
         xtb_driver, guess_xyz_file,
         constraints, parameters, verbose=verbose)
 

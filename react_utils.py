@@ -4,7 +4,7 @@ import subprocess
 import numpy as np
 import tempfile
 import re
-from io_utils import read_trajectory
+from io_utils import read_trajectory, read_xtb_gradient
 
 def successive_optimization(xtb,
                             initial_xyz,
@@ -59,6 +59,7 @@ def successive_optimization(xtb,
 
     # Make scratch files
     fdc, current = tempfile.mkstemp(suffix=".xyz", dir=xtb.scratchdir)
+    fdg, gradf = tempfile.mkstemp(dir=xtb.scratchdir)
     fdl, log = tempfile.mkstemp(suffix="_log.xyz", dir=xtb.scratchdir)
 
     # prepare the current file
@@ -66,6 +67,7 @@ def successive_optimization(xtb,
     structures = []
     energies = []
     opt_indices = []
+    opt_grads = []
     
 
     if verbose:
@@ -84,17 +86,26 @@ def successive_optimization(xtb,
                                wall=parameters["wall"],
                                constrain=constraints[i]))
         opt()
+
+        # also compute constraints free gradient for the last point
+        grad = xtb.gradient(current, gradf,
+                    xcontrol=dict(
+                        wall=parameters["wall"]))
+        grad()
         
         news, newe = read_trajectory(log)
+        newg = read_xtb_gradient(gradf)
         structures += news
         energies += newe
         opt_indices += [len(structures)-1]
+        opt_grads += [newg]
         if verbose:
-            print("   nsteps=%4i   Energy=%9.5f Eh"%(len(news), newe[-1]))
+            print("   nsteps=%4i   Energy=%9.5f Eh  |∇E=%9.5f|"%(len(news), newe[-1], np.sum(abs(newg))))
 
     os.remove(current)
     os.remove(log)
-    return structures, energies, opt_indices
+    os.remove(gradf)
+    return structures, energies, opt_indices, opt_grads
         
 
 def metadynamics_job(xtb,
@@ -210,7 +221,7 @@ def reaction_job(xtb,
         f.close()
 
         # Forward reaction
-        fstructs, fe, fopt = successive_optimization(
+        fstructs, fe, fopt, fgrads = successive_optimization(
             xtb, output_folder + "/initial.xyz",
             # None -> no constraint = products
             constraints[mtd_index:],
@@ -222,7 +233,7 @@ def reaction_job(xtb,
         f.close()
 
         # Backward reaction
-        bstructs, be, bopt = successive_optimization(
+        bstructs, be, bopt, bgrads = successive_optimization(
             xtb, output_folder + "/initial_backward.xyz",
             # None -> no constraint = reactants  
             constraints[mtd_index-1:-1:-1],
@@ -230,14 +241,21 @@ def reaction_job(xtb,
             verbose=False)          # otherwise its way too verbose
 
 
-        # Dump forward reaction and backward reaction quantities
-        dump_succ_opt(output_folder,
-                      bstructs[::-1] + fstructs,
-                      be[::-1] + fe,
-                      bopt[::-1] + fopt,
-                      concat=True,
-                      # TODO: turn this into an option
-                      extra=parameters["log_opt_steps"])
+        # Dump forward reaction and backward reaction quantities as a raw npz
+        # file that includes gradients
+        np.savez(output_folder+"raw.npz",
+                 structures = bstructs[bopt][::-1] + fstructs[fopt],
+                 energies = be[bopt][::-1] + fe[fopt],
+                 gradients = bgrads + fgrads)
+
+        if parameters["log_opt_steps"]:
+            # Dump inefficient raw text output
+            dump_succ_opt(output_folder,
+                          bstructs[::-1] + fstructs,
+                          be[::-1] + fe,
+                          bopt[::-1] + fopt,
+                          concat=True,
+                          extra=parameters["log_opt_steps"])
         
     return react_job
                   
