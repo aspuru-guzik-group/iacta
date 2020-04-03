@@ -33,30 +33,30 @@ parser.add_argument("-mtdi",
 parser.add_argument("-mtdn",
                     help="Number of guesses to generate at each MTD index.",
                     type=int, default=80)
-parser.add_argument("--force",
+parser.add_argument("-force",
                     help="Force constant of the stretch, defaults to 1.25",
                     default=1.25,
                     type=float)
-parser.add_argument("--no-opt",
+parser.add_argument("-no-opt",
                     help="Start with an xtb optimization (defaults to true).",
                     action="store_true")
-parser.add_argument("--gfn",
+parser.add_argument("-gfn",
                     help="gfn version. Defaults to GFN 2", default="2",
                     type=str)
-parser.add_argument("--etemp",
+parser.add_argument("-etemp",
                     help="Electronic temperature. Defaults to 300 K",
                     default="300.0",
                     type=str)
-parser.add_argument("--opt-level",
+parser.add_argument("-opt-level",
                     help="Optimization level. Defaults to vtight.",
                     default="vtight",
                     type=str)
-parser.add_argument("--shake-level",
+parser.add_argument("-shake-level",
                     help="If this is 0, the metadynamics run will be performed"
                     +" with parameters that permit bond-breaking, specifically shake=0,"
                     +" but at a slower pace than if shake is set to 1 or 2. Defaults to 0.",
                     default=0, type=int)
-parser.add_argument("--log-level",
+parser.add_argument("-log-level",
                     help="Level of debug printout (see react.py for details).",
                     default=0, type=int)
 
