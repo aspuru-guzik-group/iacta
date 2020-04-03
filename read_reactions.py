@@ -99,7 +99,8 @@ def read_all_reactions(output_folder, verbose=True):
             failed += [f]
         else:
             if len(smiles)>1:
-                pathways += [(energies, smiles, structures, stable)]
+                pathways += [(energies, smiles, structures, stable,
+                              "react"+f[-5:])]
             else:
                 # No reaction in this pathway
                 noreact += [f]
@@ -115,7 +116,7 @@ def read_all_reactions(output_folder, verbose=True):
 def prune_pathways(pathways):
     reactions = {}
 
-    for energies, species, files, stable in pathways:
+    for energies, species, files, stable, where in pathways:
         stables = []
         barriers = []
         current = 0.0
@@ -136,9 +137,11 @@ def prune_pathways(pathways):
             if (np.max(barriers)< np.max(reactions[stables][0])):
                 # if all the barriers are smaller, we make this the new best
                 # reaction.
-                reactions[stables] = (barriers, energies, species, files, stable)
+                reactions[stables] = (barriers, energies, species,
+                                      files, stable, where)
         else:
-            reactions[stables] = (barriers, energies, species, files, stable)
+            reactions[stables] = (barriers, energies, species,
+                                  files, stable, where)
 
     return reactions
 
@@ -181,13 +184,13 @@ if __name__ == "__main__":
 
 
     start = "|--=====-----==-- REACTIONS AND BARRIERS (kcal/mol) --==------====---|\n"
-    start+= "File    Reaction\n"
+    start+= "  #     File         Reaction\n"
     index = 1
     f = open(outfolder + "/summary", "w")
     print(start, end="")
     f.write(start)
     for key, val in reactions.items():
-        upper = "%3i >   " % index +  key[0]
+        upper = "%3i >   " % index + val[5]+"   "+  key[0]
         for i in range(1,len(key)):
             new = " == %.2f ==> " % (val[0][i-1]*hartree_ev * kcalmol_ev) + key[i]
             upper += new
