@@ -55,6 +55,14 @@ def read_xtb_gradient(filen):
                 
     return np.fromstring(gradient, sep=" ").reshape((n,3))
 
+def comment_line_energy(comment_line):
+    m = re.search('-?[0-9]*\.[0-9]*', comment_line)
+    if m:
+        E = float(m.group())
+    else:
+        E = np.nan
+    return E
+
 def read_trajectory(filepath, index=None):
     """Read an xyz file containing a trajectory."""
     structures = []
@@ -72,13 +80,8 @@ def read_trajectory(filepath, index=None):
 
             comment_line = f.readline()
             this_mol += comment_line
-            # first number on comment_line
-            m = re.search('-?[0-9]*\.[0-9]*', comment_line)
-            if m:
-                E = float(m.group())
-            else:
-                E = np.nan
-                
+            E = comment_line_energy(comment_line)
+
             for i in range(natoms):
                 this_mol += f.readline()
 
@@ -92,26 +95,32 @@ def read_trajectory(filepath, index=None):
             k+=1
     return structures,energies
 
-def xyz2numpy(string):
+def xyz2numpy(input, natoms):
     """Read an xyz file."""
-    lines = string.split("\n")
-    first_line = lines[0]
+    if type(input) == str:
+        lines = input.split("\n")
+    elif type(input) == list:
+        lines = input
 
-    natoms = int(first_line.rstrip())
-    comment_line = lines[1]
-    
     atoms = []
     positions = np.zeros((natoms, 3))
-    for i in range(natoms):
-        line = lines[i+2]
-        positions[i,:] = np.fromstring(line[2:],
+    iatom = 0
+    for line in input:
+        positions[iatom,:] = np.fromstring(line[2:],
                                        count=3, sep=" ")
         atoms += [line[0:2].rstrip().lstrip()]
-    return atoms, positions, comment_line
+        iatom+=1
+        if iatom == natoms:
+            break
+    return atoms, positions
 
-# TODO USE ABOVE IN THIS DEFINITION
+
+
 def read_xyz(filepath, index=0):
-    """Read an xyz file."""
+    """Read an xyz file and convert to numpy arrays."""
+    atoms = []
+    xyzs = []
+    comments = []
     with open(filepath, 'r') as f:
         curr = 0
         while True:
@@ -122,17 +131,18 @@ def read_xyz(filepath, index=0):
             natoms = int(first_line.rstrip())
             comment_line = f.readline()
 
-            if curr == index:
-                atoms = []
-                positions = np.zeros((natoms, 3))
-                for i in range(natoms):
-                    line = f.readline()
-                    positions[i,:] = np.fromstring(line[2:],
-                                                        count=3, sep=" ")
-                    atoms += [line[0:2].rstrip().lstrip()]
-                return atoms, positions
+            if index=="all":
+                at, r = xyz2numpy(f,natoms)
+                atoms += [at]
+                xyzs += [r]
+                comments += [comment_line]
+
+            elif curr == index:
+                atoms, pos = xyz2numpy(f, natoms)
+                return atoms, pos, comment_line
             else:
                 for i in range(natoms):
                     f.readline()
                 curr += 1
+    return atoms,xyzs,comments
 

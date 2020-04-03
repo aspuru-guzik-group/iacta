@@ -49,17 +49,6 @@ rmsd_threshold = 0.2
 reactions = read_all_pathways(workdir, 0.2)
 
     
-
-
-
-
-
-
-
-
-
-
-
 """
 # TODO: refine a specific reactant
 reactant = xyz2smiles(workdir + "/init/opt0000.xyz")

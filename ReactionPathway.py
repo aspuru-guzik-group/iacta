@@ -77,7 +77,7 @@ def read_all_pathways(output_folder, rmsd_threshold, verbose=True):
             # Convergence failed
             failed += [f]
         else:
-            if len(rpath["cmpds"])>0:
+            if len(rpath["cmpds"])>1:
                 pathways += [rpath]
                 i+= 1
             else:
