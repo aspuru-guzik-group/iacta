@@ -84,7 +84,7 @@ else:
     delete=True
 xtb = xtb_utils.xtb_driver(scratch=scratch,
                            delete=delete)
-xtb.extra_args = ["--gfn " + args.gfn, "--etemp " + args.etemp]
+xtb.extra_args = ["--gfn " , args.gfn, "--etemp " , args.etemp]
 
 if not args.no_opt:
     xtb.optimize(init, init, level="vtight")

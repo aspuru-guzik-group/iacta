@@ -85,7 +85,7 @@ class xtb_run:
 
         """
 
-        self.dir = tempfile.mkdtemp(dir=scratch, prefix=prefix)
+        self.dir = tempfile.mkdtemp(dir=scratch, prefix="tmp"+prefix)
         self.delete = delete
         if self.delete:
             # The xtb output can be extremely large so if we are going to
