@@ -25,17 +25,18 @@ parser.add_argument("-s",
                     help="Bond stretch limits. Defaults to (1.0, 3.0)",
                     nargs=2,type=float, default=[1.0,3.0])
 parser.add_argument("-sn",
-                    help="Number of bond stretches. Defaults to 30.",
-                    type=int, default=30)
+                    help="Number of bond stretches. Defaults to 300.",
+                    type=int, default=100)
 parser.add_argument("-mtdi",
-                    help="Indices of the stretches where MTD is done.",
-                    type=int, nargs="+", default=[0, 5, 10])
+                    help="Indices of the stretches where MTD is done."
+                    +" Defaults to one point every 10.",
+                    type=int, nargs="+", default=None)
 parser.add_argument("-mtdn",
                     help="Number of guesses to generate at each MTD index.",
                     type=int, default=80)
 parser.add_argument("-force",
                     help="Force constant of the stretch, defaults to 1.25",
-                    default=1.25,
+                    default=5.0,
                     type=float)
 parser.add_argument("-no-opt",
                     help="Start with an xtb optimization (defaults to true).",
@@ -87,7 +88,9 @@ xtb = xtb_utils.xtb_driver(scratch=scratch,
 xtb.extra_args = ["--gfn " , args.gfn, "--etemp " , args.etemp]
 
 if not args.no_opt:
-    xtb.optimize(init, init, level="vtight")
+    print("optimizing initial geometry...")
+    opt = xtb.optimize(init, init, level="vtight")
+    opt()
 
 # Get additional molecular parameters
 # -----------------------------------
@@ -120,6 +123,8 @@ constraints = [("force constant = %f" % args.force,
                                          stretch * bond[2]))
                for stretch in stretch_factors]
 mtd_indices = args.mtdi
+if mtd_indices is None:
+    mtd_indices = np.arange(0, args.sn, 10)
 
 
 # STEP 1: Initial generation of guesses
