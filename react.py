@@ -1,5 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 import react_utils
+from io_utils import read_trajectory, dump_succ_opt
+
 """
 This file contains a bunch of user-friendly, multithreaded drivers for
 react_utils.
@@ -90,9 +92,9 @@ def generate_initial_structures(xtb_driver,
         xtb_driver, guess_xyz_file,
         constraints, parameters, verbose=verbose)
 
-    react_utils.dump_succ_opt(workdir + "/init",
-                              structures,energies,opt_indices,
-                              extra=parameters["log_opt_steps"])
+    dump_succ_opt(workdir + "/init",
+                  structures,energies,opt_indices,
+                  extra=parameters["log_opt_steps"])
     if verbose:
         print("Done!\n")
 
@@ -138,7 +140,7 @@ def react(xtb_driver,
     nreact = 0
     with ThreadPoolExecutor(max_workers=nthreads) as pool:
         for mtd_index in mtd_indices:
-            structures, energies = react_utils.read_trajectory(
+            structures, energies = read_trajectory(
                 meta + "/mtd%4.4i.xyz" % mtd_index)
 
             for s in structures:

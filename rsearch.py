@@ -1,6 +1,7 @@
 import numpy as np
 import react
 import xtb_utils
+import io_utils
 import os
 import shutil
 import argparse
@@ -90,7 +91,7 @@ xtb.extra_args = ["--gfn " , args.gfn, "--etemp " , args.etemp]
 
 # Get additional molecular parameters
 # -----------------------------------
-atoms, positions = xtb_utils.read_xyz(init)
+atoms, positions, comment = io_utils.read_xyz(init)
 N = len(atoms)
 
 # Initialize parameters

@@ -4,6 +4,7 @@ import subprocess
 import numpy as np
 import tempfile
 import re
+from io_utils import read_trajectory, dump_succ_opt
 
 def successive_optimization(xtb,
                             initial_xyz,
@@ -241,64 +242,3 @@ def reaction_job(xtb,
                       extra=parameters["log_opt_steps"])
         
     return react_job
-                  
-
-
-def read_trajectory(filepath):
-    """Read an xyz file containing a trajectory."""
-    structures = []
-    energies = []
-    with open(filepath, 'r') as f:
-        while True:
-            first_line = f.readline()
-            # EOF -> blank line
-            if not first_line:
-                break
-                
-            this_mol = first_line
-            natoms = int(first_line.rstrip())
-
-            comment_line = f.readline()
-            this_mol += comment_line
-            # first number on comment_line
-            m = re.search('-?[0-9]*\.[0-9]*', comment_line)       
-            energies += [float(m.group())]
-        
-            for i in range(natoms):
-                this_mol += f.readline()
-
-            structures += [this_mol]
-    return structures,energies
-
-def dump_succ_opt(output_folder, structures, energies, opt_indices,
-                  concat=False,
-                  extra=False):
-    os.makedirs(output_folder, exist_ok=True)
-    
-
-    if concat:
-        # Dump the optimized structures in one file                
-        with open(output_folder + "/opt.xyz", "w") as f:
-            for oi in opt_indices:
-                f.write(structures[oi])
-    else:
-        # Dump the optimized structures in many files            
-        for stepi, oi in enumerate(opt_indices):
-            with open(output_folder + "/opt%4.4i.xyz" % stepi, "w") as f:
-                f.write(structures[oi])
-
-    # Dump indices of optimized structures, energies of optimized structures,
-    # all energies and all structures
-    np.savetxt(output_folder + "/Eopt", np.array(energies)[opt_indices], fmt="%15.8f")
-
-    if extra:
-        np.savetxt(output_folder + "/indices", opt_indices, fmt="%i")
-        np.savetxt(output_folder + "/E", energies, fmt="%15.8f")
-        with open(output_folder + "/log.xyz", "w") as f:
-            for s in structures:
-                f.write(s)
-
-
-
-
-
