@@ -87,18 +87,10 @@ xtb = xtb_utils.xtb_driver(scratch=scratch,
                            delete=delete)
 xtb.extra_args = ["--gfn " , args.gfn, "--etemp " , args.etemp]
 
-if not args.no_opt:
-    print("optimizing initial geometry...")
-    opt = xtb.optimize(init, init, level="vtight")
-    opt()
-
 # Get additional molecular parameters
 # -----------------------------------
 atoms, positions = xtb_utils.read_xyz(init)
 N = len(atoms)
-bond_length0 = np.sqrt(np.sum((positions[args.atoms[0]-1] -
-                               positions[args.atoms[1]-1])**2))
-bond = (args.atoms[0], args.atoms[1], bond_length0)
 
 # Initialize parameters
 # ---------------------
@@ -107,6 +99,18 @@ params = react.default_parameters(N,
                                   nmtd=args.mtdn,
                                   optlevel=args.opt_level,
                                   log_level=args.log_level)
+
+if not args.no_opt:
+    print("optimizing initial geometry...")
+    opt = xtb.optimize(init, init, level="vtight",
+                       xcontrol={"wall":params["wall"]})
+    opt()
+
+
+bond_length0 = np.sqrt(np.sum((positions[args.atoms[0]-1] -
+                               positions[args.atoms[1]-1])**2))
+bond = (args.atoms[0], args.atoms[1], bond_length0)
+
 
 # Constraints for the search
 # -------------------------
