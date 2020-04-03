@@ -49,6 +49,7 @@ class xtb_run:
                  scratch=".",
                  prefix="",
                  xcontrol=None,
+                 restart=None,
                  delete=True,
                  return_files=[]):
         """Build a container for an xtb run.
@@ -97,6 +98,9 @@ class xtb_run:
             
         self.err = open(self.dir + "/xtb.err", "w")
         self.coord = shutil.copy(geom_file, self.dir)
+        if restart:
+            shutil.copy(restart, self.dir + "/xtbrestart")
+            
         self.return_files = return_files   # list of files to take out when
                                            # run finishes
         
@@ -222,7 +226,8 @@ class xtb_driver:
                  xcontrol=None,
                  level=None,
                  compute_hessian=False,
-                 log=None):
+                 log=None,
+                 restart=None):
         """Optimize a molecule.
 
         Parameters:
@@ -256,12 +261,13 @@ class xtb_driver:
         return_files=[("xtbopt." + file_ext, out_file)]
         if log:
             return_files += [("xtbopt.log", log)]
-
+        if restart:
+            return_files += [("xtbrestart", restart)]
+            
         if compute_hessian:
             oflag = "--ohess"
             if level is None:
                 level="vtight"
-
             return_files += [("hessian", "hessian_" + out_file)]
         else:
             oflag = "--opt"
@@ -272,6 +278,7 @@ class xtb_driver:
                       oflag, level,
                       *self.extra_args,
                       xcontrol=xcontrol,
+                      restart=restart,
                       prefix="OPT",
                       scratch=self.scratchdir,
                       delete=self.delete,

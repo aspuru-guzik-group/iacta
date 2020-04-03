@@ -59,6 +59,7 @@ def successive_optimization(xtb,
     # Make scratch files
     fdc, current = tempfile.mkstemp(suffix=".xyz", dir=xtb.scratchdir)
     fdl, log = tempfile.mkstemp(suffix="_log.xyz", dir=xtb.scratchdir)
+    fdr, restart = tempfile.mkstemp(dir=xtb.scratchdir)
 
     # prepare the current file
     shutil.copyfile(initial_xyz, current)
@@ -79,6 +80,7 @@ def successive_optimization(xtb,
                            current,
                            log=log,
                            level=parameters["optlevel"],
+                           restart=restart,
                            xcontrol=dict(
                                wall=parameters["wall"],
                                constrain=constraints[i]))
@@ -93,6 +95,7 @@ def successive_optimization(xtb,
 
     os.remove(current)
     os.remove(log)
+    os.remove(restart)
     return structures, energies, opt_indices
         
 
