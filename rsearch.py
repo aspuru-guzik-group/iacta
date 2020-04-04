@@ -75,7 +75,7 @@ args = parser.parse_args()
 # Prepare output files
 # --------------------
 out_dir = args.o
-os.makedirs(out_dir)
+os.makedirs(out_dir, exist_ok=True)
 init = shutil.copy(args.init_xyz,
                    out_dir)
 
@@ -132,9 +132,7 @@ constraints = [("force constant = %f" % args.force,
                 "distance: %i, %i, %f"% (bond[0],bond[1],
                                          stretch * bond[2]))
                for stretch in stretch_factors]
-mtd_indices = args.mtdi
-if mtd_indices is None:
-    mtd_indices = np.arange(0, args.sn, 10)
+
 
 
 # STEP 1: Initial generation of guesses
@@ -147,6 +145,26 @@ react.generate_initial_structures(
 
 # reset threading
 xtb.extra_args = xtb.extra_args[:-2]
+
+mtd_indices = args.mtdi
+if mtd_indices is None:
+    # Read the successive optimization, then set mtd points to ground and TS
+    # geometries.
+    from read_reactions import read_reaction
+    out = read_reaction(out_dir + "/init")
+    mtd_indices = out["stretch_points"]
+    # additionally, add an exponential progression of points
+    k = 0
+    while True:
+        new = 2**k
+        if new > args.sn:
+            break
+        else:
+            mtd_indices += [new]
+        k+=1
+
+    # Do not do the same point twice, return a sorted list
+    mtd_indices = sorted(list(set(mtd_indices)))
 
 # STEP 2: Metadynamics
 # ----------------------------------------------------------------------------
@@ -166,3 +184,4 @@ react.react(
     constraints,
     params,
     nthreads=args.T)
+

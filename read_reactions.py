@@ -25,7 +25,7 @@ def read_reaction(react_folder):
 
     Returns:
     -------
-    A populated ReactionPathway object
+    TODO
     """
     opt = react_folder + "/opt.xyz"
     smiles = xyz2smiles(opt)
@@ -78,7 +78,12 @@ def read_reaction(react_folder):
     energies = np.array([E[k] for k in ipots])
     smiles = [smiles[k] for k in ipots]
     structures = [(opt,k) for k in ipots]
-    return energies, smiles, structures, stable
+    out = {"E":energies,
+           "SMILES":smiles,
+           "files":structures,
+           "is_stable":stable,
+           "stretch_points":ipots}
+    return out
         
 def read_all_reactions(output_folder, verbose=True):
     """Read and parse all reactions in a given folder."""
