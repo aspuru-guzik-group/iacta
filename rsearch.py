@@ -87,7 +87,8 @@ else:
     delete=True
 xtb = xtb_utils.xtb_driver(scratch=scratch,
                            delete=delete)
-xtb.extra_args = ["--gfn " , args.gfn, "--etemp " , args.etemp]
+xtb.extra_args = ["--gfn",args.gfn,
+                  "--etemp",args.etemp]
 
 # Get additional molecular parameters
 # -----------------------------------
@@ -102,6 +103,9 @@ params = react.default_parameters(N,
                                   optlevel=args.opt_level,
                                   log_level=args.log_level)
 
+# Temporarily set -P to number of threads
+xtb.extra_args += ["-P", str(args.T)]
+    
 if not args.no_opt:
     print("optimizing initial geometry...")
     opt = xtb.optimize(init, init, level="vtight",
@@ -140,6 +144,9 @@ react.generate_initial_structures(
     init,
     constraints,
     params)
+
+# reset threading
+xtb.extra_args = xtb.extra_args[:-2]
 
 # STEP 2: Metadynamics
 # ----------------------------------------------------------------------------
