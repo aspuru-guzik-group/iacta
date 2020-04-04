@@ -46,6 +46,9 @@ parser.add_argument("-no-opt",
 parser.add_argument("-gfn",
                     help="gfn version. Defaults to GFN 2", default="2",
                     type=str)
+parser.add_argument("-solvent",
+                    help="Set GBSA solvent.", 
+                    type=str)
 parser.add_argument("-etemp",
                     help="Electronic temperature. Defaults to 300 K",
                     default="300.0",
@@ -75,7 +78,7 @@ args = parser.parse_args()
 # Prepare output files
 # --------------------
 out_dir = args.o
-os.makedirs(out_dir, exist_ok=True)
+os.makedirs(out_dir)
 init = shutil.copy(args.init_xyz,
                    out_dir)
 
@@ -89,6 +92,8 @@ xtb = xtb_utils.xtb_driver(scratch=scratch,
                            delete=delete)
 xtb.extra_args = ["--gfn",args.gfn,
                   "--etemp",args.etemp]
+if args.solvent:
+    xtb.extra_args += ["--gbsa", args.solvent]
 
 # Get additional molecular parameters
 # -----------------------------------
