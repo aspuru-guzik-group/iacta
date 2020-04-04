@@ -98,13 +98,16 @@ def read_all_reactions(output_folder, verbose=True):
     
     for f in folders:
         try:
-            energies, smiles, structures, stable = read_reaction(f)
+            read_out = read_reaction(f)
         except OSError:
             # Convergence failed
             failed += [f]
         else:
-            if len(smiles)>1:
-                pathways += [(energies, smiles, structures, stable,
+            if len(read_out["SMILES"])>1:
+                pathways += [(read_out["E"],
+                              read_out["SMILES"],
+                              read_out["files"],
+                              read_out["is_stable"],
                               "react"+f[-5:])]
             else:
                 # No reaction in this pathway
