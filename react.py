@@ -94,7 +94,8 @@ def generate_initial_structures(xtb_driver,
 
     dump_succ_opt(workdir + "/init",
                   structures,energies,opt_indices,
-                  extra=parameters["log_opt_steps"])
+                  extra=parameters["log_opt_steps"],
+                  split=True)
     if verbose:
         print("Done!\n")
 
