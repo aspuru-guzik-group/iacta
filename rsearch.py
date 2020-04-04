@@ -157,7 +157,9 @@ if mtd_indices is None:
     # geometries.
     from read_reactions import read_reaction
     out = read_reaction(out_dir + "/init")
-    mtd_indices = out["stretch_points"]
+    # also include minima and maxima of energy
+    E = np.loadtxt(out_dir + "/init/Eopt")
+    mtd_indices = out["stretch_points"]  + [np.argmin(E), np.argmax(E)]
     # additionally, add an exponential progression of points
     k = 0
     while True:
