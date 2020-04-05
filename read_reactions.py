@@ -180,7 +180,11 @@ if __name__ == "__main__":
     kcalmol_ev = 23.061
     mol_index = {}
     index = 1
-    for key in reactions.keys():
+
+    # Sort the reaction by barrier
+    reactions = sorted(reactions.items(), key=lambda x: x[1][0].max())
+    
+    for key,val in reactions:
         for molecule in key:
             if molecule not in mol_index.keys():
                 mol_index[molecule] = index
@@ -197,7 +201,7 @@ if __name__ == "__main__":
     f = open(outfolder + "/summary", "w")
     print(start, end="")
     f.write(start)
-    for key, val in reactions.items():
+    for key, val in reactions:
         upper = "%3i >   " % index + val[5]+"   "+  key[0]
         for i in range(1,len(key)):
             new = " == %.2f ==> " % (val[0][i-1]*hartree_ev * kcalmol_ev) + key[i]
