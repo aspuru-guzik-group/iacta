@@ -25,7 +25,7 @@ def read_reaction(react_folder):
 
     Returns:
     -------
-    A populated ReactionPathway object
+    TODO
     """
     opt = react_folder + "/opt.xyz"
     smiles = xyz2smiles(opt)
@@ -78,7 +78,12 @@ def read_reaction(react_folder):
     energies = np.array([E[k] for k in ipots])
     smiles = [smiles[k] for k in ipots]
     structures = [(opt,k) for k in ipots]
-    return energies, smiles, structures, stable
+    out = {"E":energies,
+           "SMILES":smiles,
+           "files":structures,
+           "is_stable":stable,
+           "stretch_points":ipots}
+    return out
         
 def read_all_reactions(output_folder, verbose=True):
     """Read and parse all reactions in a given folder."""
@@ -93,13 +98,16 @@ def read_all_reactions(output_folder, verbose=True):
     
     for f in folders:
         try:
-            energies, smiles, structures, stable = read_reaction(f)
+            read_out = read_reaction(f)
         except OSError:
             # Convergence failed
             failed += [f]
         else:
-            if len(smiles)>1:
-                pathways += [(energies, smiles, structures, stable,
+            if len(read_out["SMILES"])>1:
+                pathways += [(read_out["E"],
+                              read_out["SMILES"],
+                              read_out["files"],
+                              read_out["is_stable"],
                               "react"+f[-5:])]
             else:
                 # No reaction in this pathway

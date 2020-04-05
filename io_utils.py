@@ -146,18 +146,18 @@ def read_xyz(filepath, index=0):
     return atoms,xyzs,comments
 
 def dump_succ_opt(output_folder, structures, energies, opt_indices,
-                  concat=False,
+                  split=False,
                   extra=False):
     os.makedirs(output_folder, exist_ok=True)
     
 
-    if concat:
-        # Dump the optimized structures in one file                
-        with open(output_folder + "/opt.xyz", "w") as f:
-            for oi in opt_indices:
-                f.write(structures[oi])
-    else:
-        # Dump the optimized structures in many files            
+    # Dump the optimized structures in one file                
+    with open(output_folder + "/opt.xyz", "w") as f:
+        for oi in opt_indices:
+            f.write(structures[oi])
+            
+    if split:
+        # Also dump the optimized structures in many files            
         for stepi, oi in enumerate(opt_indices):
             with open(output_folder + "/opt%4.4i.xyz" % stepi, "w") as f:
                 f.write(structures[oi])

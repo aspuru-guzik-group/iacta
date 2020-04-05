@@ -238,7 +238,7 @@ def reaction_job(xtb,
                       bstructs[::-1] + fstructs,
                       be[::-1] + fe,
                       bopt[::-1] + fopt,
-                      concat=True,
+                      split=False,
                       extra=parameters["log_opt_steps"])
         
     return react_job

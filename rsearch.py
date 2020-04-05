@@ -46,6 +46,15 @@ parser.add_argument("-no-opt",
 parser.add_argument("-gfn",
                     help="gfn version. Defaults to GFN 2", default="2",
                     type=str)
+parser.add_argument("-solvent",
+                    help="Set GBSA solvent.", 
+                    type=str)
+parser.add_argument("-chrg",
+                    help="Set charge for xtb.", default="0",
+                    type=str)
+parser.add_argument("-uhf",
+                    help="Set spin state for xtb.", default="1",
+                    type=str)
 parser.add_argument("-etemp",
                     help="Electronic temperature. Defaults to 300 K",
                     default="300.0",
@@ -87,7 +96,12 @@ else:
     delete=True
 xtb = xtb_utils.xtb_driver(scratch=scratch,
                            delete=delete)
-xtb.extra_args = ["--gfn " , args.gfn, "--etemp " , args.etemp]
+xtb.extra_args = ["--gfn",args.gfn,
+                  "--etemp",args.etemp,
+                  "--chrg", args.chrg,
+                  "--uhf",args.uhf]
+if args.solvent:
+    xtb.extra_args += ["--gbsa", args.solvent]
 
 # Get additional molecular parameters
 # -----------------------------------
@@ -102,6 +116,9 @@ params = react.default_parameters(N,
                                   optlevel=args.opt_level,
                                   log_level=args.log_level)
 
+# Temporarily set -P to number of threads
+xtb.extra_args += ["-P", str(args.T)]
+    
 if not args.no_opt:
     print("optimizing initial geometry...")
     opt = xtb.optimize(init, init, level="vtight",
@@ -128,9 +145,7 @@ constraints = [("force constant = %f" % args.force,
                 "distance: %i, %i, %f"% (bond[0],bond[1],
                                          stretch * bond[2]))
                for stretch in stretch_factors]
-mtd_indices = args.mtdi
-if mtd_indices is None:
-    mtd_indices = np.arange(0, args.sn, 10)
+
 
 
 # STEP 1: Initial generation of guesses
@@ -140,6 +155,31 @@ react.generate_initial_structures(
     init,
     constraints,
     params)
+
+# reset threading
+xtb.extra_args = xtb.extra_args[:-2]
+
+mtd_indices = args.mtdi
+if mtd_indices is None:
+    # Read the successive optimization, then set mtd points to ground and TS
+    # geometries.
+    from read_reactions import read_reaction
+    out = read_reaction(out_dir + "/init")
+    # also include minima and maxima of energy
+    E = np.loadtxt(out_dir + "/init/Eopt")
+    mtd_indices = out["stretch_points"]  + [np.argmin(E), np.argmax(E)]
+    # additionally, add an exponential progression of points
+    k = 0
+    while True:
+        new = 2**k
+        if new > args.sn:
+            break
+        else:
+            mtd_indices += [new]
+        k+=1
+
+    # Do not do the same point twice, return a sorted list
+    mtd_indices = sorted(list(set(mtd_indices)))
 
 # STEP 2: Metadynamics
 # ----------------------------------------------------------------------------
@@ -159,3 +199,4 @@ react.react(
     constraints,
     params,
     nthreads=args.T)
+
