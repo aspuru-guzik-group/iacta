@@ -5,6 +5,7 @@ import io_utils
 import os
 import shutil
 import argparse
+from constants import hartree_ev, ev_kcalmol
 
 parser = argparse.ArgumentParser(
     description="Driver for reaction search.",
@@ -40,9 +41,6 @@ parser.add_argument("-force",
                     +" Defaults to 1.00 Eh/Bohr.",
                     default=1.0,
                     type=float)
-parser.add_argument("-no-opt",
-                    help="Start with an xtb optimization (defaults to true).",
-                    action="store_true")
 parser.add_argument("-gfn",
                     help="gfn version. Defaults to GFN 2", default="2",
                     type=str)
@@ -63,6 +61,13 @@ parser.add_argument("-opt-level",
                     help="Optimization level. Defaults to vtight.",
                     default="vtight",
                     type=str)
+parser.add_argument("-threshold",
+                    help="Energy threshold for path optimization in kcal/mol."
+                    +" Basically, if a barrier is encountered that is higher than"
+                    +" this threshold from the optimized reactant energy, the"
+                    +" entire path is discarded. Defaults to 50 kcal/mol.",
+                    default=50.0,
+                    type=float)
 parser.add_argument("-shake-level",
                     help="If this is 0, the metadynamics run will be performed"
                     +" with parameters that permit bond-breaking, specifically shake=0,"
@@ -105,7 +110,18 @@ if args.solvent:
 
 # Get additional molecular parameters
 # -----------------------------------
+
+# Temporarily set -P to number of threads
+xtb.extra_args += ["-P", str(args.T)]
+print("optimizing initial geometry...")
+opt = xtb.optimize(init, init, level="vtight")
+opt()
 atoms, positions, comment = io_utils.read_xyz(init)
+E = io_utils.comment_line_energy(comment)
+ethreshold = args.threshold / (hartree_ev * ev_kcalmol) + E
+print("Done!    E₀ = %15.7f Eₕ")
+print("     max ΔE = %15.7f Eₕ   (= E₀ + %7.3f kcal/mol)"
+      % (E, ethreshold, args.threshold))
 N = len(atoms)
 
 # Initialize parameters
@@ -115,16 +131,6 @@ params = react.default_parameters(N,
                                   nmtd=args.mtdn,
                                   optlevel=args.opt_level,
                                   log_level=args.log_level)
-
-# Temporarily set -P to number of threads
-xtb.extra_args += ["-P", str(args.T)]
-    
-if not args.no_opt:
-    print("optimizing initial geometry...")
-    opt = xtb.optimize(init, init, level="vtight",
-                       xcontrol={"wall":params["wall"]})
-    opt()
-
 
 bond_length0 = np.sqrt(np.sum((positions[args.atoms[0]-1] -
                                positions[args.atoms[1]-1])**2))

@@ -1,7 +1,7 @@
 import pybel
 import numpy as np
 import glob
-import constants
+from constants import hartree_ev, ev_kcalmol
 import io_utils
 import os
 
@@ -176,8 +176,6 @@ if __name__ == "__main__":
     print("   %6i reaction pathways are unique." % len(reactions))
     print("printing...")
     print("\n\n")
-    hartree_ev = 27.2113860217
-    kcalmol_ev = 23.061
     mol_index = {}
     index = 1
 
@@ -204,7 +202,7 @@ if __name__ == "__main__":
     for key, val in reactions:
         upper = "%3i >   " % index + val[5]+"   "+  key[0]
         for i in range(1,len(key)):
-            new = " == %.2f ==> " % (val[0][i-1]*hartree_ev * kcalmol_ev) + key[i]
+            new = " == %.2f ==> " % (val[0][i-1]*hartree_ev * ev_kcalmol) + key[i]
             upper += new
         upper += "\n"
 
