@@ -38,8 +38,8 @@ parser.add_argument("-mtdi",
                     type=int, nargs="+", default=None)
 parser.add_argument("-mtdn",
                     help="Number of guesses to generate at each MTD index."
-                    +" Defaults to 20.",
-                    type=int, default=20)
+                    +" Defaults to 120.",
+                    type=int, default=120)
 parser.add_argument("-force",
                     help="Force constant of the stretch."
                     +" Defaults to 1.00 Eₕ / Bohr.",
