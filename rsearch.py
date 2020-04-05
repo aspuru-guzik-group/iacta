@@ -107,6 +107,8 @@ except FileExistsError:
         
 init = shutil.copy(args.init_xyz,
                    out_dir)
+atoms, positions, comment = io_utils.read_xyz(init)
+Natoms = len(atoms)
 
 # Initialize the xtb driver
 # -------------------------
@@ -123,31 +125,36 @@ xtb.extra_args = ["--gfn",args.gfn,
 if args.solvent:
     xtb.extra_args += ["--gbsa", args.solvent]
 
-# Get additional molecular parameters
-# -----------------------------------
+# Initialize parameters
+# ---------------------
+params = react.default_parameters(Natoms,
+                                  shake=args.shake_level,
+                                  nmtd=args.mtdn,
+                                  optlevel=args.opt_level,
+                                  log_level=args.log_level)
 
-# Temporarily set -P to number of threads
+# Temporarily set -P to number of threads for the next, non-parallelizable two
+# steps.
 xtb.extra_args += ["-P", str(args.T)]
+
+# Optimize starting geometry including wall
+# -----------------------------------------
 print("optimizing initial geometry...")
-opt = xtb.optimize(init, init, level="vtight")
+opt = xtb.optimize(init, init, level=args.opt_level,
+                   xcontrol={"wall":params["wall"]})
 opt()
+
+# Read result of optimization
 atoms, positions, comment = io_utils.read_xyz(init)
 E = io_utils.comment_line_energy(comment)
 ethreshold = args.threshold / (hartree_ev * ev_kcalmol) + E
 print("Done!    E₀ = %15.7f Eₕ" % E)
 print("     max ΔE = %15.7f Eₕ   (= E₀ + %7.3f kcal/mol)"
       % (ethreshold, args.threshold))
-N = len(atoms)
+params["ethreshold"] = ethreshold
 
-# Initialize parameters
-# ---------------------
-params = react.default_parameters(N,
-                                  shake=args.shake_level,
-                                  nmtd=args.mtdn,
-                                  ethreshold=ethreshold,
-                                  optlevel=args.opt_level,
-                                  log_level=args.log_level)
-
+# Get bond parameters
+# -------------------
 bond_length0 = np.sqrt(np.sum((positions[args.atoms[0]-1] -
                                positions[args.atoms[1]-1])**2))
 bond = (args.atoms[0], args.atoms[1], bond_length0)
@@ -167,8 +174,6 @@ constraints = [("force constant = %f" % args.force,
                 "distance: %i, %i, %f"% (bond[0],bond[1],
                                          stretch * bond[2]))
                for stretch in stretch_factors]
-
-
 
 # STEP 1: Initial generation of guesses
 # ----------------------------------------------------------------------------
