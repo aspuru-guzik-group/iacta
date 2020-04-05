@@ -5,6 +5,7 @@ import io_utils
 import os
 import shutil
 import argparse
+from constants import hartree_ev, ev_kcalmol
 
 parser = argparse.ArgumentParser(
     description="Driver for reaction search.",
@@ -19,6 +20,9 @@ parser.add_argument("atoms",
 parser.add_argument("-o",
                     help="Output folder. defaults to \"output\"",
                     type=str, default="output")
+parser.add_argument("-w",
+                    help="Overwrite output directory. Defaults to false.",
+                    action="store_true")
 parser.add_argument("-T",
                     help="Number of threads to use.",
                     type=int, default=1)
@@ -30,19 +34,17 @@ parser.add_argument("-sn",
                     type=int, default=100)
 parser.add_argument("-mtdi",
                     help="Indices of the stretches where MTD is done."
-                    +" Defaults to one point every 10.",
+                    +" Defaults $are complicated.",
                     type=int, nargs="+", default=None)
 parser.add_argument("-mtdn",
-                    help="Number of guesses to generate at each MTD index.",
-                    type=int, default=80)
+                    help="Number of guesses to generate at each MTD index."
+                    +" Defaults to 20.",
+                    type=int, default=20)
 parser.add_argument("-force",
                     help="Force constant of the stretch."
-                    +" Defaults to 1.00 Eh/Bohr.",
+                    +" Defaults to 1.00 Eₕ / Bohr.",
                     default=1.0,
                     type=float)
-parser.add_argument("-no-opt",
-                    help="Start with an xtb optimization (defaults to true).",
-                    action="store_true")
 parser.add_argument("-gfn",
                     help="gfn version. Defaults to GFN 2", default="2",
                     type=str)
@@ -53,7 +55,8 @@ parser.add_argument("-chrg",
                     help="Set charge for xtb.", default="0",
                     type=str)
 parser.add_argument("-uhf",
-                    help="Set spin state for xtb.", default="1",
+                    help="Set spin state for xtb. Default to 1, singlet.",
+                    default="1",
                     type=str)
 parser.add_argument("-etemp",
                     help="Electronic temperature. Defaults to 300 K",
@@ -63,6 +66,15 @@ parser.add_argument("-opt-level",
                     help="Optimization level. Defaults to vtight.",
                     default="vtight",
                     type=str)
+parser.add_argument("-threshold",
+                    help="Energy threshold for path optimization in kcal/mol."
+                    +" Basically, if a barrier is encountered that is higher than"
+                    +" this threshold from the optimized reactant energy, the"
+                    +" entire path is discarded. Defaults to 50 kcal/mol. Note"
+                    +" that some barriers higher than this value will still be"
+                    " found, due to implementation details.",
+                    default=50.0,
+                    type=float)
 parser.add_argument("-shake-level",
                     help="If this is 0, the metadynamics run will be performed"
                     +" with parameters that permit bond-breaking, specifically shake=0,"
@@ -84,9 +96,23 @@ args = parser.parse_args()
 # Prepare output files
 # --------------------
 out_dir = args.o
-os.makedirs(out_dir)
+try:
+    os.makedirs(out_dir)
+except FileExistsError:
+    print("Output directory exists:")
+    if args.w:
+        # Delete the directory, make it and restart
+        print("   -w flag is on -> %s is overwritten."% args.o)
+        shutil.rmtree(out_dir)
+        os.makedirs(out_dir)
+    else:
+        print("   -w flag is off -> exiting!")
+        raise SystemExit(1)
+        
 init = shutil.copy(args.init_xyz,
                    out_dir)
+atoms, positions, comment = io_utils.read_xyz(init)
+Natoms = len(atoms)
 
 # Initialize the xtb driver
 # -------------------------
@@ -103,33 +129,37 @@ xtb.extra_args = ["--gfn",args.gfn,
 if args.solvent:
     xtb.extra_args += ["--gbsa", args.solvent]
 
-# Get additional molecular parameters
-# -----------------------------------
-atoms, positions, comment = io_utils.read_xyz(init)
-N = len(atoms)
-
 # Initialize parameters
 # ---------------------
-params = react.default_parameters(N,
+ethreshold = args.threshold / (hartree_ev * ev_kcalmol)
+params = react.default_parameters(Natoms,
                                   shake=args.shake_level,
                                   nmtd=args.mtdn,
+                                  ethreshold=ethreshold,
                                   optlevel=args.opt_level,
                                   log_level=args.log_level)
 
-# Temporarily set -P to number of threads
+# Temporarily set -P to number of threads for the next, non-parallelizable two
+# steps.
 xtb.extra_args += ["-P", str(args.T)]
-    
-if not args.no_opt:
-    print("optimizing initial geometry...")
-    opt = xtb.optimize(init, init, level="vtight",
-                       xcontrol={"wall":params["wall"]})
-    opt()
 
+# Optimize starting geometry including wall
+# -----------------------------------------
+print("optimizing initial geometry...")
+opt = xtb.optimize(init, init, level=args.opt_level,
+                   xcontrol={"wall":params["wall"]})
+opt()
 
+# Read result of optimization
+atoms, positions, comment = io_utils.read_xyz(init)
+E = io_utils.comment_line_energy(comment)
+print("Done!    E₀ = %15.7f Eₕ" % E)
+
+# Get bond parameters
+# -------------------
 bond_length0 = np.sqrt(np.sum((positions[args.atoms[0]-1] -
                                positions[args.atoms[1]-1])**2))
 bond = (args.atoms[0], args.atoms[1], bond_length0)
-
 
 # Constraints for the search
 # -------------------------
@@ -141,16 +171,16 @@ print("    between %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
       % (min(stretch_factors)*bond[2], max(stretch_factors)*bond[2],
          min(stretch_factors), max(stretch_factors)))
 print("    discretized with %i points" % len(stretch_factors))
+print("    with a maximum barrier height of %7.5f Eₕ (%7.3f kcal/mol) " %
+      (ethreshold, args.threshold))
 constraints = [("force constant = %f" % args.force,
                 "distance: %i, %i, %f"% (bond[0],bond[1],
                                          stretch * bond[2]))
                for stretch in stretch_factors]
 
-
-
 # STEP 1: Initial generation of guesses
 # ----------------------------------------------------------------------------
-react.generate_initial_structures(
+n_generated_structures = react.generate_initial_structures(
     xtb, out_dir,
     init,
     constraints,
@@ -178,8 +208,13 @@ if mtd_indices is None:
             mtd_indices += [new]
         k+=1
 
-    # Do not do the same point twice, return a sorted list
-    mtd_indices = sorted(list(set(mtd_indices)))
+# Sort the indices, do not do the same point twice and eliminate stuff that is
+# above threshold.
+indices = [i for i in mtd_indices if i < n_generated_structures]
+mtd_indices = sorted(list(set(indices)))
+if len(mtd_indices) == 0:
+    raise SystemExit(1)
+
 
 # STEP 2: Metadynamics
 # ----------------------------------------------------------------------------

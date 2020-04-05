@@ -1,7 +1,7 @@
 import pybel
 import numpy as np
 import glob
-import constants
+from constants import hartree_ev, ev_kcalmol
 import io_utils
 import os
 
@@ -10,10 +10,7 @@ def xyz2smiles(xyzfile, chiral=False):
     for m in pybel.readfile("xyz",xyzfile):
         output+= [m.write(format="smi", opt={"c":1,"n":1,
                                              "i":chiral*1}).rstrip()]
-    if len(output) == 1:
-        return output[0]
-    else:
-        return output
+    return output
 
 def read_reaction(react_folder):
     """Extract chemical quantities from a reaction.
@@ -29,8 +26,8 @@ def read_reaction(react_folder):
     """
     opt = react_folder + "/opt.xyz"
     smiles = xyz2smiles(opt)
+    E = np.loadtxt(react_folder + "/Eopt", ndmin=1)
     
-    E = np.loadtxt(react_folder + "/Eopt")
     mols = [smiles[0]]
     regions = []
     rstart = 0
@@ -171,13 +168,9 @@ if __name__ == "__main__":
     os.makedirs(outfolder, exist_ok=True)
     
     pathways = read_all_reactions(folder)
-    print("     ...pruning identical reaction pathways...")
     reactions = prune_pathways(pathways)
     print("   %6i reaction pathways are unique." % len(reactions))
-    print("printing...")
     print("\n\n")
-    hartree_ev = 27.2113860217
-    kcalmol_ev = 23.061
     mol_index = {}
     index = 1
 
@@ -204,7 +197,7 @@ if __name__ == "__main__":
     for key, val in reactions:
         upper = "%3i >   " % index + val[5]+"   "+  key[0]
         for i in range(1,len(key)):
-            new = " == %.2f ==> " % (val[0][i-1]*hartree_ev * kcalmol_ev) + key[i]
+            new = " == %.2f ==> " % (val[0][i-1]*hartree_ev * ev_kcalmol) + key[i]
             upper += new
         upper += "\n"
 

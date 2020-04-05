@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 import react_utils
 from io_utils import read_trajectory, dump_succ_opt
+from math import inf
 
 """
 This file contains a bunch of user-friendly, multithreaded drivers for
@@ -10,6 +11,7 @@ react_utils.
 def default_parameters(Natoms,
                        nmtd=80,
                        optlevel="tight",
+                       ethreshold=inf,
                        shake=0,
                        log_level=0):
     """Generate a dictionary of default parameters for the reaction search.
@@ -29,6 +31,9 @@ def default_parameters(Natoms,
     optlevel (str) : Optimization level to used throughout. Defaults to
     "tight".
 
+    ethreshold (float) : Energy threshold for the successive optimizations. If
+    a barrier ever reaches this threshold, the optimization goes no further.
+
     shake (int) : SHAKE level (0, 1 or 2). If SHAKE is > 0, the time
     parameters are adjusted to go faster.
 
@@ -44,6 +49,7 @@ def default_parameters(Natoms,
     parameters = {}
     parameters["nmtd"] = nmtd
     parameters["optlevel"] = optlevel
+    parameters["ethreshold"] = ethreshold
 
     # Logging
     if log_level > 0:
@@ -90,14 +96,20 @@ def generate_initial_structures(xtb_driver,
 
     structures, energies, opt_indices = react_utils.successive_optimization(
         xtb_driver, guess_xyz_file,
-        constraints, parameters, verbose=verbose)
+        constraints, parameters, # no barrier for initial run
+        verbose=verbose)
+
+    computed = len(opt_indices)
 
     dump_succ_opt(workdir + "/init",
-                  structures,energies,opt_indices,
+                  structures,
+                  energies,
+                  opt_indices,
                   extra=parameters["log_opt_steps"],
                   split=True)
     if verbose:
-        print("Done!\n")
+        print("Done!  %i steps were evaluated. \n"%computed)
+    return computed
 
 def metadynamics_search(xtb_driver,
                         workdir,

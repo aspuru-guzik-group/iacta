@@ -11,6 +11,6 @@ alpha_fc = 0.007297352569311  #  Fine structure constant
 c_au = 1/alpha_fc             # Speed of light in au
 ε_au = 1/(4*pi)
 Na = 6.02214076 * 10**23
-kcalmol_ev = 23.061
+ev_kcalmol = 23.061
 
 
