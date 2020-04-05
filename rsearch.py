@@ -34,11 +34,12 @@ parser.add_argument("-sn",
                     type=int, default=100)
 parser.add_argument("-mtdi",
                     help="Indices of the stretches where MTD is done."
-                    +" Defaults to one point every 10.",
+                    +" Defaults $are complicated.",
                     type=int, nargs="+", default=None)
 parser.add_argument("-mtdn",
-                    help="Number of guesses to generate at each MTD index.",
-                    type=int, default=80)
+                    help="Number of guesses to generate at each MTD index."
+                    +" Defaults to 20.",
+                    type=int, default=20)
 parser.add_argument("-force",
                     help="Force constant of the stretch."
                     +" Defaults to 1.00 Eh/Bohr.",
@@ -127,9 +128,11 @@ if args.solvent:
 
 # Initialize parameters
 # ---------------------
+ethreshold = args.threshold / (hartree_ev * ev_kcalmol)
 params = react.default_parameters(Natoms,
                                   shake=args.shake_level,
                                   nmtd=args.mtdn,
+                                  ethreshold=ethreshold,
                                   optlevel=args.opt_level,
                                   log_level=args.log_level)
 
@@ -147,18 +150,13 @@ opt()
 # Read result of optimization
 atoms, positions, comment = io_utils.read_xyz(init)
 E = io_utils.comment_line_energy(comment)
-ethreshold = args.threshold / (hartree_ev * ev_kcalmol) + E
 print("Done!    E₀ = %15.7f Eₕ" % E)
-print("     max ΔE = %15.7f Eₕ   (= E₀ + %7.3f kcal/mol)"
-      % (ethreshold, args.threshold))
-params["ethreshold"] = ethreshold
 
 # Get bond parameters
 # -------------------
 bond_length0 = np.sqrt(np.sum((positions[args.atoms[0]-1] -
                                positions[args.atoms[1]-1])**2))
 bond = (args.atoms[0], args.atoms[1], bond_length0)
-
 
 # Constraints for the search
 # -------------------------
@@ -170,6 +168,7 @@ print("    between %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
       % (min(stretch_factors)*bond[2], max(stretch_factors)*bond[2],
          min(stretch_factors), max(stretch_factors)))
 print("    discretized with %i points" % len(stretch_factors))
+print("    with a maximum barrier height of %7.2f" % ethreshold)
 constraints = [("force constant = %f" % args.force,
                 "distance: %i, %i, %f"% (bond[0],bond[1],
                                          stretch * bond[2]))

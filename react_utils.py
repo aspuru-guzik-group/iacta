@@ -10,6 +10,7 @@ def successive_optimization(xtb,
                             initial_xyz,
                             constraints,
                             parameters,
+                            barrier=np.inf,
                             verbose=True):
     """Optimize a structure through successive constraints.
 
@@ -72,6 +73,8 @@ def successive_optimization(xtb,
     if verbose:
         print("  %i successive optimizations" % len(constraints))
 
+    Emin = np.inf
+
     for i in range(len(constraints)):
         direction = "->"
         if verbose:
@@ -91,12 +94,15 @@ def successive_optimization(xtb,
         structures += news
         energies += newe
         opt_indices += [len(structures)-1]
+        if newe[-1] < Emin:
+            Emin = newe[-1]     # a new energy minimum
+            
         if verbose:
             print("   nsteps=%4i   Energy=%9.5f Eh"%(len(news), newe[-1]))
-            if newe[-1] > parameters["ethreshold"]:
-                print("   ----- energy threshold exceeded -----")
+                if newe[-1] > barrier + Emin:                
+                print("   ----- barrier threshold exceeded -----")
 
-        if newe[-1] > parameters["ethreshold"]:
+        if newe[-1] > barrier + Emin:
             break
 
     os.remove(current)
@@ -159,10 +165,6 @@ def metadynamics_job(xtb,
     return mjob
 
     
-    
-    
-
-
 def reaction_job(xtb,
                  initial_xyz,
                  mtd_index,
@@ -223,6 +225,7 @@ def reaction_job(xtb,
             # None -> no constraint = products
             constraints[mtd_index:],
             parameters,
+            barrier=parameters["ethreshold"],
             verbose=False)          # otherwise its way too verbose
 
         f = open(output_folder + "/initial_backward.xyz", "w")
@@ -235,6 +238,7 @@ def reaction_job(xtb,
             # None -> no constraint = reactants  
             constraints[mtd_index-1:-1:-1],
             parameters,
+            barrier=parameters["ethreshold"],
             verbose=False)          # otherwise its way too verbose
 
 

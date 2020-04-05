@@ -31,7 +31,8 @@ def default_parameters(Natoms,
     optlevel (str) : Optimization level to used throughout. Defaults to
     "tight".
 
-    ethreshold (float) : Energy threshold for the succesive optimizations.
+    ethreshold (float) : Energy threshold for the successive optimizations. If
+    a barrier ever reaches this threshold, the optimization goes no further.
 
     shake (int) : SHAKE level (0, 1 or 2). If SHAKE is > 0, the time
     parameters are adjusted to go faster.
@@ -95,7 +96,8 @@ def generate_initial_structures(xtb_driver,
 
     structures, energies, opt_indices = react_utils.successive_optimization(
         xtb_driver, guess_xyz_file,
-        constraints, parameters, verbose=verbose)
+        constraints, parameters, # no barrier for initial run
+        verbose=verbose)
 
     computed = len(opt_indices)
 
