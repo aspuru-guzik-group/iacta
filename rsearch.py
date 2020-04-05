@@ -20,6 +20,9 @@ parser.add_argument("atoms",
 parser.add_argument("-o",
                     help="Output folder. defaults to \"output\"",
                     type=str, default="output")
+parser.add_argument("-w",
+                    help="Overwrite output directory. Defaults to false.",
+                    action="store_true")
 parser.add_argument("-T",
                     help="Number of threads to use.",
                     type=int, default=1)
@@ -89,7 +92,19 @@ args = parser.parse_args()
 # Prepare output files
 # --------------------
 out_dir = args.o
-os.makedirs(out_dir)
+try:
+    os.makedirs(out_dir)
+except FileExistsError:
+    print("Output directory exists:")
+    if args.w:
+        # Delete the directory, make it and restart
+        print("   -w flag is on -> %s is overwritten."% args.o)
+        shutil.rmtree(out_dir)
+        os.makedirs(out_dir)
+    else:
+        print("   -w flag is off -> exiting!")
+        raise SystemExit(1)
+        
 init = shutil.copy(args.init_xyz,
                    out_dir)
 
@@ -119,9 +134,9 @@ opt()
 atoms, positions, comment = io_utils.read_xyz(init)
 E = io_utils.comment_line_energy(comment)
 ethreshold = args.threshold / (hartree_ev * ev_kcalmol) + E
-print("Done!    E₀ = %15.7f Eₕ")
+print("Done!    E₀ = %15.7f Eₕ" % E)
 print("     max ΔE = %15.7f Eₕ   (= E₀ + %7.3f kcal/mol)"
-      % (E, ethreshold, args.threshold))
+      % (ethreshold, args.threshold))
 N = len(atoms)
 
 # Initialize parameters
@@ -129,6 +144,7 @@ N = len(atoms)
 params = react.default_parameters(N,
                                   shake=args.shake_level,
                                   nmtd=args.mtdn,
+                                  ethreshold=ethreshold,
                                   optlevel=args.opt_level,
                                   log_level=args.log_level)
 
@@ -156,7 +172,7 @@ constraints = [("force constant = %f" % args.force,
 
 # STEP 1: Initial generation of guesses
 # ----------------------------------------------------------------------------
-react.generate_initial_structures(
+n_generated_structures = react.generate_initial_structures(
     xtb, out_dir,
     init,
     constraints,
@@ -184,8 +200,13 @@ if mtd_indices is None:
             mtd_indices += [new]
         k+=1
 
-    # Do not do the same point twice, return a sorted list
-    mtd_indices = sorted(list(set(mtd_indices)))
+# Sort the indices, do not do the same point twice and eliminate stuff that is
+# above threshold.
+indices = [i for i in mtd_indices if i < n_generated_structures]
+mtd_indices = sorted(list(set(indices)))
+if len(mtd_indices) == 0:
+    raise SystemExit(1)
+
 
 # STEP 2: Metadynamics
 # ----------------------------------------------------------------------------

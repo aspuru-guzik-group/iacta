@@ -93,6 +93,11 @@ def successive_optimization(xtb,
         opt_indices += [len(structures)-1]
         if verbose:
             print("   nsteps=%4i   Energy=%9.5f Eh"%(len(news), newe[-1]))
+            if newe[-1] > parameters["ethreshold"]:
+                print("   ----- energy threshold exceeded -----")
+
+        if newe[-1] > parameters["ethreshold"]:
+            break
 
     os.remove(current)
     os.remove(log)
