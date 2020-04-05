@@ -14,6 +14,12 @@ parser.add_argument("SMARTS",
 parser.add_argument("-o",
                     help="Output xyz file. Defaults reactants.xyz.", type=str,
                     default="reactants.xyz")
+parser.add_argument("--ff",
+                    help="Forcefield to use. Defaults to UFF. If \"no\", no optimization is performed at all.", type=str,
+                    default="uff")
+parser.add_argument("--steps",
+        help="Number of steps of optimization to perform. defaults to 50.",
+        type=int, default=50)
 
 args = parser.parse_args()
 reactants = args.SMILES
@@ -21,8 +27,10 @@ reaction = pybel.Smarts(args.SMARTS)
 
 # Make a conformer
 reactants_mol = pybel.readstring("smi",reactants)
-reactants_mol.make3D()
-reactants_mol.localopt()
+if args.ff == "no":
+    reactants_mol.make3D(steps=0)
+else:
+    reactants_mol.make3D(forcefield=args.ff, steps=args.steps)
 
 # write out to stdout
 print("--------------------- XYZ FILE -------------------")
