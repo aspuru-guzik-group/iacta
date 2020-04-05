@@ -7,12 +7,15 @@ import os
 
 def xyz2smiles(xyzfile, chiral=False):
     output = []
+    if chiral:
+        flags = {"c":1,"n":1}
+    else:
+        flags = {"c":1,"n":1, "i":1}
     for m in pybel.readfile("xyz",xyzfile):
-        output+= [m.write(format="smi", opt={"c":1,"n":1,
-                                             "i":chiral*1}).rstrip()]
+        output+= [m.write(format="smi", opt=flags).rstrip()]
     return output
 
-def read_reaction(react_folder):
+def read_reaction(react_folder,chirality=False):
     """Extract chemical quantities from a reaction.
 
     Parameters:
@@ -20,12 +23,14 @@ def read_reaction(react_folder):
     react_folder (str) : folder storing the reaction data, obtained from the
     reaction_job() routine in react.py.
 
+    chirality (bool) : whether to separate enantiomers.
+
     Returns:
     -------
     TODO
     """
     opt = react_folder + "/opt.xyz"
-    smiles = xyz2smiles(opt)
+    smiles = xyz2smiles(opt, chirality)
     E = np.loadtxt(react_folder + "/Eopt", ndmin=1)
     
     mols = [smiles[0]]
@@ -82,7 +87,7 @@ def read_reaction(react_folder):
            "stretch_points":ipots}
     return out
         
-def read_all_reactions(output_folder, verbose=True):
+def read_all_reactions(output_folder, verbose=True, chirality=False):
     """Read and parse all reactions in a given folder."""
     folders = glob.glob(output_folder + "/react[0-9]*")
     if verbose:
@@ -95,7 +100,7 @@ def read_all_reactions(output_folder, verbose=True):
     
     for f in folders:
         try:
-            read_out = read_reaction(f)
+            read_out = read_reaction(f,chirality)
         except OSError:
             # Convergence failed
             failed += [f]
@@ -160,6 +165,8 @@ if __name__ == "__main__":
     parser.add_argument("folder", help="Folder containing the react*** files.")
     parser.add_argument("-o", help="Folder where final results are stored.",
                         default=None)
+    parser.add_argument("-c", help="Resolve chiral compounds. Defaults to no.",
+                        action="store_true")
     args = parser.parse_args()
     folder =args.folder
     outfolder = args.o
@@ -167,7 +174,7 @@ if __name__ == "__main__":
         outfolder = folder + "/results"
     os.makedirs(outfolder, exist_ok=True)
     
-    pathways = read_all_reactions(folder)
+    pathways = read_all_reactions(folder, chirality=args.c)
     reactions = prune_pathways(pathways)
     print("   %6i reaction pathways are unique." % len(reactions))
     print("\n\n")
