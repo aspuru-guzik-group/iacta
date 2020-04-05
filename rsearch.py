@@ -42,7 +42,7 @@ parser.add_argument("-mtdn",
                     type=int, default=20)
 parser.add_argument("-force",
                     help="Force constant of the stretch."
-                    +" Defaults to 1.00 Eh/Bohr.",
+                    +" Defaults to 1.00 Eₕ / Bohr.",
                     default=1.0,
                     type=float)
 parser.add_argument("-gfn",
@@ -55,7 +55,8 @@ parser.add_argument("-chrg",
                     help="Set charge for xtb.", default="0",
                     type=str)
 parser.add_argument("-uhf",
-                    help="Set spin state for xtb.", default="1",
+                    help="Set spin state for xtb. Default to 1, singlet.",
+                    default="1",
                     type=str)
 parser.add_argument("-etemp",
                     help="Electronic temperature. Defaults to 300 K",
@@ -69,7 +70,9 @@ parser.add_argument("-threshold",
                     help="Energy threshold for path optimization in kcal/mol."
                     +" Basically, if a barrier is encountered that is higher than"
                     +" this threshold from the optimized reactant energy, the"
-                    +" entire path is discarded. Defaults to 50 kcal/mol.",
+                    +" entire path is discarded. Defaults to 50 kcal/mol. Note"
+                    +" that some barriers higher than this value will still be"
+                    " found, due to implementation details.",
                     default=50.0,
                     type=float)
 parser.add_argument("-shake-level",
@@ -168,7 +171,8 @@ print("    between %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
       % (min(stretch_factors)*bond[2], max(stretch_factors)*bond[2],
          min(stretch_factors), max(stretch_factors)))
 print("    discretized with %i points" % len(stretch_factors))
-print("    with a maximum barrier height of %7.2f" % ethreshold)
+print("    with a maximum barrier height of %7.5f Eₕ (%7.3f kcal/mol) " %
+      (ethreshold, args.threshold))
 constraints = [("force constant = %f" % args.force,
                 "distance: %i, %i, %f"% (bond[0],bond[1],
                                          stretch * bond[2]))

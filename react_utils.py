@@ -98,11 +98,11 @@ def successive_optimization(xtb,
             Emin = newe[-1]     # a new energy minimum
             
         if verbose:
-            print("   nsteps=%4i   Energy=%9.5f Eh"%(len(news), newe[-1]))
-                if newe[-1] > barrier + Emin:                
-                print("   ----- barrier threshold exceeded -----")
+            print("   nsteps=%4i   Energy=%9.5f Eₕ"%(len(news), newe[-1]))
 
         if newe[-1] > barrier + Emin:
+            if verbose:
+                print("   ----- barrier threshold exceeded -----")
             break
 
     os.remove(current)
