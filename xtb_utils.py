@@ -179,31 +179,26 @@ class xtb_run:
             self.out.close()
 
         # Get output file to pass to caller
-        output = []
         try:
             for file_in, file_out in self.return_files:
-                output += [self.cp(file_in,file_out)]
+                self.cp(file_in,file_out)
+            IOERROR = False
         except FileNotFoundError:
             IOERROR = True
-        else:
-            IOERROR = False            
-
+            
         # Check error code != 0 and execute failout copying if non-zero.
-        if self.proc.returncode or IOERROR:
+        if self.proc.returncode !=0 or IOERROR:
             if self.failout:
                 self.tempd_dump(self.failout)
-
+            
         # Finally delete the temporary directory if needed.
         if self.delete:
             shutil.rmtree(self.dir)
 
         if IOERROR:
             return -1
-        if self.proc.returncode:
-            return self.proc.returncode
         else:
-            return 0
-
+            return self.proc.returncode
             
 
     def tempd_dump(self, name):

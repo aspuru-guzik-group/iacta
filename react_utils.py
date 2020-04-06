@@ -231,27 +231,27 @@ def reaction_job(xtb,
         # Forward reaction
         fstructs, fe, fopt = successive_optimization(
             xtb, output_folder + "/initial.xyz",
-            # None -> no constraint = products
             constraints[mtd_index:],
             parameters,
             barrier=parameters["ethreshold"],
             failout=output_folder + "/FAILED_FORWARD",
             verbose=False)          # otherwise its way too verbose
 
+        # fstructs 0 is already optimized so we use it as the starting point
+        # for the backward propagation
         f = open(output_folder + "/initial_backward.xyz", "w")
         f.write(fstructs[0])
         f.close()
+        cbacks = constraints[0:mtd_index][::-1]
 
         # Backward reaction
         bstructs, be, bopt = successive_optimization(
             xtb, output_folder + "/initial_backward.xyz",
-            # None -> no constraint = reactants  
-            constraints[mtd_index-1:-1:-1],
+            cbacks,
             parameters,
             barrier=parameters["ethreshold"],
             failout=output_folder + "/FAILED_BACKWARD",            
             verbose=False)          # otherwise its way too verbose
-
 
         # Dump forward reaction and backward reaction quantities
         dump_succ_opt(output_folder,

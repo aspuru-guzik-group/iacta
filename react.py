@@ -139,9 +139,6 @@ def metadynamics_search(xtb_driver,
                         xtb_driver, mtd_index,
                         workdir +"/init", workdir + "/metadyn",
                         constraints, parameters))]
-            
-        for f in futures:
-            f.result()
 
     if verbose:
         print("Done!\n")
@@ -162,6 +159,8 @@ def react(xtb_driver,
 
     nreact = 0
     with ThreadPoolExecutor(max_workers=nthreads) as pool:
+        futures = []
+
         for mtd_index in mtd_indices:
             structures, energies = read_trajectory(
                 meta + "/mtd%4.4i.xyz" % mtd_index)
@@ -170,8 +169,6 @@ def react(xtb_driver,
                 print("   mtdi = %4i    n(react) = %i"
                       %(mtd_index+1, len(structures)))
                 
-            futures = []
-
             for s in structures:
                 futures += [pool.submit(
                     react_utils.reaction_job(
@@ -182,11 +179,6 @@ def react(xtb_driver,
                         constraints,
                         parameters))]
                 nreact = nreact + 1
-
-            for f in futures:
-                f.result()
-                
-
 
     if verbose:
         print("Done!\n\n")
