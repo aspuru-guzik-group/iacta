@@ -129,14 +129,19 @@ def metadynamics_search(xtb_driver,
         print("Performing metadynamics job on indices...")
         print(mtd_indices)
         print("with %i threads." % nthreads)
-    
+
+    futures = []
     with ThreadPoolExecutor(max_workers=nthreads) as pool:
         for mtd_index in mtd_indices:
-            pool.submit(
-                react_utils.metadynamics_job(
-                    xtb_driver, mtd_index,
-                    workdir +"/init", workdir + "/metadyn",
-                    constraints, parameters))
+            futures += [
+                pool.submit(
+                    react_utils.metadynamics_job(
+                        xtb_driver, mtd_index,
+                        workdir +"/init", workdir + "/metadyn",
+                        constraints, parameters))]
+            
+        for f in futures:
+            f.result()
 
     if verbose:
         print("Done!\n")
@@ -161,18 +166,27 @@ def react(xtb_driver,
             structures, energies = read_trajectory(
                 meta + "/mtd%4.4i.xyz" % mtd_index)
 
-            for s in structures:
-                rjob = react_utils.reaction_job(xtb_driver,
-                                                s,
-                                                mtd_index,
-                                                workdir + "/react%5.5i/" % nreact,
-                                                constraints,
-                                                parameters)
-                pool.submit(rjob)
-                nreact = nreact + 1
+            if verbose:
+                print("   mtdi = %4i    n(react) = %i"
+                      %(mtd_index+1, len(structures)))
                 
-        if verbose:
-            print("  running %i jobs on %i threads" % (nreact, nthreads))
+            futures = []
+
+            for s in structures:
+                futures += [pool.submit(
+                    react_utils.reaction_job(
+                        xtb_driver,
+                        s,
+                        mtd_index,
+                        workdir + "/react%5.5i/" % nreact,
+                        constraints,
+                        parameters))]
+                nreact = nreact + 1
+
+            for f in futures:
+                f.result()
+                
+
 
     if verbose:
         print("Done!\n\n")

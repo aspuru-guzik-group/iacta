@@ -93,7 +93,10 @@ def successive_optimization(xtb,
                            xcontrol=dict(
                                wall=parameters["wall"],
                                constrain=constraints[i]))
-        opt()
+        error = opt()
+        if error != 0:
+            # An optimization failed, we get out of this loop.
+            break
         
         news, newe = read_trajectory(log)
         structures += news

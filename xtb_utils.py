@@ -196,7 +196,15 @@ class xtb_run:
         # Finally delete the temporary directory if needed.
         if self.delete:
             shutil.rmtree(self.dir)
-        return output
+
+        if IOERROR:
+            return -1
+        if self.proc.returncode:
+            return self.proc.returncode
+        else:
+            return 0
+
+            
 
     def tempd_dump(self, name):
         """Dump content of run directory for reproducing errors."""
@@ -214,11 +222,8 @@ class xtb_run:
         """Run xtb job and cleanup."""
         self.start(blocking=blocking)
         output = self.close()
-        
-        if len(output) == 1:
-            return output[0]
-        else:
-            return tuple(output)
+        return output
+
 
 class xtb_driver:
     def __init__(self, path_to_xtb_binaries="",
