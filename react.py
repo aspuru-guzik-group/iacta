@@ -2,6 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 import react_utils
 from io_utils import read_trajectory, dump_succ_opt
 from math import inf
+import os
 
 """
 This file contains a bunch of user-friendly, multithreaded drivers for
@@ -94,14 +95,18 @@ def generate_initial_structures(xtb_driver,
         print("-----------------------------------------------------------------")
         print("Performing initial stretching...")
 
+    outputdir = workdir + "/init"
+    os.makedirs(outputdir)
+    
     structures, energies, opt_indices = react_utils.successive_optimization(
         xtb_driver, guess_xyz_file,
         constraints, parameters, # no barrier for initial run
+        failout=outputdir + "/FAILED",
         verbose=verbose)
 
     computed = len(opt_indices)
 
-    dump_succ_opt(workdir + "/init",
+    dump_succ_opt(outputdir,
                   structures,
                   energies,
                   opt_indices,

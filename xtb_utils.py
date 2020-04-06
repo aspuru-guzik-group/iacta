@@ -91,6 +91,15 @@ class xtb_run:
 
         self.dir = tempfile.mkdtemp(dir=scratch, prefix="tmp"+prefix)
         self.delete = delete
+        if self.delete:
+            # The xtb output can be extremely large so if we are going to
+            # delete it, we are better enough never making it in the first
+            # place.
+            self.out = subprocess.DEVNULL
+        else:
+            self.out = open(self.dir + "/xtb.out", "w")
+            
+        self.err = open(self.dir + "/xtb.err", "w")
         self.coord = shutil.copy(geom_file, self.dir)
         self.failout = failout
         if restart:
@@ -108,9 +117,11 @@ class xtb_run:
 
         self.args += args
         self.args += [before_geometry, os.path.basename(self.coord)]
-        self.kwargs = dict(cwd=self.dir)
-
-        # Holder for the process
+        
+        self.kwargs = dict(stderr=self.err,
+                           stdout=self.out,
+                           cwd=self.dir)
+        
         self.proc = None
 
     def start(self, blocking=True):
@@ -160,35 +171,44 @@ class xtb_run:
                     pass
             else:
                 self.assert_done()
-            output = []
+
+
+        # close file handles
+        self.err.close()
+        if not self.delete:
+            self.out.close()
+
+        # Get output file to pass to caller
+        output = []
+        try:
             for file_in, file_out in self.return_files:
                 output += [self.cp(file_in,file_out)]
+        except FileNotFoundError:
+            IOERROR = True
+        else:
+            IOERROR = False            
 
+        # Check error code != 0 and execute failout copying if non-zero.
+        if self.proc.returncode or IOERROR:
+            if self.failout:
+                self.tempd_dump(self.failout)
+
+        # Finally delete the temporary directory if needed.
         if self.delete:
             shutil.rmtree(self.dir)
-        else:
-            self.xtb_log(self.dir + "/xtb.out",
-                         self.dir + "/xtb.err")
-
-        # Check error code != 0
-        if self.proc.returncode and self.failout:
-            self.xtb_log(self, self.failout)
-            
         return output
 
-    def xtb_log(self, fileout, fileerr=None):
-        """Dump content of xtbout and xtberr to files."""
+    def tempd_dump(self, name):
+        """Dump content of run directory for reproducing errors."""
         # Check if xtb is finished
         self.assert_done()
-
-        # Dump to file
-        with open(fileout, "w") as f:
-            f.write(self.proc.stdout)
-            
-        if fileerr:
-            with open(fileerr, "w") as f:
-                f.write(self.proc.stderr)
-            
+        shutil.copytree(self.dir, name)
+        # Also, save xtb command line
+        with open(name + "/xtb.sh", "w") as f:
+            for arg in self.proc.args:
+                f.write(arg)
+                f.write(" ")
+                
 
     def __call__(self, blocking=True):
         """Run xtb job and cleanup."""

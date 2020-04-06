@@ -11,6 +11,7 @@ def successive_optimization(xtb,
                             constraints,
                             parameters,
                             barrier=np.inf,
+                            failout=None,
                             verbose=True):
     """Optimize a structure through successive constraints.
 
@@ -39,6 +40,9 @@ def successive_optimization(xtb,
 
     Optional Parameters:
     --------------------
+
+    failout (str) : Path where logging information is output if the
+    optimization fails.
 
     verbose (bool) : print information about the run. defaults to True.
 
@@ -83,6 +87,7 @@ def successive_optimization(xtb,
         opt = xtb.optimize(current,
                            current,
                            log=log,
+                           failout=failout,
                            level=parameters["optlevel"],
                            restart=restart,
                            xcontrol=dict(
@@ -157,6 +162,7 @@ def metadynamics_job(xtb,
     
     mjob = xtb.metadyn(input_folder + "/opt%4.4i.xyz" % mtd_index,
                        output_folder + "/mtd%4.4i.xyz" % mtd_index,
+                       failout=output_folder +"/FAILEDmtd%4.4i"%mtd_index,
                        xcontrol=dict(
                            wall=parameters["wall"],
                            metadyn=parameters["metadyn"],
@@ -226,6 +232,7 @@ def reaction_job(xtb,
             constraints[mtd_index:],
             parameters,
             barrier=parameters["ethreshold"],
+            failout=output_folder + "/FAILED_FORWARD",
             verbose=False)          # otherwise its way too verbose
 
         f = open(output_folder + "/initial_backward.xyz", "w")
@@ -239,6 +246,7 @@ def reaction_job(xtb,
             constraints[mtd_index-1:-1:-1],
             parameters,
             barrier=parameters["ethreshold"],
+            failout=output_folder + "/FAILED_BACKWARD",            
             verbose=False)          # otherwise its way too verbose
 
 
