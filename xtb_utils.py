@@ -50,6 +50,7 @@ class xtb_run:
                  prefix="",
                  xcontrol=None,
                  restart=None,
+                 failout=None,
                  delete=True,
                  return_files=[]):
         """Build a container for an xtb run.
@@ -75,6 +76,8 @@ class xtb_run:
         xcontrol (dict) : dictionary of xcontrol options, interpreted using
         make_xcontrol.
 
+        failout (str) : Path where xtb.out is output if the run fails.
+
         delete (bool) : If true, delete all temporary files after run.
         Defaults to true
 
@@ -88,16 +91,8 @@ class xtb_run:
 
         self.dir = tempfile.mkdtemp(dir=scratch, prefix="tmp"+prefix)
         self.delete = delete
-        if self.delete:
-            # The xtb output can be extremely large so if we are going to
-            # delete it, we are better enough never making it in the first
-            # place.
-            self.out = subprocess.DEVNULL
-        else:
-            self.out = open(self.dir + "/xtb.out", "w")
-            
-        self.err = open(self.dir + "/xtb.err", "w")
         self.coord = shutil.copy(geom_file, self.dir)
+        self.failout = failout
         if restart:
             shutil.copy(restart, self.dir + "/xtbrestart")
             
@@ -113,11 +108,9 @@ class xtb_run:
 
         self.args += args
         self.args += [before_geometry, os.path.basename(self.coord)]
-        
-        self.kwargs = dict(stderr=self.err,
-                           stdout=self.out,
-                           cwd=self.dir)
-        
+        self.kwargs = dict(cwd=self.dir)
+
+        # Holder for the process
         self.proc = None
 
     def start(self, blocking=True):
@@ -171,13 +164,31 @@ class xtb_run:
             for file_in, file_out in self.return_files:
                 output += [self.cp(file_in,file_out)]
 
-        self.err.close()
         if self.delete:
             shutil.rmtree(self.dir)
         else:
-            self.out.close()
+            self.xtb_log(self.dir + "/xtb.out",
+                         self.dir + "/xtb.err")
 
+        # Check error code != 0
+        if self.proc.returncode and self.failout:
+            self.xtb_log(self, self.failout)
+            
         return output
+
+    def xtb_log(self, fileout, fileerr=None):
+        """Dump content of xtbout and xtberr to files."""
+        # Check if xtb is finished
+        self.assert_done()
+
+        # Dump to file
+        with open(fileout, "w") as f:
+            f.write(self.proc.stdout)
+            
+        if fileerr:
+            with open(fileerr, "w") as f:
+                f.write(self.proc.stderr)
+            
 
     def __call__(self, blocking=True):
         """Run xtb job and cleanup."""
@@ -189,16 +200,13 @@ class xtb_run:
         else:
             return tuple(output)
 
-
-
 class xtb_driver:
     def __init__(self, path_to_xtb_binaries="",
                  delete=True,
                  xtb_args=[], scratch="."):
         """Utility driver for xtb runs.
 
-        Methods include optimize(), metadyn() and multi_optimize() for various
-        sort of xtb runs.
+        Methods include various kind of xtb runs.
 
         Optional parameters:
         --------------------
@@ -227,6 +235,7 @@ class xtb_driver:
                  level=None,
                  compute_hessian=False,
                  log=None,
+                 failout=None,
                  restart=None):
         """Optimize a molecule.
 
@@ -251,10 +260,17 @@ class xtb_driver:
 
         log (str) : If set, additionally output the xtb geometry log.
 
+        failout (str) : Path where xtb.out is output if the optimization
+        fails.
+
+        restart (str) : Setup a xtbrestart file that will be read for the run
+        and written with restart details when the run is over.
+
         Returns:
         --------
 
         xtb_run : The optimization job. Run using xtb_run().
+
         """
         
         file_ext = geom_file[-3:]
@@ -282,11 +298,13 @@ class xtb_driver:
                       prefix="OPT",
                       scratch=self.scratchdir,
                       delete=self.delete,
+                      failout=failout,
                       return_files=return_files)
         return opt
 
     def metadyn(self,
                 geom_file, out_file,
+                failout=None,
                 xcontrol=None):
         """Run metadynamics on a molecule.
 
@@ -304,6 +322,9 @@ class xtb_driver:
         xcontrol (dict) : xcontrol dictionary to be interpreted by
         make_xcontrol.
 
+        failout (str) : Path where xtb.out is output if the metadynamics
+        fails.
+
         Returns:
         --------
 
@@ -318,7 +339,8 @@ class xtb_driver:
                      xcontrol=xcontrol,
                      prefix="MTD",
                      delete=self.delete,
-                     scratch=self.scratchdir,                     
+                     scratch=self.scratchdir,
+                     failout=failout,
                      return_files=return_files)
         return md
 
