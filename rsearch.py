@@ -52,15 +52,15 @@ parser.add_argument("-solvent",
                     help="Set GBSA solvent.", 
                     type=str)
 parser.add_argument("-chrg",
-                    help="Set charge for xtb.", default="0",
+                    help="Set charge for xtb.", default=None,
                     type=str)
 parser.add_argument("-uhf",
-                    help="Set spin state for xtb. Default to 1, singlet.",
-                    default="1",
+                    help="Set spin state for xtb.",
+                    default=None,
                     type=str)
 parser.add_argument("-etemp",
-                    help="Electronic temperature. Defaults to 300 K",
-                    default="300.0",
+                    help="Electronic temperature. Defaults to xtb default",
+                    default=None,
                     type=str)
 parser.add_argument("-opt-level",
                     help="Optimization level. Defaults to vtight.",
@@ -122,10 +122,13 @@ else:
     delete=True
 xtb = xtb_utils.xtb_driver(scratch=scratch,
                            delete=delete)
-xtb.extra_args = ["--gfn",args.gfn,
-                  "--etemp",args.etemp,
-                  "--chrg", args.chrg,
-                  "--uhf",args.uhf]
+xtb.extra_args = ["--gfn",args.gfn]
+if args.etemp:
+    xtb.extra_args += ["--etemp", args.etemp]
+if args.chrg:
+    xtb.extra_args += ["--chrg", args.chrg]
+if args.uhf:
+    xtb.extra_args += ["--uhf", args.uhf]    
 if args.solvent:
     xtb.extra_args += ["--gbsa", args.solvent]
 
