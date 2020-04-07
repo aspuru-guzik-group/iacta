@@ -11,6 +11,7 @@ def successive_optimization(xtb,
                             constraints,
                             parameters,
                             barrier=np.inf,
+                            failout=None,
                             verbose=True):
     """Optimize a structure through successive constraints.
 
@@ -39,6 +40,9 @@ def successive_optimization(xtb,
 
     Optional Parameters:
     --------------------
+
+    failout (str) : Path where logging information is output if the
+    optimization fails.
 
     verbose (bool) : print information about the run. defaults to True.
 
@@ -83,12 +87,16 @@ def successive_optimization(xtb,
         opt = xtb.optimize(current,
                            current,
                            log=log,
+                           failout=failout,
                            level=parameters["optlevel"],
                            restart=restart,
                            xcontrol=dict(
                                wall=parameters["wall"],
                                constrain=constraints[i]))
-        opt()
+        error = opt()
+        if error != 0:
+            # An optimization failed, we get out of this loop.
+            break
         
         news, newe = read_trajectory(log)
         structures += news
@@ -105,6 +113,10 @@ def successive_optimization(xtb,
                 print("   ----- barrier threshold exceeded -----")
             break
 
+    # Got to make sure that you close the filehandles!
+    os.close(fdc)
+    os.close(fdl)
+    os.close(fdr)
     os.remove(current)
     os.remove(log)
     os.remove(restart)
@@ -157,6 +169,7 @@ def metadynamics_job(xtb,
     
     mjob = xtb.metadyn(input_folder + "/opt%4.4i.xyz" % mtd_index,
                        output_folder + "/mtd%4.4i.xyz" % mtd_index,
+                       failout=output_folder +"/FAILEDmtd%4.4i"%mtd_index,
                        xcontrol=dict(
                            wall=parameters["wall"],
                            metadyn=parameters["metadyn"],
@@ -215,32 +228,33 @@ def reaction_job(xtb,
     def react_job():
         os.makedirs(output_folder, exist_ok=True)
 
-        f = open(output_folder + "/initial.xyz", "w")
-        f.write(initial_xyz)
-        f.close()
+        with open(output_folder + "/initial.xyz", "w") as f:
+            f.write(initial_xyz)
 
         # Forward reaction
         fstructs, fe, fopt = successive_optimization(
             xtb, output_folder + "/initial.xyz",
-            # None -> no constraint = products
             constraints[mtd_index:],
             parameters,
             barrier=parameters["ethreshold"],
+            failout=output_folder + "/FAILED_FORWARD",
             verbose=False)          # otherwise its way too verbose
 
-        f = open(output_folder + "/initial_backward.xyz", "w")
-        f.write(fstructs[0])
-        f.close()
+        # fstructs 0 is already optimized so we use it as the starting point
+        # for the backward propagation
+        with open(output_folder + "/initial_backward.xyz", "w") as f:
+            f.write(fstructs[0])
+            
+        cbacks = constraints[0:mtd_index][::-1]
 
         # Backward reaction
         bstructs, be, bopt = successive_optimization(
             xtb, output_folder + "/initial_backward.xyz",
-            # None -> no constraint = reactants  
-            constraints[mtd_index-1:-1:-1],
+            cbacks,
             parameters,
             barrier=parameters["ethreshold"],
+            failout=output_folder + "/FAILED_BACKWARD",            
             verbose=False)          # otherwise its way too verbose
-
 
         # Dump forward reaction and backward reaction quantities
         dump_succ_opt(output_folder,
