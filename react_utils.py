@@ -113,6 +113,10 @@ def successive_optimization(xtb,
                 print("   ----- barrier threshold exceeded -----")
             break
 
+    # Got to make sure that you close the filehandles!
+    os.close(fdc)
+    os.close(fdl)
+    os.close(fdr)
     os.remove(current)
     os.remove(log)
     os.remove(restart)
@@ -224,9 +228,8 @@ def reaction_job(xtb,
     def react_job():
         os.makedirs(output_folder, exist_ok=True)
 
-        f = open(output_folder + "/initial.xyz", "w")
-        f.write(initial_xyz)
-        f.close()
+        with open(output_folder + "/initial.xyz", "w") as f:
+            f.write(initial_xyz)
 
         # Forward reaction
         fstructs, fe, fopt = successive_optimization(
@@ -239,9 +242,9 @@ def reaction_job(xtb,
 
         # fstructs 0 is already optimized so we use it as the starting point
         # for the backward propagation
-        f = open(output_folder + "/initial_backward.xyz", "w")
-        f.write(fstructs[0])
-        f.close()
+        with open(output_folder + "/initial_backward.xyz", "w") as f:
+            f.write(fstructs[0])
+            
         cbacks = constraints[0:mtd_index][::-1]
 
         # Backward reaction

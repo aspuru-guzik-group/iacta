@@ -24,22 +24,18 @@ def make_xcontrol(xcontrol_dictionary, fn):
     --------
     str : filename fn.
     """
-
-    
-    f = open(fn, "w")
-    for key, val in xcontrol_dictionary.items():
-        if val is None:
-            pass
-        else:
-            if type(val) == tuple:
-                f.write("$" + str(key) + "\n")
-                for v in val:
-                    f.write(v + "\n")
-                f.write("$end\n")
+    with open(fn, "w") as f:
+        for key, val in xcontrol_dictionary.items():
+            if val is None:
+                pass
             else:
-                f.write("$" + str(key) + " " + str(val) + "\n")
-
-    f.close()
+                if type(val) == tuple:
+                    f.write("$" + str(key) + "\n")
+                    for v in val:
+                        f.write(v + "\n")
+                    f.write("$end\n")
+                else:
+                    f.write("$" + str(key) + " " + str(val) + "\n")
     return fn
             
 
