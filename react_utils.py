@@ -6,6 +6,98 @@ import tempfile
 import re
 from io_utils import read_trajectory, dump_succ_opt
 
+def parallel_optimization_jobs(
+        xtb, structures,
+        parameters,
+        constraint=None,
+        verbose=True):
+    """Optimize a bunch of structures in parallel.
+
+    TODO
+
+    Parameters:
+    -----------
+
+    xtb (xtb_driver) : driver object for xtb.
+
+    structures (str): path or paths to initial structures xyz file(s).
+
+    parameters (dict) : additional parameters, as obtained from
+    default_parameters() above. TODO: Describe parameters in more details
+
+    Optional Parameters:
+    --------------------
+    constraint: A constraint to apply.
+
+    failout (str) : Path where logging information is output if the
+    optimization fails.
+
+    verbose (bool) : print information about the run. defaults to True.
+
+    Returns:
+    --------
+    """
+
+    # Make scratch files
+    fdc, current = tempfile.mkstemp(suffix=".xyz", dir=xtb.scratchdir)
+    fdl, log = tempfile.mkstemp(suffix="_log.xyz", dir=xtb.scratchdir)
+    fdr, restart = tempfile.mkstemp(dir=xtb.scratchdir)
+
+    # prepare the current file
+    shutil.copyfile(initial_xyz, current)
+    structures = []
+    energies = []
+    opt_indices = []
+    
+
+    if verbose:
+        print("  %i successive optimizations" % len(constraints))
+
+    Emin = np.inf
+
+    for i in range(len(constraints)):
+        direction = "->"
+        if verbose:
+            print("      " + direction + "  %3i " % i, end="")
+            
+        opt = xtb.optimize(current,
+                           current,
+                           log=log,
+                           failout=failout,
+                           level=parameters["optlevel"],
+                           restart=restart,
+                           xcontrol=dict(
+                               wall=parameters["wall"],
+                               constrain=constraints[i]))
+        error = opt()
+        if error != 0:
+            # An optimization failed, we get out of this loop.
+            break
+        
+        news, newe = read_trajectory(log)
+        structures += news
+        energies += newe
+        opt_indices += [len(structures)-1]
+        if newe[-1] < Emin:
+            Emin = newe[-1]     # a new energy minimum
+            
+        if verbose:
+            print("   nsteps=%4i   Energy=%9.5f Eₕ"%(len(news), newe[-1]))
+
+        if newe[-1] > barrier + Emin:
+            if verbose:
+                print("   ----- barrier threshold exceeded -----")
+            break
+
+    # Got to make sure that you close the filehandles!
+    os.close(fdc)
+    os.close(fdl)
+    os.close(fdr)
+    os.remove(current)
+    os.remove(log)
+    os.remove(restart)
+    return structures, energies, opt_indices
+
 def successive_optimization(xtb,
                             initial_xyz,
                             constraints,
