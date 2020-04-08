@@ -239,8 +239,6 @@ def metadynamics_refine(xtb_driver,
         if verbose:
             print("  → %i structures selected for reactions." % len(s))
 
-        
-
 def react(xtb_driver,
           workdir,
           mtd_indices,
@@ -253,7 +251,7 @@ def react(xtb_driver,
         print("Performing reactions...")
     
     # load all the structures
-    meta = workdir+"/metadyn"
+    meta = workdir+"/CRE"
 
     nreact = 0
     with ThreadPoolExecutor(max_workers=nthreads) as pool:
