@@ -96,18 +96,18 @@ args = parser.parse_args()
 # Prepare output files
 # --------------------
 out_dir = args.o
-try:
-    os.makedirs(out_dir)
-except FileExistsError:
-    print("Output directory exists:")
-    if args.w:
-        # Delete the directory, make it and restart
-        print("   -w flag is on -> %s is overwritten."% args.o)
-        shutil.rmtree(out_dir)
-        os.makedirs(out_dir)
-    else:
-        print("   -w flag is off -> exiting!")
-        raise SystemExit(1)
+# try:
+#     os.makedirs(out_dir)
+# except FileExistsError:
+#     print("Output directory exists:")
+#     if args.w:
+#         # Delete the directory, make it and restart
+#         print("   -w flag is on -> %s is overwritten."% args.o)
+#         shutil.rmtree(out_dir)
+#         os.makedirs(out_dir)
+#     else:
+#         print("   -w flag is off -> exiting!")
+#         raise SystemExit(1)
         
 init = shutil.copy(args.init_xyz,
                    out_dir)
@@ -201,15 +201,7 @@ if mtd_indices is None:
     # also include minima and maxima of energy
     E = np.loadtxt(out_dir + "/init/Eopt")
     mtd_indices = out["stretch_points"]  + [np.argmin(E), np.argmax(E)]
-    # additionally, add an exponential progression of points
-    k = 0
-    while True:
-        new = 2**k
-        if new > args.sn:
-            break
-        else:
-            mtd_indices += [new]
-        k+=1
+
 
 # Sort the indices, do not do the same point twice and eliminate stuff that is
 # above threshold.
@@ -229,12 +221,20 @@ react.metadynamics_search(
     nthreads=args.T)
 
 
-# STEP 2: Reactions
-# ----------------------------------------------------------------------------
-react.react(
-    xtb, out_dir,
-    mtd_indices,
-    constraints,
-    params,
-    nthreads=args.T)
+# react.metadynamics_refine(
+#     xtb, out_dir,
+#     mtd_indices,
+#     constraints,
+#     params,
+#     nthreads=args.T)
+
+
+# # STEP 2: Reactions
+# # ----------------------------------------------------------------------------
+# react.react(
+#     xtb, out_dir,
+#     mtd_indices,
+#     constraints,
+#     params,
+#     nthreads=args.T)
 

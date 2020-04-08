@@ -123,12 +123,12 @@ def successive_optimization(xtb,
     return structures, energies, opt_indices
         
 
-def metadynamics_job(xtb,
-                     mtd_index,
-                     input_folder,
-                     output_folder,
-                     constraints,
-                     parameters):
+def crest_jobs(xtb,
+               mtd_index,
+               input_folder,
+               output_folder,
+               constraints,
+               parameters):
     """Return a metadynamics search job for other "transition" conformers.
 
     mtd_index is the index of the starting structure to use as a starting
@@ -166,16 +166,21 @@ def metadynamics_job(xtb,
 
     """
     os.makedirs(output_folder, exist_ok=True)
-    
-    mjob = xtb.metadyn(input_folder + "/opt%4.4i.xyz" % mtd_index,
-                       output_folder + "/mtd%4.4i.xyz" % mtd_index,
-                       failout=output_folder +"/FAILEDmtd%4.4i"%mtd_index,
-                       xcontrol=dict(
-                           wall=parameters["wall"],
-                           metadyn=parameters["metadyn"],
-                           md=parameters["md"],
-                           constrain=constraints[mtd_index]))
-    return mjob
+
+    mjobs = []
+    for metadyn_job, metadyn_params in enumerate(parameters["CREST"]):
+        mjobs += [
+            xtb.metadyn(input_folder + "/opt%4.4i.xyz" % mtd_index,
+                        output_folder + "/mtd%4.4i_%2.2i.xyz" % (mtd_index,
+                                                                 metadyn_job),
+                        failout=output_folder +
+                        "/FAIL%4.4i_%2.2i.xyz" % (mtd_index, metadyn_job),
+                        xcontrol=dict(
+                            wall=parameters["wall"],
+                            metadyn=metadyn_params,
+                            md=parameters["md"],
+                            constrain=constraints[mtd_index]))]
+    return mjobs
 
     
 def reaction_job(xtb,
