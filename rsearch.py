@@ -77,9 +77,11 @@ parser.add_argument("-threshold",
                     type=float)
 parser.add_argument("-shake-level",
                     help="If this is 0, the metadynamics run will be performed"
-                    +" with parameters that permit bond-breaking, specifically shake=0,"
-                    +" but at a slower pace than if shake is set to 1 or 2. Defaults to 0.",
-                    default=0, type=int)
+                    +" with parameters that permit bond-breaking, specifically"
+                    +" shake=0, but at a slower pace than if shake is set to 1"
+                    +" or 2. Defaults to 2: bond-breaking limited to optimization"
+                    +" under constraints.",
+                    default=2, type=int)
 parser.add_argument("-log-level",
                     help="Level of debug printout (see react.py for details).",
                     default=0, type=int)
@@ -96,6 +98,7 @@ args = parser.parse_args()
 # Prepare output files
 # --------------------
 out_dir = args.o
+# TODO CHANGE BAKC
 # try:
 #     os.makedirs(out_dir)
 # except FileExistsError:
@@ -146,17 +149,17 @@ params = react.default_parameters(Natoms,
 # steps.
 xtb.extra_args += ["-P", str(args.T)]
 
-# Optimize starting geometry including wall
-# -----------------------------------------
-print("optimizing initial geometry...")
-opt = xtb.optimize(init, init, level=args.opt_level,
-                   xcontrol={"wall":params["wall"]})
-opt()
+# # Optimize starting geometry including wall
+# # -----------------------------------------
+# print("optimizing initial geometry...")
+# opt = xtb.optimize(init, init, level=args.opt_level,
+#                    xcontrol={"wall":params["wall"]})
+# opt()
 
-# Read result of optimization
-atoms, positions, comment = io_utils.read_xyz(init)
-E = io_utils.comment_line_energy(comment)
-print("Done!    E₀ = %15.7f Eₕ" % E)
+# # Read result of optimization
+# atoms, positions, comment = io_utils.read_xyz(init)
+# E = io_utils.comment_line_energy(comment)
+# print("Done!    E₀ = %15.7f Eₕ" % E)
 
 # Get bond parameters
 # -------------------
@@ -183,11 +186,12 @@ constraints = [("force constant = %f" % args.force,
 
 # STEP 1: Initial generation of guesses
 # ----------------------------------------------------------------------------
-n_generated_structures = react.generate_initial_structures(
-    xtb, out_dir,
-    init,
-    constraints,
-    params)
+# TODO CHANGE BAKC
+# n_generated_structures = react.generate_initial_structures(
+#     xtb, out_dir,
+#     init,
+#     constraints,
+#     params)
 
 # reset threading
 xtb.extra_args = xtb.extra_args[:-2]
@@ -203,22 +207,34 @@ if mtd_indices is None:
     mtd_indices = out["stretch_points"]  + [np.argmin(E), np.argmax(E)]
 
 
-# Sort the indices, do not do the same point twice and eliminate stuff that is
-# above threshold.
-indices = [i for i in mtd_indices if i < n_generated_structures]
-mtd_indices = sorted(list(set(indices)))
+# Sort the indices, do not do the same point twice.
+mtd_indices = sorted(list(set(mtd_indices)))
 if len(mtd_indices) == 0:
     raise SystemExit(1)
 
 
 # STEP 2: Metadynamics
 # ----------------------------------------------------------------------------
-react.metadynamics_search(
-    xtb, out_dir,
-    mtd_indices,
-    constraints,
-    params,
-    nthreads=args.T)
+# react.metadynamics_search(
+#     xtb, out_dir,
+#     mtd_indices,
+#     constraints,
+#     params,
+#     nthreads=args.T)
+
+from io_utils import read_trajectory
+from glob import glob
+# for mtd_index in mtd_indices:
+mtd_index=0
+structures = []
+Es = []
+for file in glob(out_dir + "/metadyn/mtd%4.4i_*.xyz"%mtd_index):
+    structs, E = read_trajectory(file)
+    structures += structs
+    Es += E
+
+# for s in structures:
+    
 
 
 # react.metadynamics_refine(
