@@ -106,7 +106,7 @@ def successive_optimization(xtb,
             Emin = newe[-1]     # a new energy minimum
             
         if verbose:
-            print("   nsteps=%4i   Energy=%9.5f Eₕ"%(len(news), newe[-1]))
+            print("   step👣=%4i    energy💡= %9.5f Eₕ"%(len(news), newe[-1]))
 
         if newe[-1] > barrier + Emin:
             if verbose:
