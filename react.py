@@ -63,22 +63,33 @@ def default_parameters(Natoms,
     parameters["wall"] = ("potential=logfermi",
                           "sphere: auto, all")
 
-    # Metadynamics parameters (somewhat adapted from CREST)
+    # Metadynamics parameters (from CREST)
     total_time = 0.5 * Natoms
-    dumpstep = 1000 * total_time/nmtd
-    parameters["metadyn"] = ("save=%i" % nmtd, 
-                             "kpush=0.2",
-                             "alp=0.8")
+    parameters["CREST"] = [
+        ("save=10", "kpush=0.033", "alpha=1.300"),
+        ("save=10", "kpush=0.017", "alpha=1.300"),
+        ("save=10", "kpush=0.008", "alpha=1.300"),
+        ("save=10", "kpush=0.033", "alpha=0.780"),
+        ("save=10", "kpush=0.017", "alpha=0.780"),
+        ("save=10", "kpush=0.008", "alpha=0.780"),
+        ("save=10", "kpush=0.033", "alpha=0.468"),
+        ("save=10", "kpush=0.017", "alpha=0.468"),
+        ("save=10", "kpush=0.008", "alpha=0.468"),
+        ("save=10", "kpush=0.033", "alpha=0.281"),
+        ("save=10", "kpush=0.017", "alpha=0.281"),
+        ("save=10", "kpush=0.008", "alpha=0.281"),
+        ("save=10", "kpush=0.011", "alpha=0.100"),
+        ("save=10", "kpush=0.055", "alpha=0.800")]
 
     if shake == 0:
         parameters["md"] = ("shake=0",
-                            "step=2",
-                            "dump=%f" % dumpstep,
+                            "step=1",
+                            "dump=100.0",
                             "time=%f" % total_time)
     else:
         parameters["md"] = ("shake=%i" % shake,
-                            "step=10",
-                            "dump=%f" % dumpstep,
+                            "step=5",
+                            "dump=100.0",
                             "time=%f" % total_time)
 
     return parameters
@@ -133,15 +144,24 @@ def metadynamics_search(xtb_driver,
     futures = []
     with ThreadPoolExecutor(max_workers=nthreads) as pool:
         for mtd_index in mtd_indices:
-            futures += [
-                pool.submit(
-                    react_utils.metadynamics_job(
-                        xtb_driver, mtd_index,
-                        workdir +"/init", workdir + "/metadyn",
-                        constraints, parameters))]
+            crest_jobs = react_utils.crest_jobs(
+                xtb_driver, mtd_index,
+                workdir +"/init", workdir + "/metadyn",
+                constraints, parameters)
 
+            if verbose:
+                print("   index %3i : submitting %i jobs..."
+                      %(mtd_index, len(crest_jobs)))
+                
+            for ji,j in enumerate(crest_jobs):
+                future=pool.submit(j)
+                
+                if verbose:
+                    future.add_done_callback(
+                        lambda _: print("X",end="",flush=True))
+                    
     if verbose:
-        print("Done!\n")
+        print("\nDone!\n")
 
 def react(xtb_driver,
           workdir,
