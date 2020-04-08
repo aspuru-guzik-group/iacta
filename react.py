@@ -67,22 +67,35 @@ def default_parameters(Natoms,
                           "sphere: auto, all")
 
     # Metadynamics parameters (from CREST)
-    total_time = 0.5 * Natoms
+    # total_time = int(round(0.4 * Natoms))
+    total_time = 0.1 * nmtd
+    SAVE="save=%i" % nmtd
+
+    # Parameters from mquick
     parameters["CREST"] = [
-        ("save=10", "kpush=0.033", "alpha=1.300"),
-        ("save=10", "kpush=0.017", "alpha=1.300"),
-        ("save=10", "kpush=0.008", "alpha=1.300"),
-        ("save=10", "kpush=0.033", "alpha=0.780"),
-        ("save=10", "kpush=0.017", "alpha=0.780"),
-        ("save=10", "kpush=0.008", "alpha=0.780"),
-        ("save=10", "kpush=0.033", "alpha=0.468"),
-        ("save=10", "kpush=0.017", "alpha=0.468"),
-        ("save=10", "kpush=0.008", "alpha=0.468"),
-        ("save=10", "kpush=0.033", "alpha=0.281"),
-        ("save=10", "kpush=0.017", "alpha=0.281"),
-        ("save=10", "kpush=0.008", "alpha=0.281"),
-        ("save=10", "kpush=0.011", "alpha=0.100"),
-        ("save=10", "kpush=0.055", "alpha=0.800")]
+        (SAVE,"kpush=0.00200","alpha=1.000"),
+        (SAVE,"kpush=0.00100","alpha=1.000"),
+        (SAVE,"kpush=0.00200","alpha=0.500"),
+        (SAVE,"kpush=0.00100","alpha=0.500"),
+        (SAVE,"kpush=0.00200","alpha=0.250"),
+        (SAVE,"kpush=0.00100","alpha=0.250"),]
+    
+    # parameters from normal
+    # parameters["CREST"] = [
+    #     (SAVE, "kpush=0.033", "alpha=1.300"),
+    #     (SAVE, "kpush=0.017", "alpha=1.300"),
+    #     (SAVE, "kpush=0.008", "alpha=1.300"),
+    #     (SAVE, "kpush=0.033", "alpha=0.780"),
+    #     (SAVE, "kpush=0.017", "alpha=0.780"),
+    #     (SAVE, "kpush=0.008", "alpha=0.780"),
+    #     (SAVE, "kpush=0.033", "alpha=0.468"),
+    #     (SAVE, "kpush=0.017", "alpha=0.468"),
+    #     (SAVE, "kpush=0.008", "alpha=0.468"),
+    #     (SAVE, "kpush=0.033", "alpha=0.281"),
+    #     (SAVE, "kpush=0.017", "alpha=0.281"),
+    #     (SAVE, "kpush=0.008", "alpha=0.281"),
+    #     (SAVE, "kpush=0.011", "alpha=0.100"),
+    #     (SAVE, "kpush=0.055", "alpha=0.800")]
 
     if shake == 0:
         parameters["md"] = ("shake=0",
@@ -107,7 +120,7 @@ def generate_initial_structures(xtb_driver,
                                 
     if verbose:
         print("-----------------------------------------------------------------")
-        print("Performing initial stretching...")
+        print("Performing initial stretching 💪😎💪...")
 
     outputdir = workdir + "/init"
     os.makedirs(outputdir)
@@ -140,28 +153,29 @@ def metadynamics_search(xtb_driver,
 
     if verbose:
         print("-----------------------------------------------------------------")
-        print("Performing metadynamics job on indices...")
+        print("Performing metadynamics jobs 👷...")
         print(mtd_indices)
-        print("with %i threads." % nthreads)
+        print("with %i threads. Working..." % nthreads)
 
-    futures = []
+        
     with ThreadPoolExecutor(max_workers=nthreads) as pool:
+        futures = []
+
         for mtd_index in mtd_indices:
             crest_jobs = react_utils.crest_jobs(
                 xtb_driver, mtd_index,
                 workdir +"/init", workdir + "/metadyn",
                 constraints, parameters)
 
-            if verbose:
-                print("   index %3i : submitting %i jobs..."
-                      %(mtd_index, len(crest_jobs)))
-                
             for ji,j in enumerate(crest_jobs):
-                future=pool.submit(j)
+                futures += [pool.submit(j)]
                 
                 if verbose:
-                    future.add_done_callback(
-                        lambda _: print("X",end="",flush=True))
+                    futures[-1].add_done_callback(
+                        lambda _: print("🔨",end="",flush=True))
+
+        for f in futures:
+            f.result()
                     
     if verbose:
         print("\nDone!\n")
@@ -204,14 +218,13 @@ def metadynamics_refine(xtb_driver,
                   %(mtd_index, len(structures)))
         with ThreadPoolExecutor(max_workers=nthreads) as pool:
             futures = []
-            for s in structures[:10]:
+            for s in structures:
                 future = pool.submit(
                     quick_opt_job, xtb_driver, s, parameters["optlevel"],
                     dict(wall=parameters["wall"],
                          constrain=constraints[mtd_index]))
-
                 futures += [future]
-
+                
         converged = []
         errors = []
         for f in futures:
@@ -248,7 +261,7 @@ def react(xtb_driver,
           nthreads=1):
     if verbose:
         print("-----------------------------------------------------------------")
-        print("Performing reactions...")
+        print("Performing reactions ⌛💣...")
     
     # load all the structures
     meta = workdir+"/CRE"
@@ -262,7 +275,7 @@ def react(xtb_driver,
                 meta + "/mtd%4.4i.xyz" % mtd_index)
 
             if verbose:
-                print("   mtdi = %4i    n(react) = %i"
+                print("   mtdi = %4i    n(reactions) = %i"
                       %(mtd_index+1, len(structures)))
                 
             for s in structures:
@@ -277,4 +290,4 @@ def react(xtb_driver,
                 nreact = nreact + 1
 
     if verbose:
-        print("Done!\n\n")
+        print("No more work to do. 🛌📺\n\n")
