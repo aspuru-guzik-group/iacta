@@ -3,6 +3,9 @@ import react_utils
 from io_utils import read_trajectory, dump_succ_opt
 from math import inf
 import os
+from glob import glob
+import tempfile
+
 
 """
 This file contains a bunch of user-friendly, multithreaded drivers for
@@ -162,6 +165,81 @@ def metadynamics_search(xtb_driver,
                     
     if verbose:
         print("\nDone!\n")
+
+def quick_opt_job(xtb, xyz, level, xcontrol):
+    with tempfile.NamedTemporaryFile(suffix=".xyz",
+                                     dir=xtb.scratchdir) as T:
+        T.write(bytes(xyz, 'ascii'))
+        T.flush()
+        opt = xtb.optimize(T.name,
+                           T.name,
+                           level=level,
+                           xcontrol=xcontrol)
+        opt()
+        xyz, E = read_trajectory(T.name)
+    return xyz, E
+
+def metadynamics_refine(xtb_driver,
+                        workdir,
+                        mtd_indices,
+                        constraints,
+                        parameters,
+                        verbose=True,
+                        nthreads=1):
+    refined_dir = workdir + "/CRE"
+    mtd_dir = workdir + "/metadyn"
+    os.makedirs(refined_dir, exist_ok=True)
+    
+    for mtd_index in mtd_indices:
+        structures = []
+        Es = []
+        for file in glob(mtd_dir + "/mtd%4.4i_*.xyz"%mtd_index):
+            structs, E = read_trajectory(file)
+            structures += structs
+            Es += E
+            
+        # Loosely optimize the structures in parallel
+        if verbose:
+            print("MTD%i> loaded %i structures, optimizing..."
+                  %(mtd_index, len(structures)))
+        with ThreadPoolExecutor(max_workers=nthreads) as pool:
+            futures = []
+            for s in structures[:10]:
+                future = pool.submit(
+                    quick_opt_job, xtb_driver, s, parameters["optlevel"],
+                    dict(wall=parameters["wall"],
+                         constrain=constraints[mtd_index]))
+
+                futures += [future]
+
+        converged = []
+        errors = []
+        for f in futures:
+            exc = f.exception()
+            if exc:
+                errors += [f]
+            else:
+                converged += [f.result()]
+
+        if verbose:
+            print("        converged: %i"% len(converged))
+            print("        errors: %i"%len(errors))
+
+        if verbose:
+            print("      running CREGEN on structures..." % mtd_index)
+
+        fn = refined_dir + "/mtd%4.4i.xyz" % mtd_index
+        f = open(fn, "w")
+        for s, E in converged:
+            f.write(s[0])
+        f.close()
+        cre = xtb_driver.cregen(fn, fn)
+        error = cre()
+        s, E = read_trajectory(fn)
+        if verbose:
+            print("  → %i structures selected for reactions." % len(s))
+
+        
 
 def react(xtb_driver,
           workdir,

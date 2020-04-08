@@ -360,6 +360,40 @@ class xtb_driver:
                      return_files=return_files)
         return md
 
+    def cregen(self, geom_file, out_file):
+        """Sort and reduce an ensemble using CREGEN.
+
+        Parameters:
+        -----------
+
+        geom_file (str) : path to the file containing the initial molecular
+        geometries.
+
+        ensemble_file (str) : path to the file containing the ensemble.
+
+        out_file (str): path to file where results are saved.
+
+        Optional Parameters:
+        --------------------
+        TODO
+
+        Returns:
+        --------
+
+        cregen_run : The CREGEN job. Run using xtb_run().
+
+        """
+        
+        return_files=[("crest_ensemble.xyz", out_file)]
+        cre = xtb_run(self.crest_bin, geom_file,
+                      os.path.basename(geom_file),
+                      prefix="CRE",
+                      before_geometry="-cregen",
+                      delete=self.delete,
+                      scratch=self.scratchdir,
+                      return_files=return_files)
+        return cre    
+
 
 
 
