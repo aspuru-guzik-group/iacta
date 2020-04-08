@@ -98,19 +98,18 @@ args = parser.parse_args()
 # Prepare output files
 # --------------------
 out_dir = args.o
-# TODO CHANGE BAKC
-# try:
-#     os.makedirs(out_dir)
-# except FileExistsError:
-#     print("Output directory exists:")
-#     if args.w:
-#         # Delete the directory, make it and restart
-#         print("   -w flag is on -> %s is overwritten."% args.o)
-#         shutil.rmtree(out_dir)
-#         os.makedirs(out_dir)
-#     else:
-#         print("   -w flag is off -> exiting!")
-#         raise SystemExit(1)
+try:
+    os.makedirs(out_dir)
+except FileExistsError:
+    print("Output directory exists:")
+    if args.w:
+        # Delete the directory, make it and restart
+        print("   -w flag is on -> %s is overwritten."% args.o)
+        shutil.rmtree(out_dir)
+        os.makedirs(out_dir)
+    else:
+        print("   -w flag is off -> exiting!")
+        raise SystemExit(1)
         
 init = shutil.copy(args.init_xyz,
                    out_dir)
@@ -149,17 +148,17 @@ params = react.default_parameters(Natoms,
 # steps.
 xtb.extra_args += ["-P", str(args.T)]
 
-# # Optimize starting geometry including wall
-# # -----------------------------------------
-# print("optimizing initial geometry...")
-# opt = xtb.optimize(init, init, level=args.opt_level,
-#                    xcontrol={"wall":params["wall"]})
-# opt()
+# Optimize starting geometry including wall
+# -----------------------------------------
+print("optimizing initial geometry...")
+opt = xtb.optimize(init, init, level=args.opt_level,
+                   xcontrol={"wall":params["wall"]})
+opt()
 
-# # Read result of optimization
-# atoms, positions, comment = io_utils.read_xyz(init)
-# E = io_utils.comment_line_energy(comment)
-# print("Done!    E₀ = %15.7f Eₕ" % E)
+# Read result of optimization
+atoms, positions, comment = io_utils.read_xyz(init)
+E = io_utils.comment_line_energy(comment)
+print("Done!    E₀ = %15.7f Eₕ" % E)
 
 # Get bond parameters
 # -------------------
@@ -186,12 +185,11 @@ constraints = [("force constant = %f" % args.force,
 
 # STEP 1: Initial generation of guesses
 # ----------------------------------------------------------------------------
-# TODO CHANGE BAKC
-# n_generated_structures = react.generate_initial_structures(
-#     xtb, out_dir,
-#     init,
-#     constraints,
-#     params)
+react.generate_initial_structures(
+    xtb, out_dir,
+    init,
+    constraints,
+    params)
 
 # reset threading
 xtb.extra_args = xtb.extra_args[:-2]
@@ -206,7 +204,6 @@ if mtd_indices is None:
     E = np.loadtxt(out_dir + "/init/Eopt")
     mtd_indices = out["stretch_points"]  + [np.argmin(E), np.argmax(E)]
 
-
 # Sort the indices, do not do the same point twice.
 mtd_indices = sorted(list(set(mtd_indices)))
 if len(mtd_indices) == 0:
@@ -215,12 +212,12 @@ if len(mtd_indices) == 0:
 
 # STEP 2: Metadynamics
 # ----------------------------------------------------------------------------
-# react.metadynamics_search(
-#     xtb, out_dir,
-#     mtd_indices,
-#     constraints,
-#     params,
-#     nthreads=args.T)
+react.metadynamics_search(
+    xtb, out_dir,
+    mtd_indices,
+    constraints,
+    params,
+    nthreads=args.T)
 
 react.metadynamics_refine(
     xtb, out_dir,
@@ -229,32 +226,12 @@ react.metadynamics_refine(
     params,
     nthreads=args.T)
 
-
-
-
-
-# N = len(converged)
-# RMSDmatrix = np.zeros((N,N))
-# for i in range(N):
-#     for j in range(i):
-#         RMSDmatrix[i,j] = rmsd(converged[i], converged[j])
-#         RMSDmatrix[j,i] = RMSDmatrix[i,j]
-
-    
-# react.metadynamics_refine(
-#     xtb, out_dir,
-#     mtd_indices,
-#     constraints,
-#     params,
-#     nthreads=args.T)
-
-
-# # STEP 2: Reactions
-# # ----------------------------------------------------------------------------
-# react.react(
-#     xtb, out_dir,
-#     mtd_indices,
-#     constraints,
-#     params,
-#     nthreads=args.T)
+# STEP 2: Reactions
+# ----------------------------------------------------------------------------
+react.react(
+    xtb, out_dir,
+    mtd_indices,
+    constraints,
+    params,
+    nthreads=args.T)
 
