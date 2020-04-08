@@ -222,8 +222,13 @@ if len(mtd_indices) == 0:
 #     params,
 #     nthreads=args.T)
 
-from io_utils import read_trajectory
+from io_utils import read_trajectory, read_xyz
 from glob import glob
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from rmsd import rmsd
+nthreads =2
+verbose = True
 # for mtd_index in mtd_indices:
 mtd_index=0
 structures = []
@@ -233,10 +238,66 @@ for file in glob(out_dir + "/metadyn/mtd%4.4i_*.xyz"%mtd_index):
     structures += structs
     Es += E
 
-# for s in structures:
+def opt_job(xtb, xyz, level, xcontrol):
+    with tempfile.NamedTemporaryFile(suffix=".xyz", dir=xtb.scratchdir) as T:
+        T.write(bytes(xyz, 'ascii'))
+        T.flush()
+        opt = xtb.optimize(T.name,
+                           T.name,
+                           level=level,
+                           xcontrol=xcontrol)
+        opt()
+        xyz, E = read_trajectory(T.name)
+    return xyz, E
+
+# Loosely optimize the structures in parallel
+if verbose:
+    print("MTD%i> loaded %i structures, optimizing loosely ..."
+          %(mtd_index, len(structures)))
+with ThreadPoolExecutor(max_workers=nthreads) as pool:
+    futures = []
+    for s in structures[:20]:
+        future = pool.submit(
+            opt_job, xtb, s, "loose",
+            dict(wall=params["wall"], constrain=constraints[mtd_index]))
+        
+        futures += [future]
+        if verbose:
+            future.add_done_callback(
+                        lambda _: print(".",end="",flush=True))
+
+converged = []
+errors = []
+for f in futures:
+    exc = f.exception()
+    if exc:
+        errors += [f]
+    else:
+        converged += [f.result()]
+        
+if verbose:
+    print("\nMTD%i> done"%mtd_index)
+    print("         converged: %i"% len(converged))
+    print("         errors: %i"%len(errors))
     
 
+if verbose:
+    print("MTD%i> CREGEN on structures..." % mtd_index)
+os.makedirs(out_dir + "/CRE", exist_ok=True)
+f = open(out_dir + "/CRE/mtd%4.4i.xyz" % mtd_index, "w")
+for s, E in converged:
+    f.write(s[0])
+f.close()
 
+
+# N = len(converged)
+# RMSDmatrix = np.zeros((N,N))
+# for i in range(N):
+#     for j in range(i):
+#         RMSDmatrix[i,j] = rmsd(converged[i], converged[j])
+#         RMSDmatrix[j,i] = RMSDmatrix[i,j]
+
+    
 # react.metadynamics_refine(
 #     xtb, out_dir,
 #     mtd_indices,
