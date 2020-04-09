@@ -5,7 +5,7 @@ from math import inf
 import os
 from glob import glob
 import tempfile
-
+from constants import hartree_ev, ev_kcalmol
 
 """
 This file contains a bunch of user-friendly, multithreaded drivers for
@@ -67,18 +67,17 @@ def default_parameters(Natoms,
                           "sphere: auto, all")
 
     # Metadynamics parameters (from CREST)
-    # total_time = int(round(0.4 * Natoms))
-    total_time = 0.1 * nmtd
+    total_time = int(round(0.4 * Natoms))
     SAVE="save=%i" % nmtd
 
     # Parameters from mquick
     parameters["CREST"] = [
-        (SAVE,"kpush=0.00200","alpha=1.000"),
-        (SAVE,"kpush=0.00100","alpha=1.000"),
-        (SAVE,"kpush=0.00200","alpha=0.500"),
-        (SAVE,"kpush=0.00100","alpha=0.500"),
-        (SAVE,"kpush=0.00200","alpha=0.250"),
-        (SAVE,"kpush=0.00100","alpha=0.250"),]
+        (SAVE,"kpush=0.0200","alpha=1.000"),
+        (SAVE,"kpush=0.0100","alpha=1.000"),
+        (SAVE,"kpush=0.0200","alpha=0.500"),
+        (SAVE,"kpush=0.0100","alpha=0.500"),
+        (SAVE,"kpush=0.0200","alpha=0.250"),
+        (SAVE,"kpush=0.0100","alpha=0.250"),]
     
     # parameters from normal
     # parameters["CREST"] = [
@@ -195,6 +194,7 @@ def quick_opt_job(xtb, xyz, level, xcontrol):
 
 def metadynamics_refine(xtb_driver,
                         workdir,
+                        reference,
                         mtd_indices,
                         constraints,
                         parameters,
@@ -239,7 +239,7 @@ def metadynamics_refine(xtb_driver,
             print("        errors 👎: %i"%len(errors))
 
         if verbose:
-            print("      carefully selecting conformers 🔎..." % mtd_index)
+            print("        carefully selecting conformers 🔎...")
 
         fn = refined_dir + "/mtd%4.4i.xyz" % mtd_index
         f = open(fn, "w")
@@ -247,9 +247,9 @@ def metadynamics_refine(xtb_driver,
             f.write(s[0])
         f.close()
 
-        ewin = min(1000.0, parameters["ethreshold"])
-        cre = xtb_driver.cregen(fn, fn,
-                                ewin=ewin)
+        ewin = min(10000.0, parameters["ethreshold"] * hartree_ev * ev_kcalmol)
+        cre = xtb_driver.cregen(reference, fn, fn,
+                                ewin, 0.5)
         error = cre()
         s, E = read_trajectory(fn)
         if verbose:
@@ -279,7 +279,7 @@ def react(xtb_driver,
 
             if verbose:
                 print("   MTD%i>\tn(⏣ 🡒 🔥) = %i"
-                      %(mtd_index+1, len(structures)))
+                      %(mtd_index, len(structures)))
                 
             for s in structures:
                 futures += [pool.submit(

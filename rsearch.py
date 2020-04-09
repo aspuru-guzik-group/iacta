@@ -64,7 +64,7 @@ parser.add_argument("-etemp",
                     type=str)
 parser.add_argument("-opt-level",
                     help="Optimization level. Defaults to vtight.",
-                    default="vtight",
+                    default="tight",
                     type=str)
 parser.add_argument("-threshold",
                     help="Energy threshold for path optimization in kcal/mol."
@@ -80,7 +80,7 @@ parser.add_argument("-shake-level",
                     +" with parameters that permit bond-breaking, specifically"
                     +" shake=0, but at a slower pace than if shake is set to 1"
                     +" or 2. Defaults to 0.",
-                    default=0, type=int)
+                    default=2, type=int)
 parser.add_argument("-log-level",
                     help="Level of debug printout (see react.py for details).",
                     default=0, type=int)
@@ -150,7 +150,8 @@ xtb.extra_args += ["-P", str(args.T)]
 # Optimize starting geometry including wall
 # -----------------------------------------
 print("Optimizing initial geometry 📐...")
-opt = xtb.optimize(init, init, level=args.opt_level,
+opt = xtb.optimize(init, init,
+                   level=args.opt_level,
                    xcontrol={"wall":params["wall"]})
 opt()
 
@@ -197,16 +198,17 @@ mtd_indices = args.mtdi
 if mtd_indices is None:
     # Read the successive optimization, then set mtd points to ground and TS
     # geometries.
-    from read_reactions import read_reaction
+    from read_reactions import read_reaction, xyz2smiles
     out = read_reaction(out_dir + "/init")
-    # also include minima and maxima of energy
-    E = np.loadtxt(out_dir + "/init/Eopt")
-    mtd_indices = out["stretch_points"]  + [np.argmin(E), np.argmax(E)]
+    reactant=xyz2smiles(args.init_xyz)[0]
+    init = xyz2smiles(out_dir + "/init/opt.xyz")
+    mtd_indices = [i for i,smi in enumerate(init) if smi==reactant][::2]
+    print("Reactant 👉", reactant)
 
 # Sort the indices, do not do the same point twice.
 mtd_indices = sorted(list(set(mtd_indices)))
 if len(mtd_indices) == 0:
-    raise SystemExit(1)
+    raise SystemExit(-1)
 
 
 # STEP 2: Metadynamics
@@ -220,6 +222,7 @@ react.metadynamics_search(
 
 react.metadynamics_refine(
     xtb, out_dir,
+    init,
     mtd_indices,
     constraints,
     params,
