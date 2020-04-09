@@ -202,7 +202,7 @@ if mtd_indices is None:
     out = read_reaction(out_dir + "/init")
     reactant=xyz2smiles(args.init_xyz)[0]
     init = xyz2smiles(out_dir + "/init/opt.xyz")
-    mtd_indices = [i for i,smi in enumerate(init) if smi==reactant][::2]
+    mtd_indices = [i for i,smi in enumerate(init) if smi==reactant][::3]
     print("Reactant 👉", reactant)
 
 # Sort the indices, do not do the same point twice.
