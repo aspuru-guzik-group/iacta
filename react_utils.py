@@ -10,7 +10,6 @@ def successive_optimization(xtb,
                             initial_xyz,
                             constraints,
                             parameters,
-                            barrier=np.inf,
                             failout=None,
                             verbose=True):
     """Optimize a structure through successive constraints.
@@ -77,8 +76,6 @@ def successive_optimization(xtb,
     if verbose:
         print("  %i successive optimizations" % len(constraints))
 
-    Emin = np.inf
-
     for i in range(len(constraints)):
         direction = "->"
         if verbose:
@@ -102,15 +99,13 @@ def successive_optimization(xtb,
         structures += news
         energies += newe
         opt_indices += [len(structures)-1]
-        if newe[-1] < Emin:
-            Emin = newe[-1]     # a new energy minimum
             
         if verbose:
             print("   step👣=%4i    energy💡= %9.5f Eₕ"%(len(news), newe[-1]))
 
-        if newe[-1] > barrier + Emin:
+        if newe[-1] > parameters["emax"]:
             if verbose:
-                print("   ----- barrier threshold exceeded -----")
+                print("   ----- energy threshold exceeded -----")
             break
 
     # Got to make sure that you close the filehandles!
@@ -241,7 +236,6 @@ def reaction_job(xtb,
             xtb, output_folder + "/initial.xyz",
             constraints[mtd_index:],
             parameters,
-            barrier=parameters["ethreshold"],
             failout=output_folder + "/FAILED_FORWARD",
             verbose=False)          # otherwise its way too verbose
 
@@ -257,7 +251,6 @@ def reaction_job(xtb,
             xtb, output_folder + "/initial_backward.xyz",
             cbacks,
             parameters,
-            barrier=parameters["ethreshold"],
             failout=output_folder + "/FAILED_BACKWARD",            
             verbose=False)          # otherwise its way too verbose
 

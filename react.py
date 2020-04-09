@@ -13,10 +13,10 @@ react_utils.
 """
 
 def default_parameters(Natoms,
-                       nmtd=80,
                        optlevel="tight",
                        ethreshold=inf,
                        rthreshold=0.5,
+                       emax=inf,
                        shake=0,
                        log_level=0):
     """Generate a dictionary of default parameters for the reaction search.
@@ -55,6 +55,7 @@ def default_parameters(Natoms,
     parameters["optlevel"] = optlevel
     parameters["ethreshold"] = ethreshold
     parameters["rthreshold"] = rthreshold
+    parameters["emax"] = emax
 
     # Logging
     if log_level > 0:
@@ -69,6 +70,7 @@ def default_parameters(Natoms,
 
     # Metadynamics parameters (from CREST)
     total_time = int(round(0.4 * Natoms))
+    nmtd = Natoms               # TODO parameterize
     SAVE="save=%i" % nmtd
 
     # Parameters from mquick

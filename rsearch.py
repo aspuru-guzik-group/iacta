@@ -192,7 +192,11 @@ if do_opt:
 # Read result of optimization
 atoms, positions, comment = io_utils.read_xyz(init1)
 E = io_utils.comment_line_energy(comment)
-print("    E₀ = %15.7f Eₕ" % E)
+Emax = E + ethreshold
+print("    E₀    = %15.7f Eₕ" % E)
+print("    max E = %15.7f Eₕ  (E₀ + %5.1f kcal/mol)" % (Emax,args.threshold))
+params["emax"] = Emax           # update parameters
+
 
 # Get bond parameters
 # -------------------
@@ -210,9 +214,6 @@ print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
       % (min(stretch_factors)*bond[2], max(stretch_factors)*bond[2],
          min(stretch_factors), max(stretch_factors)))
 print("    discretized with %i points" % len(stretch_factors))
-# TODO FIX TO EMAX 
-print("    with a maximum barrier height of  %9.5f Eₕ (E₀ + %4.2f kcal/mol) " %
-      (ethreshold, args.threshold))
 constraints = [("force constant = %f" % args.force,
                 "distance: %i, %i, %f"% (bond[0],bond[1],
                                          stretch * bond[2]))
@@ -279,4 +280,5 @@ if do_reactions:
         nthreads=args.T)
 
 
-logfile.close()
+if logfile:
+    logfile.close()
