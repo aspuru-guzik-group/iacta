@@ -273,34 +273,63 @@ def react(xtb_driver,
           verbose=True,
           nthreads=1):
     if verbose:
+        print("\n")
         print("-----------------------------------------------------------------")
-        print("Performing reactions ⏣ → 🔥...")
+        print("  miniGabe 🧔,")
+        print("           a reaction search ⏣ → 🔥 algorithm")
+        print("-----------------------------------------------------------------")
     
     # load all the structures
     meta = workdir+"/CRE"
+
+    # Make a large list of all the reactions
+    if verbose:
+        print("Loading metadynamics structures...")
+
+    all_structures = []
+    for mtd_index in mtd_indices:
+        structures, energies = read_trajectory(
+            meta + "/mtd%4.4i.xyz" % mtd_index)
+        # CREGEN has sorted these too so the first element is the lowest
+        # energy one.
+        
+        if verbose:
+            print("   MTD%i> N(⏣ 🡒 🔥) = %i"
+                  %(mtd_index, len(structures)))
+            
+        all_structures += [[mtd_index,structures]]
+    if verbose:
+        print("building round-robin worklist...")
+
+    worklist = []
+    while True:
+        for mtd_index, ls_structs in all_structures:
+            if len(ls_structs):
+                worklist += [(mtd_index,ls_structs.pop(0))]
+            else:
+                all_structures.remove([mtd_index,ls_structs])
+                
+        if len(all_structures) == 0:
+            break
+        
+    if verbose:
+        print("📜 = %i reactions to compute"% len(worklist))
+        print("    with the help of 🧔 × %i threads" % nthreads)
 
     nreact = 0
     with ThreadPoolExecutor(max_workers=nthreads) as pool:
         futures = []
 
-        for mtd_index in mtd_indices:
-            structures, energies = read_trajectory(
-                meta + "/mtd%4.4i.xyz" % mtd_index)
-
-            if verbose:
-                print("   MTD%i>\tn(⏣ 🡒 🔥) = %i"
-                      %(mtd_index, len(structures)))
-                
-            for s in structures:
-                futures += [pool.submit(
-                    react_utils.reaction_job(
-                        xtb_driver,
-                        s,
-                        mtd_index,
-                        workdir + "/react%5.5i/" % nreact,
-                        constraints,
-                        parameters))]
-                nreact = nreact + 1
+        for mtd_index, structure in worklist:
+            futures += [pool.submit(
+                react_utils.reaction_job(
+                    xtb_driver,
+                    structure,
+                    mtd_index,
+                    workdir + "/react%5.5i/" % nreact,
+                    constraints,
+                    parameters))]
+            nreact = nreact + 1
 
     if verbose:
-        print("No more work to do. 🛌📺\n\n")
+        print("No more work to do! 🧔🍻\n\n")
