@@ -16,6 +16,7 @@ def default_parameters(Natoms,
                        nmtd=80,
                        optlevel="tight",
                        ethreshold=inf,
+                       rthreshold=0.5,
                        shake=0,
                        log_level=0):
     """Generate a dictionary of default parameters for the reaction search.
@@ -51,9 +52,9 @@ def default_parameters(Natoms,
 
     """
     parameters = {}
-    parameters["nmtd"] = nmtd
     parameters["optlevel"] = optlevel
     parameters["ethreshold"] = ethreshold
+    parameters["rthreshold"] = rthreshold
 
     # Logging
     if log_level > 0:
@@ -180,6 +181,7 @@ def metadynamics_search(xtb_driver,
         print("\nDone!\n")
 
 def quick_opt_job(xtb, xyz, level, xcontrol):
+    # TODO comment
     with tempfile.NamedTemporaryFile(suffix=".xyz",
                                      dir=xtb.scratchdir) as T:
         T.write(bytes(xyz, 'ascii'))
@@ -247,9 +249,15 @@ def metadynamics_refine(xtb_driver,
             f.write(s[0])
         f.close()
 
-        ewin = min(10000.0, parameters["ethreshold"] * hartree_ev * ev_kcalmol)
-        cre = xtb_driver.cregen(reference, fn, fn,
-                                ewin, 0.5)
+        # convert to kcal and use use 10 000 if its higher than 10 000
+        Et = min(10000.0, parameters["ethreshold"] * hartree_ev * ev_kcalmol)
+        # same
+        Rt = min(10000.0, parameters["rthreshold"])
+        
+        cre = xtb_driver.cregen(reference,
+                                fn, fn,
+                                ethreshold=Et,
+                                rthreshold=Rt)
         error = cre()
         s, E = read_trajectory(fn)
         if verbose:

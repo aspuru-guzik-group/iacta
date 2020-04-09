@@ -66,6 +66,7 @@ parser.add_argument("-opt-level",
                     help="Optimization level. Defaults to vtight.",
                     default="tight",
                     type=str)
+# TODO CHANGE TO ETHRESH, ADD RTHRESH
 parser.add_argument("-threshold",
                     help="Energy threshold for path optimization in kcal/mol."
                     +" Basically, if a barrier is encountered that is higher than"
@@ -138,6 +139,14 @@ if do_opt:
     init0 = shutil.copy(args.init_xyz, out_dir + "/initial_geometry.xyz")
 else:
     init0 = out_dir + "/initial_geometry.xyz"
+
+# Command log file
+if args.log_level >0:
+    logfile = open(out_dir + "/commandlog", "a")
+    logfile.write("--------------------------"
+                  +"--------------------------------------\n")
+else:
+    logfile = None
     
 atoms, positions, comment = io_utils.read_xyz(init0)
 Natoms = len(atoms)
@@ -145,7 +154,8 @@ Natoms = len(atoms)
 # Initialize the xtb driver
 # -------------------------
 xtb = xtb_utils.xtb_driver(scratch=scratch,
-                           delete=delete)
+                           delete=delete,
+                           logfile=logfile)
 xtb.extra_args = ["--gfn",args.gfn]
 if args.etemp:
     xtb.extra_args += ["--etemp", args.etemp]
@@ -182,7 +192,7 @@ if do_opt:
 # Read result of optimization
 atoms, positions, comment = io_utils.read_xyz(init1)
 E = io_utils.comment_line_energy(comment)
-print("👍 Done!    E₀ = %15.7f Eₕ" % E)
+print("    E₀ = %15.7f Eₕ" % E)
 
 # Get bond parameters
 # -------------------
@@ -252,7 +262,7 @@ if do_mtd:
 if do_mtd_refine:
     react.metadynamics_refine(
         xtb, out_dir,
-        init,
+        init1,
         mtd_indices,
         constraints,
         params,
@@ -268,3 +278,5 @@ if do_reactions:
         params,
         nthreads=args.T)
 
+
+logfile.close()
