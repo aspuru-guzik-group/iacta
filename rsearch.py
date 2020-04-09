@@ -84,6 +84,13 @@ parser.add_argument("-shake-level",
 parser.add_argument("-log-level",
                     help="Level of debug printout (see react.py for details).",
                     default=0, type=int)
+parser.add_argument("-restart",
+                    help="Restart a run at a given step. Defaults to 0 (no" +
+                    " restart). Valid values include 1 → skip initial" +
+                    " optimization, 2 → skip initial stretching,  3 → skip metadynamics, 4 → skip refinement of metadynamics results" +
+                    " and go straight to reactions.",
+                    default=0,
+                    type=int)
 
 
 if "LOCALSCRATCH" in os.environ:
@@ -94,33 +101,49 @@ else:
 
 args = parser.parse_args()
 
+# Interpret -restart
+do_opt, do_stretch, do_mtd, do_mtd_refine = True, True, True, True
+do_opt = args.restart < 1
+do_stretch = args.restart < 2
+do_mtd = args.restart < 3
+do_mtd_refine = args.restart < 4
+do_reactions = True
+
+# Interpret log level
+if args.log_level>1:
+    delete=False
+else:
+    delete=True
+
 # Prepare output files
 # --------------------
 out_dir = args.o
 try:
     os.makedirs(out_dir)
 except FileExistsError:
-    print("😭 Output directory exists:")
-    if args.w:
+    print("Output directory exists:")
+    if args.restart:
+        print("   👍 but that's good! This is a restart job.")
+    elif args.w:
         # Delete the directory, make it and restart
-        print("   -w flag is on -> %s is overwritten ✏."% args.o)
+        print("   👍 but that's fine! -w flag is on.")
+        print("   📁 %s is overwritten."% args.o)
         shutil.rmtree(out_dir)
         os.makedirs(out_dir)
     else:
-        print("   -w flag is off -> exiting! 🚪")
-        raise SystemExit(1)
-        
-init = shutil.copy(args.init_xyz,
-                   out_dir)
-atoms, positions, comment = io_utils.read_xyz(init)
+        print("   👎 -w flag is off -> exiting! 🚪")
+        raise SystemExit(-1)
+
+if do_opt:
+    init0 = shutil.copy(args.init_xyz, out_dir + "/initial_geometry.xyz")
+else:
+    init0 = out_dir + "/initial_geometry.xyz"
+    
+atoms, positions, comment = io_utils.read_xyz(init0)
 Natoms = len(atoms)
 
 # Initialize the xtb driver
 # -------------------------
-if args.log_level>1:
-    delete=False
-else:
-    delete=True
 xtb = xtb_utils.xtb_driver(scratch=scratch,
                            delete=delete)
 xtb.extra_args = ["--gfn",args.gfn]
@@ -138,7 +161,6 @@ if args.solvent:
 ethreshold = args.threshold / (hartree_ev * ev_kcalmol)
 params = react.default_parameters(Natoms,
                                   shake=args.shake_level,
-                                  nmtd=args.mtdn,
                                   ethreshold=ethreshold,
                                   optlevel=args.opt_level,
                                   log_level=args.log_level)
@@ -149,14 +171,16 @@ xtb.extra_args += ["-P", str(args.T)]
 
 # Optimize starting geometry including wall
 # -----------------------------------------
-print("Optimizing initial geometry 📐...")
-opt = xtb.optimize(init, init,
-                   level=args.opt_level,
-                   xcontrol={"wall":params["wall"]})
-opt()
+init1 = out_dir + "/initial_optimized.xyz"
+if do_opt:
+    print("Optimizing initial geometry 📐...")
+    opt = xtb.optimize(init0, init1,
+                       level=args.opt_level,
+                       xcontrol={"wall":params["wall"]})
+    opt()
 
 # Read result of optimization
-atoms, positions, comment = io_utils.read_xyz(init)
+atoms, positions, comment = io_utils.read_xyz(init1)
 E = io_utils.comment_line_energy(comment)
 print("👍 Done!    E₀ = %15.7f Eₕ" % E)
 
@@ -176,7 +200,8 @@ print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
       % (min(stretch_factors)*bond[2], max(stretch_factors)*bond[2],
          min(stretch_factors), max(stretch_factors)))
 print("    discretized with %i points" % len(stretch_factors))
-print("    with a maximum barrier height %7.5f Eₕ (%7.3f kcal/mol) " %
+# TODO FIX TO EMAX 
+print("    with a maximum barrier height of  %9.5f Eₕ (E₀ + %4.2f kcal/mol) " %
       (ethreshold, args.threshold))
 constraints = [("force constant = %f" % args.force,
                 "distance: %i, %i, %f"% (bond[0],bond[1],
@@ -185,11 +210,12 @@ constraints = [("force constant = %f" % args.force,
 
 # STEP 1: Initial generation of guesses
 # ----------------------------------------------------------------------------
-react.generate_initial_structures(
-    xtb, out_dir,
-    init,
-    constraints,
-    params)
+if do_stretch:
+    react.generate_initial_structures(
+        xtb, out_dir,
+        init1,
+        constraints,
+        params)
 
 # reset threading
 xtb.extra_args = xtb.extra_args[:-2]
@@ -200,7 +226,7 @@ if mtd_indices is None:
     # geometries.
     from read_reactions import read_reaction, xyz2smiles
     out = read_reaction(out_dir + "/init")
-    reactant=xyz2smiles(args.init_xyz)[0]
+    reactant=xyz2smiles(init0)[0]
     init = xyz2smiles(out_dir + "/init/opt.xyz")
     mtd_indices = [i for i,smi in enumerate(init) if smi==reactant][::3]
     print("Reactant 👉", reactant)
@@ -208,32 +234,37 @@ if mtd_indices is None:
 # Sort the indices, do not do the same point twice.
 mtd_indices = sorted(list(set(mtd_indices)))
 if len(mtd_indices) == 0:
+    print("Reactant not found in initial stretch! 😢")
+    print("Optimization probably reacted. Alter geometry and try again.")
     raise SystemExit(-1)
 
 
 # STEP 2: Metadynamics
 # ----------------------------------------------------------------------------
-react.metadynamics_search(
-    xtb, out_dir,
-    mtd_indices,
-    constraints,
-    params,
-    nthreads=args.T)
+if do_mtd:
+    react.metadynamics_search(
+        xtb, out_dir,
+        mtd_indices,
+        constraints,
+        params,
+        nthreads=args.T)
 
-react.metadynamics_refine(
-    xtb, out_dir,
-    init,
-    mtd_indices,
-    constraints,
-    params,
-    nthreads=args.T)
+if do_mtd_refine:
+    react.metadynamics_refine(
+        xtb, out_dir,
+        init,
+        mtd_indices,
+        constraints,
+        params,
+        nthreads=args.T)
 
 # STEP 2: Reactions
 # ----------------------------------------------------------------------------
-react.react(
-    xtb, out_dir,
-    mtd_indices,
-    constraints,
-    params,
-    nthreads=args.T)
+if do_reactions:
+    react.react(
+        xtb, out_dir,
+        mtd_indices,
+        constraints,
+        params,
+        nthreads=args.T)
 
