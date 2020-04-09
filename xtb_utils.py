@@ -360,7 +360,8 @@ class xtb_driver:
                      return_files=return_files)
         return md
 
-    def cregen(self, geom_file, out_file, ewin):
+    def cregen(self, reference, ensemble, out,
+               ewin=40.0, rthr=0.2):
         """Sort and reduce an ensemble using CREGEN.
 
         Parameters:
@@ -383,10 +384,11 @@ class xtb_driver:
         cregen_run : The CREGEN job. Run using xtb_run().
 
         """
-        
         return_files=[("crest_ensemble.xyz", out_file)]
         cre = xtb_run(self.crest_bin, geom_file,
-                      os.path.basename(geom_file),
+                      reference,
+                      "-ewin",str(ewin),
+                      "-rthr", str(rthr),
                       prefix="CRE",
                       before_geometry="-cregen",
                       delete=self.delete,
