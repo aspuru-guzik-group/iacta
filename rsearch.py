@@ -79,9 +79,8 @@ parser.add_argument("-shake-level",
                     help="If this is 0, the metadynamics run will be performed"
                     +" with parameters that permit bond-breaking, specifically"
                     +" shake=0, but at a slower pace than if shake is set to 1"
-                    +" or 2. Defaults to 2: bond-breaking limited to optimization"
-                    +" under constraints.",
-                    default=2, type=int)
+                    +" or 2. Defaults to 0.",
+                    default=0, type=int)
 parser.add_argument("-log-level",
                     help="Level of debug printout (see react.py for details).",
                     default=0, type=int)
@@ -101,14 +100,14 @@ out_dir = args.o
 try:
     os.makedirs(out_dir)
 except FileExistsError:
-    print("Output directory exists:")
+    print("😭 Output directory exists:")
     if args.w:
         # Delete the directory, make it and restart
-        print("   -w flag is on -> %s is overwritten."% args.o)
+        print("   -w flag is on -> %s is overwritten ✏."% args.o)
         shutil.rmtree(out_dir)
         os.makedirs(out_dir)
     else:
-        print("   -w flag is off -> exiting!")
+        print("   -w flag is off -> exiting! 🚪")
         raise SystemExit(1)
         
 init = shutil.copy(args.init_xyz,
@@ -150,7 +149,7 @@ xtb.extra_args += ["-P", str(args.T)]
 
 # Optimize starting geometry including wall
 # -----------------------------------------
-print("optimizing initial geometry...")
+print("Optimizing initial geometry 📐...")
 opt = xtb.optimize(init, init, level=args.opt_level,
                    xcontrol={"wall":params["wall"]})
 opt()
@@ -158,7 +157,7 @@ opt()
 # Read result of optimization
 atoms, positions, comment = io_utils.read_xyz(init)
 E = io_utils.comment_line_energy(comment)
-print("Done!    E₀ = %15.7f Eₕ" % E)
+print("👍 Done!    E₀ = %15.7f Eₕ" % E)
 
 # Get bond parameters
 # -------------------
@@ -171,12 +170,12 @@ bond = (args.atoms[0], args.atoms[1], bond_length0)
 stretch_factors = np.linspace(args.s[0], args.s[1], args.sn)
 print("Stretching bond between atoms %s%i and %s%i"
       %(atoms[bond[0]-1],bond[0], atoms[bond[1]-1],bond[1]))
-print("    with force constant %f" % args.force)
-print("    between %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
+print("    with force constant 💪💪 %f" % args.force)
+print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
       % (min(stretch_factors)*bond[2], max(stretch_factors)*bond[2],
          min(stretch_factors), max(stretch_factors)))
 print("    discretized with %i points" % len(stretch_factors))
-print("    with a maximum barrier height of %7.5f Eₕ (%7.3f kcal/mol) " %
+print("    with a maximum barrier height %7.5f Eₕ (%7.3f kcal/mol) " %
       (ethreshold, args.threshold))
 constraints = [("force constant = %f" % args.force,
                 "distance: %i, %i, %f"% (bond[0],bond[1],

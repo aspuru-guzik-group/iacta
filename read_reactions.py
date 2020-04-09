@@ -195,7 +195,7 @@ if __name__ == "__main__":
                 index += 1
 
 
-    start = "|--=====-----==-- REACTIONS AND BARRIERS (kcal/mol) --==------====---|\n"
+    start = "|--=====-----==--  ⏣ ⮂ 🔥 REACTIONS AND ⛰  BARRIERS (kcal/mol) --==------====---|\n"
     start+= "  #     File         Reaction\n"
     index = 1
     f = open(outfolder + "/summary", "w")
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     for key, val in reactions:
         upper = "%3i >   " % index + val[5]+"   "+  key[0]
         for i in range(1,len(key)):
-            new = " == %.2f ==> " % (val[0][i-1]*hartree_ev * ev_kcalmol) + key[i]
+            new = " = ⛰ %.2f => " % (val[0][i-1]*hartree_ev * ev_kcalmol) + key[i]
             upper += new
         upper += "\n"
 
@@ -220,7 +220,7 @@ if __name__ == "__main__":
     table = ("\n\nTable of molecules\n"
               +  "------------------\n")
     for smile, index in mol_index.items():
-        table += "mol%3.3i.png\t"% index + smile + "\n"
+        table += "📁 mol%3.3i.png\t"% index + smile + "\n"
 
     print(table)
     f.write(table)

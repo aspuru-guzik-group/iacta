@@ -214,7 +214,7 @@ def metadynamics_refine(xtb_driver,
             
         # Loosely optimize the structures in parallel
         if verbose:
-            print("MTD%i> loaded %i structures, optimizing..."
+            print("MTD%i> loaded %i structures, optimizing 📐..."
                   %(mtd_index, len(structures)))
         with ThreadPoolExecutor(max_workers=nthreads) as pool:
             futures = []
@@ -235,22 +235,25 @@ def metadynamics_refine(xtb_driver,
                 converged += [f.result()]
 
         if verbose:
-            print("        converged: %i"% len(converged))
-            print("        errors: %i"%len(errors))
+            print("        converged 👍: %i"% len(converged))
+            print("        errors 👎: %i"%len(errors))
 
         if verbose:
-            print("      running CREGEN on structures..." % mtd_index)
+            print("      carefully selecting conformers 🔎..." % mtd_index)
 
         fn = refined_dir + "/mtd%4.4i.xyz" % mtd_index
         f = open(fn, "w")
         for s, E in converged:
             f.write(s[0])
         f.close()
-        cre = xtb_driver.cregen(fn, fn)
+
+        ewin = min(1000.0, parameters["ethreshold"])
+        cre = xtb_driver.cregen(fn, fn,
+                                ewin=ewin)
         error = cre()
         s, E = read_trajectory(fn)
         if verbose:
-            print("  → %i structures selected for reactions." % len(s))
+            print("  → %i structures selected for reactions 🔥" % len(s))
 
 def react(xtb_driver,
           workdir,
@@ -261,7 +264,7 @@ def react(xtb_driver,
           nthreads=1):
     if verbose:
         print("-----------------------------------------------------------------")
-        print("Performing reactions ⌛💣...")
+        print("Performing reactions ⏣ → 🔥...")
     
     # load all the structures
     meta = workdir+"/CRE"
@@ -275,7 +278,7 @@ def react(xtb_driver,
                 meta + "/mtd%4.4i.xyz" % mtd_index)
 
             if verbose:
-                print("   mtdi = %4i    n(reactions) = %i"
+                print("   MTD%i>\tn(⏣ 🡒 🔥) = %i"
                       %(mtd_index+1, len(structures)))
                 
             for s in structures:

@@ -360,7 +360,7 @@ class xtb_driver:
                      return_files=return_files)
         return md
 
-    def cregen(self, geom_file, out_file):
+    def cregen(self, geom_file, out_file, ewin):
         """Sort and reduce an ensemble using CREGEN.
 
         Parameters:
