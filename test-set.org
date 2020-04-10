@@ -30,7 +30,7 @@ H          1.42210        1.59650        4.44160
 - atoms: 1,2
 - force: 1
 - s: 1-3
-#+BEGIN_SRC 
+#+BEGIN_SRC text
 11
 
  C	0.0194	0.2445	0.4356
@@ -47,7 +47,7 @@ H          1.42210        1.59650        4.44160
 #+END_SRC
 ** Gabe's catalyst
 - atoms: 19,22
-#+BEGIN_SRC 
+#+BEGIN_SRC text
 22
 
  N                  0.44258300   -1.16084400   -0.01102000
@@ -75,9 +75,8 @@ H          1.42210        1.59650        4.44160
 
 #+END_SRC
 ** Aromatic Claisen rearrangement
-- atoms: ????
-- s: 1,6??
-#+BEGIN_SRC 
+- atoms: 7,8
+#+BEGIN_SRC text
 20
 
 C         -3.09180       -1.47321       -0.46771
