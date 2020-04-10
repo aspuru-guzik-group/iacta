@@ -4,8 +4,37 @@ import subprocess
 import numpy as np
 import tempfile
 import re
-from io_utils import read_trajectory, dump_succ_opt
-from read_reactions import read_raw_reaction
+from io_utils import traj2str
+
+# ------------------- utility routines -----------------------------------#
+def dump_succ_opt(output_folder, structures, energies, opt_indices,
+                  split=False,
+                  extra=False):
+    os.makedirs(output_folder, exist_ok=True)
+    
+
+    # Dump the optimized structures in one file                
+    with open(output_folder + "/opt.xyz", "w") as f:
+        for oi in opt_indices:
+            f.write(structures[oi])
+            
+    if split:
+        # Also dump the optimized structures in many files            
+        for stepi, oi in enumerate(opt_indices):
+            with open(output_folder + "/opt%4.4i.xyz" % stepi, "w") as f:
+                f.write(structures[oi])
+
+    # TODO remove E dumps, we don't need them
+    # Dump indices of optimized structures, energies of optimized structures,
+    # all energies and all structures
+    np.savetxt(output_folder + "/Eopt", np.array(energies)[opt_indices], fmt="%15.8f")
+
+    if extra:
+        np.savetxt(output_folder + "/indices", opt_indices, fmt="%i")
+        np.savetxt(output_folder + "/E", energies, fmt="%15.8f")
+        with open(output_folder + "/log.xyz", "w") as f:
+            for s in structures:
+                f.write(s)
 
 def quick_opt_job(xtb, xyz, level, xcontrol):
     # TODO comment
@@ -18,8 +47,9 @@ def quick_opt_job(xtb, xyz, level, xcontrol):
                            level=level,
                            xcontrol=xcontrol)
         opt()
-        xyz, E = read_trajectory(T.name, 0)
+        xyz, E = traj2str(T.name, 0)
     return xyz, E
+# ------------------------------------------------------------------------------#
 
 def successive_optimization(xtb,
                             initial_xyz,
@@ -110,7 +140,7 @@ def successive_optimization(xtb,
             # An optimization failed, we get out of this loop.
             break
         
-        news, newe = read_trajectory(log)
+        news, newe = traj2str(log)
         structures += news
         energies += newe
         opt_indices += [len(structures)-1]
@@ -276,37 +306,8 @@ def reaction_job(xtb,
                       bopt[::-1] + fopt,
                       split=False,
                       extra=parameters["log_opt_steps"])
-
-        # Final part: refine reaction
-        react = read_raw_reaction(output_folder,chirality=False)
-        # ... if one happened at al!
-        if len(react["SMILES"])<2:
-            return
-        
-        reactfile = open(output_folder + "/reaction.xyz", "w")
-        for i in range(len(react["SMILES"])):
-            fn, index = react["files"][i]
-            xyz,E = read_trajectory(fn,index)
-            
-            # final tight opt with minimal constraints
-            if react["is_stable"][i]:
-                xyz, E = quick_opt_job(xtb, xyz,
-                                       "vtight",
-                                       dict(wall=parameters["wall"]))
-                meta = "M"
-            else:
-                xyz, E = quick_opt_job(xtb, xyz,
-                                       "vtight",
-                                       dict(wall=parameters["wall"],
-                                           constrain=constraints[index]))
-                meta = "T"
-
-            meta += "%i " % index
-            # Add some metadata to the commentline
-            lines = xyz.split("\n")
-            lines[1] = meta + lines[1]
-            for l in lines[:-1]:
-                reactfile.write(l + "\n")
-        reactfile.close()
-        
     return react_job
+
+
+
+

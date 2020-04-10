@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 import react_utils
-from io_utils import read_trajectory, dump_succ_opt
+from io_utils import traj2str
 from math import inf
 import os
 from glob import glob
@@ -135,12 +135,12 @@ def generate_initial_structures(xtb_driver,
 
     computed = len(opt_indices)
 
-    dump_succ_opt(outputdir,
-                  structures,
-                  energies,
-                  opt_indices,
-                  extra=parameters["log_opt_steps"],
-                  split=True)
+    react_utils.dump_succ_opt(outputdir,
+                              structures,
+                              energies,
+                              opt_indices,
+                              extra=parameters["log_opt_steps"],
+                              split=True)
     if verbose:
         print("Done!  %i steps were evaluated. \n"%computed)
     return computed
@@ -198,7 +198,7 @@ def metadynamics_refine(xtb_driver,
         structures = []
         Es = []
         for file in glob(mtd_dir + "/mtd%4.4i_*.xyz"%mtd_index):
-            structs, E = read_trajectory(file)
+            structs, E = traj2str(file)
             structures += structs
             Es += E
             
@@ -248,7 +248,7 @@ def metadynamics_refine(xtb_driver,
                                 ethreshold=Et,
                                 rthreshold=Rt)
         error = cre()
-        s, E = read_trajectory(fn)
+        s, E = traj2str(fn)
         if verbose:
             print("  → %i structures selected for reactions 🔥" % len(s))
 
@@ -275,7 +275,7 @@ def react(xtb_driver,
 
     all_structures = []
     for mtd_index in mtd_indices:
-        structures, energies = read_trajectory(
+        structures, energies = traj2str(
             meta + "/mtd%4.4i.xyz" % mtd_index)
         # CREGEN has sorted these too so the first element is the lowest
         # energy one.

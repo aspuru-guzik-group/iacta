@@ -5,7 +5,6 @@ import io_utils
 import os
 import shutil
 import argparse
-from read_reactions import xyz2smiles
 from constants import hartree_ev, ev_kcalmol
 
 parser = argparse.ArgumentParser(
@@ -149,7 +148,7 @@ if args.log_level >0:
 else:
     logfile = None
     
-atoms, positions, comment = io_utils.read_xyz(init0)
+atoms, positions, E0 = io_utils.traj2npy(init0, index=0)
 Natoms = len(atoms)
 
 # Initialize the xtb driver
@@ -191,8 +190,7 @@ if do_opt:
     opt()
 
 # Read result of optimization
-atoms, positions, comment = io_utils.read_xyz(init1)
-E = io_utils.comment_line_energy(comment)
+atoms, positions, E = io_utils.traj2npy(init1, index=0)
 Emax = E + ethreshold
 print("    E₀    = %15.7f Eₕ" % E)
 print("    max E = %15.7f Eₕ  (E₀ + %5.1f kcal/mol)" % (Emax,args.threshold))
@@ -209,7 +207,7 @@ bond = (args.atoms[0], args.atoms[1], bond_length0)
 # -------------------------
 stretch_factors = np.linspace(args.s[0], args.s[1], args.sn)
 print("Stretching bond between atoms %s%i and %s%i"
-      %(atoms[bond[0]-1],bond[0], atoms[bond[1]-1],bond[1]))
+      %(atoms[bond[0]-1], bond[0], atoms[bond[1]-1], bond[1]))
 print("    with force constant 💪💪 %f" % args.force)
 print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
       % (min(stretch_factors)*bond[2], max(stretch_factors)*bond[2],
@@ -236,8 +234,8 @@ mtd_indices = args.mtdi
 if mtd_indices is None:
     # Read the successive optimization, then set mtd points to ground and TS
     # geometries.
-    reactant=xyz2smiles(init0)[0]
-    init = xyz2smiles(out_dir + "/init/opt.xyz")
+    reactant, E = io_utils.traj2smiles(init0, index=0)
+    init, E = io_utils.traj2smiles(out_dir + "/init/opt.xyz")
     mtd_indices = [i for i,smi in enumerate(init) if smi==reactant][::3]
     print("Reactant 👉", reactant)
 
