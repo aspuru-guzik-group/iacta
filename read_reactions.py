@@ -15,7 +15,7 @@ def xyz2smiles(xyzfile, chiral=False):
         output+= [m.write(format="smi", opt=flags).rstrip()]
     return output
 
-def read_reaction(react_folder,chirality=False):
+def read_raw_reaction(react_folder,chirality=False):
     """Extract chemical quantities from a reaction.
 
     Parameters:
@@ -213,7 +213,7 @@ if __name__ == "__main__":
 
         with open(outfolder + "/reactions%i.xyz" % index, "w") as ftraj:
             for file, ind in val[3]:
-                xyz = io_utils.read_trajectory(file, ind)
+                xyz, E = io_utils.read_trajectory(file, ind)
                 ftraj.write(xyz)
         index += 1
 

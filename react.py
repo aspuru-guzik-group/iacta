@@ -182,20 +182,6 @@ def metadynamics_search(xtb_driver,
     if verbose:
         print("\nDone!\n")
 
-def quick_opt_job(xtb, xyz, level, xcontrol):
-    # TODO comment
-    with tempfile.NamedTemporaryFile(suffix=".xyz",
-                                     dir=xtb.scratchdir) as T:
-        T.write(bytes(xyz, 'ascii'))
-        T.flush()
-        opt = xtb.optimize(T.name,
-                           T.name,
-                           level=level,
-                           xcontrol=xcontrol)
-        opt()
-        xyz, E = read_trajectory(T.name)
-    return xyz, E
-
 def metadynamics_refine(xtb_driver,
                         workdir,
                         reference,
@@ -218,13 +204,14 @@ def metadynamics_refine(xtb_driver,
             
         # Loosely optimize the structures in parallel
         if verbose:
-            print("MTD%i> loaded %i structures, optimizing 📐..."
+            print("MTD%i>\tloaded %i structures, optimizing 📐..."
                   %(mtd_index, len(structures)))
         with ThreadPoolExecutor(max_workers=nthreads) as pool:
             futures = []
             for s in structures:
                 future = pool.submit(
-                    quick_opt_job, xtb_driver, s, parameters["optlevel"],
+                    react_utils.quick_opt_job,
+                    xtb_driver, s, parameters["optlevel"],
                     dict(wall=parameters["wall"],
                          constrain=constraints[mtd_index]))
                 futures += [future]
@@ -248,7 +235,7 @@ def metadynamics_refine(xtb_driver,
         fn = refined_dir + "/mtd%4.4i.xyz" % mtd_index
         f = open(fn, "w")
         for s, E in converged:
-            f.write(s[0])
+            f.write(s)
         f.close()
 
         # convert to kcal and use use 10 000 if its higher than 10 000

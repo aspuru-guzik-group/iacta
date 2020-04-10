@@ -5,6 +5,7 @@ import io_utils
 import os
 import shutil
 import argparse
+from read_reactions import xyz2smiles
 from constants import hartree_ev, ev_kcalmol
 
 parser = argparse.ArgumentParser(
@@ -235,8 +236,6 @@ mtd_indices = args.mtdi
 if mtd_indices is None:
     # Read the successive optimization, then set mtd points to ground and TS
     # geometries.
-    from read_reactions import read_reaction, xyz2smiles
-    out = read_reaction(out_dir + "/init")
     reactant=xyz2smiles(init0)[0]
     init = xyz2smiles(out_dir + "/init/opt.xyz")
     mtd_indices = [i for i,smi in enumerate(init) if smi==reactant][::3]

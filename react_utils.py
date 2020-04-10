@@ -5,6 +5,21 @@ import numpy as np
 import tempfile
 import re
 from io_utils import read_trajectory, dump_succ_opt
+from read_reactions import read_raw_reaction
+
+def quick_opt_job(xtb, xyz, level, xcontrol):
+    # TODO comment
+    with tempfile.NamedTemporaryFile(suffix=".xyz",
+                                     dir=xtb.scratchdir) as T:
+        T.write(bytes(xyz, 'ascii'))
+        T.flush()
+        opt = xtb.optimize(T.name,
+                           T.name,
+                           level=level,
+                           xcontrol=xcontrol)
+        opt()
+        xyz, E = read_trajectory(T.name, 0)
+    return xyz, E
 
 def successive_optimization(xtb,
                             initial_xyz,
@@ -261,5 +276,37 @@ def reaction_job(xtb,
                       bopt[::-1] + fopt,
                       split=False,
                       extra=parameters["log_opt_steps"])
+
+        # Final part: refine reaction
+        react = read_raw_reaction(output_folder,chirality=False)
+        # ... if one happened at al!
+        if len(react["SMILES"])<2:
+            return
+        
+        reactfile = open(output_folder + "/reaction.xyz", "w")
+        for i in range(len(react["SMILES"])):
+            fn, index = react["files"][i]
+            xyz,E = read_trajectory(fn,index)
+            
+            # final tight opt with minimal constraints
+            if react["is_stable"][i]:
+                xyz, E = quick_opt_job(xtb, xyz,
+                                       "vtight",
+                                       dict(wall=parameters["wall"]))
+                meta = "M"
+            else:
+                xyz, E = quick_opt_job(xtb, xyz,
+                                       "vtight",
+                                       dict(wall=parameters["wall"],
+                                           constrain=constraints[index]))
+                meta = "T"
+
+            meta += "%i " % index
+            # Add some metadata to the commentline
+            lines = xyz.split("\n")
+            lines[1] = meta + lines[1]
+            for l in lines[:-1]:
+                reactfile.write(l + "\n")
+        reactfile.close()
         
     return react_job

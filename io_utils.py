@@ -91,7 +91,7 @@ def read_trajectory(filepath, index=None):
                 energies += [E]
             else:
                 if k == index:
-                    return this_mol
+                    return this_mol, E
                 
             k+=1
     return structures,energies
