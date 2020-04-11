@@ -10,6 +10,8 @@ from constants import hartree_ev, ev_kcalmol
 parser = argparse.ArgumentParser(
     description="Driver for reaction search.",
     )
+
+# These parameters do not have defaults
 parser.add_argument("init_xyz",
                     help="Path to file containing the starting geometry.",
                     type=str)
@@ -17,8 +19,10 @@ parser.add_argument("atoms",
                     help="Atoms that define the bond to be stretched, numbered according"
                     +" to init_xyz. (NOTE THIS IS 1-INDEXED)",
                     type=int, nargs=2)
+
+# These are run specific parameters
 parser.add_argument("-o",
-                    help="Output folder. defaults to \"output\"",
+                    help="Output folder. Defaults to \"output\"",
                     type=str, default="output")
 parser.add_argument("-w",
                     help="Overwrite output directory. Defaults to false.",
@@ -26,62 +30,6 @@ parser.add_argument("-w",
 parser.add_argument("-T",
                     help="Number of threads to use.",
                     type=int, default=1)
-parser.add_argument("-s",
-                    help="Bond stretch limits. Defaults to (1.0, 3.0)",
-                    nargs=2,type=float, default=[1.0,3.0])
-parser.add_argument("-sn",
-                    help="Number of bond stretches. Defaults to 300.",
-                    type=int, default=100)
-parser.add_argument("-mtdi",
-                    help="Indices of the stretches where MTD is done."
-                    +" Defaults $are complicated.",
-                    type=int, nargs="+", default=None)
-parser.add_argument("-mtdn",
-                    help="Number of guesses to generate at each MTD index."
-                    +" Defaults to 120.",
-                    type=int, default=120)
-parser.add_argument("-force",
-                    help="Force constant of the stretch."
-                    +" Defaults to 1.00 Eₕ / Bohr.",
-                    default=1.0,
-                    type=float)
-parser.add_argument("-gfn",
-                    help="gfn version. Defaults to GFN 2", default="2",
-                    type=str)
-parser.add_argument("-solvent",
-                    help="Set GBSA solvent.", 
-                    type=str)
-parser.add_argument("-chrg",
-                    help="Set charge for xtb.", default=None,
-                    type=str)
-parser.add_argument("-uhf",
-                    help="Set spin state for xtb.",
-                    default=None,
-                    type=str)
-parser.add_argument("-etemp",
-                    help="Electronic temperature. Defaults to xtb default",
-                    default=None,
-                    type=str)
-parser.add_argument("-opt-level",
-                    help="Optimization level. Defaults to vtight.",
-                    default="tight",
-                    type=str)
-# TODO CHANGE TO ETHRESH, ADD RTHRESH
-parser.add_argument("-threshold",
-                    help="Energy threshold for path optimization in kcal/mol."
-                    +" Basically, if a barrier is encountered that is higher than"
-                    +" this threshold from the optimized reactant energy, the"
-                    +" entire path is discarded. Defaults to 50 kcal/mol. Note"
-                    +" that some barriers higher than this value will still be"
-                    " found, due to implementation details.",
-                    default=50.0,
-                    type=float)
-parser.add_argument("-shake-level",
-                    help="If this is 0, the metadynamics run will be performed"
-                    +" with parameters that permit bond-breaking, specifically"
-                    +" shake=0, but at a slower pace than if shake is set to 1"
-                    +" or 2. Defaults to 0.",
-                    default=2, type=int)
 parser.add_argument("-log-level",
                     help="Level of debug printout (see react.py for details).",
                     default=0, type=int)
@@ -92,15 +40,41 @@ parser.add_argument("-restart",
                     " and go straight to reactions.",
                     default=0,
                     type=int)
+parser.add_argument("-params", help="File containing numerical parameters.",
+                    type=str, default="parameters/default.yaml")
 
+# These parameters (and some more!) have defaults in parameters/default.yaml.
+# We parse them in a special fashion.
+parse_special = {
+    "default_opt":
+    ("-opt", dict(help="Optimization level.", type=str)),    
+    "constraints/stretch":
+    ("-s", dict(help="Bond stretch limits.", nargs=2,type=float)),
+    "constraints/npoints":
+    ("-sn", dict(help="Number of bond stretches.", type=int)),
+    "constraints/force":
+    ("-force", dict(help="Force constant of the stretch.", type=float)),
+    "xtb/gfn":
+    ("-gfn", dict(help="gfn version.", type=str)),
+    "xtb/etemp":
+    ("-etemp", dict(help="Electronic temperature.", type=str)),
+    "xtb/solvent":
+    ("-solvent", dict(help="GBSA solvent.", type=str)),
+    "xtb/chrg":
+    ("-chrg", dict(help="Charge.", type=str)),
+    "xtb/uhf":
+    ("-uhf", dict(help="Spin state", type=str))}
+
+for key,val in parse_special.items():
+    parser.add_argument(val[0], **val[1])
+
+args = parser.parse_args()
 
 if "LOCALSCRATCH" in os.environ:
     scratch = os.environ["LOCALSCRATCH"]
 else:
     print("warning: $LOCALSCRATCH not set")
     scratch = "."
-
-args = parser.parse_args()
 
 # Interpret -restart
 do_opt, do_stretch, do_mtd, do_mtd_refine = True, True, True, True
@@ -135,6 +109,21 @@ except FileExistsError:
         print("   👎 -w flag is off -> exiting! 🚪")
         raise SystemExit(-1)
 
+# Get parameters
+import yaml
+params_file = args.params
+with open(params_file, "r") as f:
+    params = yaml.load(f)
+
+args_dict = vars(args)
+for key, val in parse_special.items():
+    if args_dict[val[0][1:]]:
+        curr = params
+        path = key.split("/")
+        for s in path[:-1]:
+            curr = curr.get(s, {})
+        curr[path[-1]] = args_dict[val[0][1:]]
+
 if do_opt:
     init0 = shutil.copy(args.init_xyz, out_dir + "/initial_geometry.xyz")
 else:
@@ -168,6 +157,10 @@ if args.solvent:
 
 # Initialize parameters
 # ---------------------
+with open(args.params, "r") as f:
+    params = yaml.load(f)
+
+
 ethreshold = args.threshold / (hartree_ev * ev_kcalmol)
 params = react.default_parameters(Natoms,
                                   shake=args.shake_level,
@@ -279,3 +272,4 @@ if do_reactions:
 
 if logfile:
     logfile.close()
+"""

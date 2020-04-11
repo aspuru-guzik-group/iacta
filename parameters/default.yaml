@@ -1,0 +1,70 @@
+# Default parameters used in rsearch.py
+---
+# ---------------------------------------------------------------------------#
+# Optimization of stretched and unstretched structures. By default, we
+# include a wall potential and tight optimization.
+default_opt: tight
+wall: 
+  # Potential "wall" keeping molecules together. The following are just the
+  # lines of the wall group.
+  - 'potential=logfermi'
+  - 'sphere: auto, all'
+
+# Parameters passed to xtb
+xtb:
+  etemp: '300.0'                 # electronic temperature
+  gfn: '2'                       # gfn version
+  # some stuff not set by default
+  solvent:
+  chrg:
+  uhf:
+  
+
+thresholds:
+  # Parameters used by CREGEN to compare structures and decide if they are
+  # identical. These are more generous (significantly) than the CREST one
+  # because we want to really push diversity and limit similarity.  
+  ewin: 70.0                    # maximum energy in kcal /mol above the energy
+                                # of the initial structure E0.
+  rthr: 0.5                     # RMSD threshold (in A)
+  ethr: 0.5                     # energy threshold (in kcal/mol)
+  bthr: 0.1                     # rotational const threshold
+  
+# ---------------------------------------------------------------------------#
+# Initialization of constraints and metadynamics indices
+constraints:
+  # Parameters related to the atoms to be stretched. This will then be
+  # turned into constraints objects. Constraints/metadynamics indices can
+  # also be passed directly, see constraints and metadynamics below.
+  stretch: [1.0, 3.0]
+  npoints: 100
+  force: 2.0
+
+make_mtdi:
+  # Make metadynamics indices from the initial stretch. by default, do so
+  # only for the reactant, and at every 3 steps.
+  reactant: true
+  step: 3
+  
+# ---------------------------------------------------------------------------#
+metadynamics:
+  save: 10                      # number of artificial MTD potentials
+  jobs:
+    # These are the parameters for each metadynamics runs, taken from CREST
+    # mquick. As described in the CREST paper, the optimal values for kpush
+    # and alpha are not known, so instead we do a parameter sweep.
+    - ["kpush=0.020", "alpha=1.000"]
+    - ["kpush=0.010", "alpha=1.000"]
+    - ["kpush=0.020", "alpha=0.500"]
+    - ["kpush=0.010", "alpha=0.500"]
+    - ["kpush=0.020", "alpha=0.250"]
+    - ["kpush=0.010", "alpha=0.250"]
+  md:
+    # MD parameters, taken once again from CREST.
+    dump: 100.0                 # when to dump structures (fs)
+    time_per_atom: 0.5          # total time / Natoms (ps)
+    shake: 0                    # shake algorithm off
+    step: 2                     # step size (fs)
+
+
+
