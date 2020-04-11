@@ -1,50 +1,47 @@
-# Default parameters used in rsearch.py
 ---
+# Initial geometry, as an xyz string
+xyz:
+
 # ---------------------------------------------------------------------------#
-# Optimization of stretched and unstretched structures. By default, we
-# include a wall potential and tight optimization.
-default_opt: tight
+# Parameters passed to xtb
+etemp: '300.0'                 # electronic temperature
+gfn: '2'                       # gfn version
+solvent:
+chrg:
+uhf:
+
+# ---------------------------------------------------------------------------#
+# Optimization of stretched and unstretched structures. 
+optim: tight                    # default level
 wall: 
   # Potential "wall" keeping molecules together. The following are just the
   # lines of the wall group.
   - 'potential=logfermi'
   - 'sphere: auto, all'
 
-# Parameters passed to xtb
-xtb:
-  etemp: '300.0'                 # electronic temperature
-  gfn: '2'                       # gfn version
-  # some stuff not set by default
-  solvent:
-  chrg:
-  uhf:
-  
-
-thresholds:
-  # Parameters used by CREGEN to compare structures and decide if they are
-  # identical. These are more generous (significantly) than the CREST one
-  # because we want to really push diversity and limit similarity.  
-  ewin: 70.0                    # maximum energy in kcal /mol above the energy
+# ---------------------------------------------------------------------------#
+# Parameters used by CREGEN to compare structures and decide if they are
+# identical. These are more generous (significantly) than the CREST one
+# because we want to really push diversity and limit similarity.
+ewin: 70.0                      # maximum energy in kcal /mol above the energy
                                 # of the initial structure E0.
-  rthr: 0.5                     # RMSD threshold (in A)
-  ethr: 0.5                     # energy threshold (in kcal/mol)
-  bthr: 0.1                     # rotational const threshold
+rthr: 0.5                       # RMSD threshold (in A)
+ethr: 0.5                       # energy threshold (in kcal/mol)
+bthr: 0.1                       # rotational const threshold
   
 # ---------------------------------------------------------------------------#
-# Initialization of constraints and metadynamics indices
-constraints:
-  # Parameters related to the atoms to be stretched. This will then be
-  # turned into constraints objects. Constraints/metadynamics indices can
-  # also be passed directly, see constraints and metadynamics below.
-  stretch: [1.0, 3.0]
-  npoints: 100
-  force: 2.0
+# Parameters related to the atoms to be stretched. This will then be
+# turned into constraints.
+atoms:
+stretch_limits: [1.0, 3.0]
+stretch_resolution: 0.05        # Angstrom
+force: 2.0                      # in Hartree/bohr
 
-make_mtdi:
-  # Make metadynamics indices from the initial stretch. by default, do so
-  # only for the reactant, and at every 3 steps.
-  reactant: true
-  step: 3
+
+# ---------------------------------------------------------------------------#
+# Points where metadynamics are performed.
+mtd_only_reactant: true         # Do metadynamics only for the reactant.
+mtd_step: 5                     # Metadynamics every x points of stretch.
   
 # ---------------------------------------------------------------------------#
 metadynamics:
@@ -65,6 +62,4 @@ metadynamics:
     time_per_atom: 0.5          # total time / Natoms (ps)
     shake: 0                    # shake algorithm off
     step: 2                     # step size (fs)
-
-
 

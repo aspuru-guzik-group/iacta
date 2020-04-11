@@ -3,8 +3,27 @@ import numpy as np
 import re
 import os
 import pybel
+from datetime import datetime
+import subprocess
+import re
 
-# =================== xTB output  reading/writing routines =============================
+def metadata():
+    # Return a dictionary with some metadata to improve reproducibility
+    xtbv = subprocess.check_output(["xtb", "--version"],
+                                   stderr=subprocess.DEVNULL).strip().decode()
+    for line in xtbv.split("\n"):
+        if re.search("version", line):
+            xtbvl = line.strip()
+    return {
+        "hostname":subprocess.check_output(
+            ["hostname"]).strip().decode(),
+        "xtb":xtbvl,
+        "commit":subprocess.check_output(
+            ["git", "describe", "--always"],
+            cwd=os.path.dirname(__file__)).strip().decode(),
+        "date":datetime.today().ctime(),}
+
+# =================== xTB output  reading/writing routines =====================
 def read_wbo(filepath):
     bonds = []
     with open(filepath, 'r') as f:

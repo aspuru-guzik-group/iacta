@@ -6,83 +6,108 @@ import os
 import shutil
 import argparse
 from constants import hartree_ev, ev_kcalmol
+import yaml
 
-parser = argparse.ArgumentParser(
-    description="Driver for reaction search.",
-    )
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Simple driver for reaction search. Builds a parameter file in an output folder.",
+        )
 
-# These parameters do not have defaults
-parser.add_argument("init_xyz",
-                    help="Path to file containing the starting geometry.",
-                    type=str)
-parser.add_argument("atoms",
-                    help="Atoms that define the bond to be stretched, numbered according"
-                    +" to init_xyz. (NOTE THIS IS 1-INDEXED)",
-                    type=int, nargs=2)
+    # These parameters do not have defaults
+    parser.add_argument("init_xyz",
+                        help="Path to file containing the starting geometry.",
+                        type=str)
+    parser.add_argument("atoms",
+                        help="Atoms that define the bond to be stretched, numbered according"
+                        +" to init_xyz. (NOTE THIS IS 1-INDEXED)",
+                        type=int, nargs=2)
 
-# These are run specific parameters
-parser.add_argument("-o",
-                    help="Output folder. Defaults to \"output\"",
-                    type=str, default="output")
-parser.add_argument("-w",
-                    help="Overwrite output directory. Defaults to false.",
-                    action="store_true")
-parser.add_argument("-T",
-                    help="Number of threads to use.",
-                    type=int, default=1)
-parser.add_argument("-log-level",
-                    help="Level of debug printout (see react.py for details).",
-                    default=0, type=int)
-parser.add_argument("-restart",
-                    help="Restart a run at a given step. Defaults to 0 (no" +
-                    " restart). Valid values include 1 → skip initial" +
-                    " optimization, 2 → skip initial stretching,  3 → skip metadynamics, 4 → skip refinement of metadynamics results" +
-                    " and go straight to reactions.",
-                    default=0,
-                    type=int)
-parser.add_argument("-params", help="File containing numerical parameters.",
-                    type=str, default="parameters/default.yaml")
+    # These are run specific parameters
+    parser.add_argument("-o",
+                        help="Output folder. Defaults to \"output\"",
+                        type=str, default="output")
+    parser.add_argument("-w",
+                        help="Overwrite output directory. Defaults to false.",
+                        action="store_true")
+    parser.add_argument("-t", "--threads",
+                        help="Number of threads to use.",
+                        type=int, default=1)
+    parser.add_argument("--log-level",
+                        help="Level of debug printout (see react.py for details).",
+                        default=0, type=int)
+    parser.add_argument("-p", "--params", help="File containing numerical parameters.",
+                        type=str, default="parameters/default.yaml")
 
-# These parameters (and some more!) have defaults in parameters/default.yaml.
-# We parse them in a special fashion.
-parse_special = {
-    "default_opt":
-    ("-opt", dict(help="Optimization level.", type=str)),    
-    "constraints/stretch":
-    ("-s", dict(help="Bond stretch limits.", nargs=2,type=float)),
-    "constraints/npoints":
-    ("-sn", dict(help="Number of bond stretches.", type=int)),
-    "constraints/force":
-    ("-force", dict(help="Force constant of the stretch.", type=float)),
-    "xtb/gfn":
-    ("-gfn", dict(help="gfn version.", type=str)),
-    "xtb/etemp":
-    ("-etemp", dict(help="Electronic temperature.", type=str)),
-    "xtb/solvent":
-    ("-solvent", dict(help="GBSA solvent.", type=str)),
-    "xtb/chrg":
-    ("-chrg", dict(help="Charge.", type=str)),
-    "xtb/uhf":
-    ("-uhf", dict(help="Spin state", type=str))}
 
-for key,val in parse_special.items():
-    parser.add_argument(val[0], **val[1])
+    # These parameters (and some more!) have defaults in parameters/default.yaml.
+    parser.add_argument("--optim", help="Optimization level.", type=str)
 
-args = parser.parse_args()
+    parser.add_argument("-s","--stretch-limits", help="Bond stretch limits.", nargs=2,type=float)
+    parser.add_argument("-r","--stretch-resolution", help="Number of bond stretches.", type=int)
+    parser.add_argument("-k","--force-constant", help="Force constant of the stretch.", type=float)
 
+    parser.add_argument("--gfn", help="gfn version.", type=str)
+    parser.add_argument("--etemp", help="Electronic temperature.", type=str)
+    parser.add_argument("--solvent", help="GBSA solvent.", type=str)
+    parser.add_argument("-c", "--chrg", help="Charge.", type=str)
+    parser.add_argument("-u", "--uhf", help="Spin state", type=str)
+
+    args = parser.parse_args()
+
+    # Prepare output files
+    # --------------------
+    out_dir = args.o
+    try:
+        os.makedirs(out_dir)
+    except FileExistsError:
+        print("Output directory exists:")
+        if args.w:
+            # Delete the directory, make it and restart
+            print("   👍 but that's fine! -w flag is on.")
+            print("   📁 %s is overwritten."% args.o)
+            shutil.rmtree(out_dir)
+            os.makedirs(out_dir)
+        else:
+            print("   👎 -w flag is off -> exiting! 🚪")
+            raise SystemExit(-1)
+
+
+    # Get default parameters
+    params_file = args.params
+    with open(params_file, "r") as f:
+        default_params = yaml.load(f)
+
+    # Save user-set parameters for reproducibility.
+    user_params = {}
+    args_as_dict = vars(args)
+    for p in default_params.keys():
+        argvalue = args_as_dict.get(p, None)
+        if argvalue:
+            user_params[p] = argvalue
+
+    # Load the xyz file
+    xyz,E = io_utils.traj2str(args.init_xyz, index=0)
+    with open(out_dir + "/user.yaml", "w") as f:
+        # begin with some metadata
+        yaml.dump(io_utils.metadata(),f)
+        yaml.dump(user_params,f)
+        # write xyz at the beginning by hand so that it's formatted nicely.
+        f.write("xyz: |\n")
+        for line in xyz.split("\n"):
+            # indent properly
+            f.write("  " + line.lstrip() + "\n")
+        f.write("\n")
+
+    # Additionally save defaults for reproducibility
+    shutil.copy(params_file, out_dir)
+
+    
+"""
 if "LOCALSCRATCH" in os.environ:
     scratch = os.environ["LOCALSCRATCH"]
 else:
     print("warning: $LOCALSCRATCH not set")
     scratch = "."
-
-# Interpret -restart
-do_opt, do_stretch, do_mtd, do_mtd_refine = True, True, True, True
-do_opt = args.restart < 1
-do_stretch = args.restart < 2
-do_mtd = args.restart < 3
-do_mtd_refine = args.restart < 4
-do_reactions = True
 
 # Interpret log level
 if args.log_level>1:
@@ -90,39 +115,9 @@ if args.log_level>1:
 else:
     delete=True
 
-# Prepare output files
-# --------------------
-out_dir = args.o
-try:
-    os.makedirs(out_dir)
-except FileExistsError:
-    print("Output directory exists:")
-    if args.restart:
-        print("   👍 but that's good! This is a restart job.")
-    elif args.w:
-        # Delete the directory, make it and restart
-        print("   👍 but that's fine! -w flag is on.")
-        print("   📁 %s is overwritten."% args.o)
-        shutil.rmtree(out_dir)
-        os.makedirs(out_dir)
-    else:
-        print("   👎 -w flag is off -> exiting! 🚪")
-        raise SystemExit(-1)
 
-# Get parameters
-import yaml
-params_file = args.params
-with open(params_file, "r") as f:
-    params = yaml.load(f)
 
-args_dict = vars(args)
-for key, val in parse_special.items():
-    if args_dict[val[0][1:]]:
-        curr = params
-        path = key.split("/")
-        for s in path[:-1]:
-            curr = curr.get(s, {})
-        curr[path[-1]] = args_dict[val[0][1:]]
+
 
 if do_opt:
     init0 = shutil.copy(args.init_xyz, out_dir + "/initial_geometry.xyz")
@@ -159,7 +154,6 @@ if args.solvent:
 # ---------------------
 with open(args.params, "r") as f:
     params = yaml.load(f)
-
 
 ethreshold = args.threshold / (hartree_ev * ev_kcalmol)
 params = react.default_parameters(Natoms,
