@@ -212,7 +212,7 @@ if __name__ == "__main__":
                         type=str, default=None)
     parser.add_argument("-d", "--dump",
                         help="Make output directory and save user parameters, but do not"
-                        +" search for reaction.",
+                        +" search for reaction. Such files can be run using rsearch-restart.py, or scripted in python using the rsearch() function.",
                         action="store_true")
 
     # These parameters (and some more!) have defaults in parameters/default.yaml.
