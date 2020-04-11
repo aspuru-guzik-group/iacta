@@ -20,7 +20,9 @@ def rsearch(out_dir, defaults,
     with open(out_dir + "/user.yaml", "r") as f:
         user_params = yaml.load(f, Loader=yaml.Loader)
     with open(defaults, "r") as f:
-        params = yaml.load(f, Loader=yaml.Loader)        
+        params = yaml.load(f, Loader=yaml.Loader)
+
+
 
     # Merge, replacing defaults with user parameters
     for key,val in user_params.items():
@@ -100,8 +102,8 @@ def rsearch(out_dir, defaults,
     print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
           % (pts[0], pts[-1], slow, shigh))
     print("    discretized with %i points" % len(pts))
-    constraints = [("force constant = %f" % params["force"],
-                    "distance: %i, %i, %f"% (bond[0],bond[1],p))
+    constraints = [["force constant = %f" % params["force"],
+                    "distance: %i, %i, %f"% (bond[0],bond[1],p)]
                    for p in pts]
     
     
@@ -166,6 +168,16 @@ def rsearch(out_dir, defaults,
     if logfile:
         logfile.close()
         
+    with open(out_dir + "/run.yaml", "w") as f:
+        # begin with some metadata
+        yaml.dump(io_utils.metadata(),f)
+        # Every parameter and then some
+        yaml.dump(params,f)
+        # dump extra stuff
+        yaml.dump({"constraints":constraints,
+                   "bond_stretch":pts})
+
+
 
 
 # ========================== CLI INTERFACE ================================
@@ -197,7 +209,7 @@ if __name__ == "__main__":
                         help="Level of debug printout (see react.py for details).",
                         default=0, type=int)
     parser.add_argument("-p", "--params", help="File containing numerical parameters.",
-                        type=str, default="parameters/default.yaml")
+                        type=str, default=None)
     parser.add_argument("-d", "--dump",
                         help="Make output directory and save user parameters, but do not"
                         +" search for reaction.",
@@ -238,6 +250,11 @@ if __name__ == "__main__":
 
     # Get default parameters
     params_file = args.params
+    if params_file is None:
+        # use parameters/default.yaml
+        params_file = os.path.dirname(__file__)\
+            + "parameters/default.yaml"
+    
     with open(params_file, "r") as f:
         default_params = yaml.load(f, Loader=yaml.Loader)
 
@@ -252,8 +269,6 @@ if __name__ == "__main__":
     # Load the xyz file
     xyz,E = io_utils.traj2str(args.init_xyz, index=0)
     with open(out_dir + "/user.yaml", "w") as f:
-        # begin with some metadata
-        yaml.dump(io_utils.metadata(),f)
         yaml.dump(user_params,f)
         # write xyz at the beginning by hand so that it's formatted nicely.
         f.write("xyz: |\n")
@@ -261,9 +276,9 @@ if __name__ == "__main__":
             # indent properly
             f.write("  " + line.lstrip() + "\n")
         f.write("\n")
-
+        
     if not args.dump:
-        rsearch(out_dir, args.params,
+        rsearch(out_dir, params_file,
                 log_level=args.log_level,
                 nthreads=args.threads)
     
