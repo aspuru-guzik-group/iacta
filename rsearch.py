@@ -8,7 +8,8 @@ import argparse
 from constants import hartree_ev, ev_kcalmol
 import yaml
 
-def rsearch(out_dir, log_level=0, nthreads=1):
+def rsearch(out_dir, defaults,
+            log_level=0, nthreads=1):
     if "LOCALSCRATCH" in os.environ:
         scratch = os.environ["LOCALSCRATCH"]
     else:
@@ -18,7 +19,7 @@ def rsearch(out_dir, log_level=0, nthreads=1):
     # load parameters
     with open(out_dir + "/user.yaml", "r") as f:
         user_params = yaml.load(f, Loader=yaml.Loader)
-    with open(out_dir + "/default.yaml", "r") as f:
+    with open(defaults, "r") as f:
         params = yaml.load(f, Loader=yaml.Loader)        
 
     # Merge, replacing defaults with user parameters
@@ -38,8 +39,6 @@ def rsearch(out_dir, log_level=0, nthreads=1):
                       +"--------------------------------------\n")
     else:
         logfile = None
-
-
 
     # Initialize the xtb driver
     # -------------------------
@@ -63,13 +62,13 @@ def rsearch(out_dir, log_level=0, nthreads=1):
 
     # Optimize starting geometry including wall
     # -----------------------------------------
-    init1 = out_dir + "/init.xyz"
-    with open(init1, "w") as f:
+    init0 = out_dir + "/init_raw.xyz"
+    with open(init0, "w") as f:
         f.write(params["xyz"])
-    
+    init1 = out_dir + "/init_opt.xyz"
 
     print("Optimizing initial geometry 📐...")
-    opt = xtb.optimize(init1, init1,
+    opt = xtb.optimize(init0, init1,
                        level=params["optim"],
                        xcontrol={"wall":params["wall"]})
     opt()
@@ -79,11 +78,97 @@ def rsearch(out_dir, log_level=0, nthreads=1):
     print("    E₀    = %15.7f Eₕ" % E)
     Emax = E + params["ewin"] / (hartree_ev * ev_kcalmol)
     print("    max E = %15.7f Eₕ  (E₀ + %5.1f kcal/mol)" %
-          (Emax,params["threshold"]))
-     params["emax"] = Emax           # update parameters
-        
-    
+          (Emax,params["ewin"]))
+    params["emax"] = Emax           # update parameters
 
+
+    # Get bond parameters
+    # -------------------
+    bond_length0 = np.sqrt(np.sum((positions[params["atoms"][0]-1] -
+                                   positions[params["atoms"][1]-1])**2))
+    bond = (params["atoms"][0], params["atoms"][1], bond_length0)
+
+    # Constraints for the search
+    # -------------------------
+    slow, shigh = params["stretch_limits"]
+    step = params["stretch_resolution"]
+    pts = np.arange(bond_length0 * slow, bond_length0 * shigh, step)
+
+    print("Stretching bond between atoms %s%i and %s%i"
+          %(atoms[bond[0]-1], bond[0], atoms[bond[1]-1], bond[1]))
+    print("    with force constant 💪💪 %f" % params["force"])
+    print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
+          % (pts[0], pts[-1], slow, shigh))
+    print("    discretized with %i points" % len(pts))
+    constraints = [("force constant = %f" % params["force"],
+                    "distance: %i, %i, %f"% (bond[0],bond[1],p))
+                   for p in pts]
+    
+    
+    # STEP 1: Initial generation of guesses
+    # ----------------------------------------------------------------------------
+    react.generate_initial_structures(
+        xtb, out_dir,
+        init1,
+        constraints,
+        params)
+
+    # reset threading
+    xtb.extra_args = xtb.extra_args[:-2]
+
+    # Read the successive optimization, then set mtd points to ground and TS
+    # geometries.
+    reactant, E = io_utils.traj2smiles(init0, index=0)
+    init, E = io_utils.traj2smiles(out_dir + "/init/opt.xyz")
+    step = params["mtd_step"]
+    print("Reactant 👉", reactant)
+    if params["mtd_only_reactant"]:
+        print("     ... metadynamics performed only for reactants")
+        mtd_indices = [i for i,smi in enumerate(init)
+                       if smi==reactant][::step]
+    else:
+        mtd_indices = [i for i,smi in enumerate(init)][::step]
+    
+    # Sort the indices, do not do the same point twice.
+    mtd_indices = sorted(list(set(mtd_indices)))
+    if len(mtd_indices) == 0:
+        print("Reactant not found in initial stretch! 😢")
+        print("Optimization probably reacted. Alter geometry and try again.")
+        raise SystemExit(-1)
+
+
+    # STEP 2: Metadynamics
+    # ----------------------------------------------------------------------------
+    react.metadynamics_search(
+        xtb, out_dir,
+        mtd_indices,
+        constraints,
+        params,
+        nthreads=nthreads)
+
+    react.metadynamics_refine(
+        xtb, out_dir,
+        init1,
+        mtd_indices,
+        constraints,
+        params,
+        nthreads=nthreads)
+
+    # STEP 3: Reactions
+    # ----------------------------------------------------------------------------
+    react.react(
+        xtb, out_dir,
+        mtd_indices,
+        constraints,
+        params,
+        nthreads=nthreads)
+
+    if logfile:
+        logfile.close()
+        
+
+
+# ========================== CLI INTERFACE ================================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Simple driver for reaction search. Builds a parameter file in an output folder.",
@@ -113,7 +198,10 @@ if __name__ == "__main__":
                         default=0, type=int)
     parser.add_argument("-p", "--params", help="File containing numerical parameters.",
                         type=str, default="parameters/default.yaml")
-
+    parser.add_argument("-d", "--dump",
+                        help="Make output directory and save user parameters, but do not"
+                        +" search for reaction.",
+                        action="store_true")
 
     # These parameters (and some more!) have defaults in parameters/default.yaml.
     parser.add_argument("--optim", help="Optimization level.", type=str)
@@ -174,96 +262,13 @@ if __name__ == "__main__":
             f.write("  " + line.lstrip() + "\n")
         f.write("\n")
 
-    # Additionally save defaults for reproducibility
-    shutil.copy(params_file, out_dir)
-
-    rsearch(out_dir, log_level=args.log_level,
-            nthreads=args.threads)
+    if not args.dump:
+        rsearch(out_dir, args.params,
+                log_level=args.log_level,
+                nthreads=args.threads)
     
-"""    
 
 
 
-# Get bond parameters
-# -------------------
-bond_length0 = np.sqrt(np.sum((positions[params["atoms"][0]-1] -
-                               positions[params["atoms"][1]-1])**2))
-bond = (params["atoms"][0], params["atoms"][1], bond_length0)
-
-# Constraints for the search
-# -------------------------
-stretch_factors = np.linspace(params["s"][0], params["s"][1], params["sn"])
-print("Stretching bond between atoms %s%i and %s%i"
-      %(atoms[bond[0]-1], bond[0], atoms[bond[1]-1], bond[1]))
-print("    with force constant 💪💪 %f" % params["force"])
-print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
-      % (min(stretch_factors)*bond[2], max(stretch_factors)*bond[2],
-         min(stretch_factors), max(stretch_factors)))
-print("    discretized with %i points" % len(stretch_factors))
-constraints = [("force constant = %f" % params["force"],
-                "distance: %i, %i, %f"% (bond[0],bond[1],
-                                         stretch * bond[2]))
-               for stretch in stretch_factors]
-
-# STEP 1: Initial generation of guesses
-# ----------------------------------------------------------------------------
-if do_stretch:
-    react.generate_initial_structures(
-        xtb, out_dir,
-        init1,
-        constraints,
-        params)
-
-# reset threading
-xtb.extra_args = xtb.extra_args[:-2]
-
-mtd_indices = params["mtdi"]
-if mtd_indices is None:
-    # Read the successive optimization, then set mtd points to ground and TS
-    # geometries.
-    reactant, E = io_utils.traj2smiles(init0, index=0)
-    init, E = io_utils.traj2smiles(out_dir + "/init/opt.xyz")
-    mtd_indices = [i for i,smi in enumerate(init) if smi==reactant][::3]
-    print("Reactant 👉", reactant)
-
-# Sort the indices, do not do the same point twice.
-mtd_indices = sorted(list(set(mtd_indices)))
-if len(mtd_indices) == 0:
-    print("Reactant not found in initial stretch! 😢")
-    print("Optimization probably reacted. Alter geometry and try again.")
-    raise SystemExit(-1)
 
 
-# STEP 2: Metadynamics
-# ----------------------------------------------------------------------------
-if do_mtd:
-    react.metadynamics_search(
-        xtb, out_dir,
-        mtd_indices,
-        constraints,
-        params,
-        nthreads=args.T)
-
-if do_mtd_refine:
-    react.metadynamics_refine(
-        xtb, out_dir,
-        init1,
-        mtd_indices,
-        constraints,
-        params,
-        nthreads=args.T)
-
-# STEP 2: Reactions
-# ----------------------------------------------------------------------------
-if do_reactions:
-    react.react(
-        xtb, out_dir,
-        mtd_indices,
-        constraints,
-        params,
-        nthreads=args.T)
-
-
-if logfile:
-    logfile.close()
-"""

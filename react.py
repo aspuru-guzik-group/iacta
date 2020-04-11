@@ -39,7 +39,6 @@ def generate_initial_structures(xtb_driver,
                               structures,
                               energies,
                               opt_indices,
-                              extra=parameters["log_opt_steps"],
                               split=True)
     if verbose:
         print("Done!  %i steps were evaluated. \n"%computed)
@@ -64,12 +63,12 @@ def metadynamics_search(xtb_driver,
         futures = []
 
         for mtd_index in mtd_indices:
-            crest_jobs = react_utils.crest_jobs(
+            mtd_jobs = react_utils.metadynamics_jobs(
                 xtb_driver, mtd_index,
                 workdir +"/init", workdir + "/metadyn",
                 constraints, parameters)
 
-            for ji,j in enumerate(crest_jobs):
+            for ji,j in enumerate(mtd_jobs):
                 futures += [pool.submit(j)]
                 
                 if verbose:
@@ -111,7 +110,7 @@ def metadynamics_refine(xtb_driver,
             for s in structures:
                 future = pool.submit(
                     react_utils.quick_opt_job,
-                    xtb_driver, s, parameters["optlevel"],
+                    xtb_driver, s, parameters["optim"],
                     dict(wall=parameters["wall"],
                          constrain=constraints[mtd_index]))
                 futures += [future]
@@ -138,15 +137,13 @@ def metadynamics_refine(xtb_driver,
             f.write(s)
         f.close()
 
-        # convert to kcal and use use 10 000 if its higher than 10 000
-        Et = min(10000.0, parameters["ethreshold"] * hartree_ev * ev_kcalmol)
-        # same
-        Rt = min(10000.0, parameters["rthreshold"])
-        
         cre = xtb_driver.cregen(reference,
                                 fn, fn,
-                                ethreshold=Et,
-                                rthreshold=Rt)
+                                ewin=parameters["ewin"],
+                                rthr=parameters["rthr"],
+                                ethr=parameters["ethr"],
+                                bthr=parameters["bthr"])
+
         error = cre()
         s, E = traj2str(fn)
         if verbose:

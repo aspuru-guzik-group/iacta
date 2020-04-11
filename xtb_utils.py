@@ -29,7 +29,7 @@ def make_xcontrol(xcontrol_dictionary, fn):
             if val is None:
                 pass
             else:
-                if type(val) == tuple:
+                if type(val) == list or type(val) == tuple:
                     f.write("$" + str(key) + "\n")
                     for v in val:
                         f.write(v + "\n")
@@ -376,7 +376,7 @@ class xtb_driver:
         return md
 
     def cregen(self, reference_file, ensemble_file, out_file,
-               ethreshold=40.0, rthreshold=0.2):
+               ewin=0.0, rthr=0.0, ethr=0.0, bthr=0.0):
         """Sort and reduce an ensemble using CREGEN.
 
         Parameters:
@@ -404,8 +404,10 @@ class xtb_driver:
         cre = xtb_run(self.crest_bin,
                       ensemble_file,
                       os.path.basename(reference_file),
-                      "-ewin",str(ethreshold),
-                      "-rthr", str(rthreshold),
+                      "-ewin",str(ewin),
+                      "-rthr",str(rthr),
+                      "-ethr",str(ethr),
+                      "-bthr",str(bthr),                      
                       prefix="CRE",
                       before_geometry="-cregen",
                       other_input_files=[reference_file],

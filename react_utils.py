@@ -130,7 +130,7 @@ def successive_optimization(xtb,
                            current,
                            log=log,
                            failout=failout,
-                           level=parameters["optlevel"],
+                           level=parameters["optim"],
                            restart=restart,
                            xcontrol=dict(
                                wall=parameters["wall"],
@@ -163,7 +163,7 @@ def successive_optimization(xtb,
     return structures, energies, opt_indices
         
 
-def crest_jobs(xtb,
+def metadynamics_jobs(xtb,
                mtd_index,
                input_folder,
                output_folder,
@@ -208,17 +208,23 @@ def crest_jobs(xtb,
     os.makedirs(output_folder, exist_ok=True)
 
     mjobs = []
-    for metadyn_job, metadyn_params in enumerate(parameters["CREST"]):
+    meta = parameters["metadynamics"]
+    inp = input_folder + "/opt%4.4i.xyz" % mtd_index
+    # Set the time of the propagation based on the number of atoms.
+    with open(inp, "r") as f:
+        Natoms = int(f.readline())
+    md = meta["md"] + ["time=%f" % (meta["time_per_atom"] * Natoms)]
+        
+    for metadyn_job, metadyn_params in enumerate(meta["jobs"]):
+        outp = output_folder + "/mtd%4.4i_%2.2i.xyz" % (mtd_index,metadyn_job)
         mjobs += [
-            xtb.metadyn(input_folder + "/opt%4.4i.xyz" % mtd_index,
-                        output_folder + "/mtd%4.4i_%2.2i.xyz" % (mtd_index,
-                                                                 metadyn_job),
+            xtb.metadyn(inp,outp,
                         failout=output_folder +
                         "/FAIL%4.4i_%2.2i.xyz" % (mtd_index, metadyn_job),
                         xcontrol=dict(
                             wall=parameters["wall"],
                             metadyn=metadyn_params,
-                            md=parameters["md"],
+                            md=md,
                             constrain=constraints[mtd_index]))]
     return mjobs
 
@@ -304,8 +310,8 @@ def reaction_job(xtb,
                       bstructs[::-1] + fstructs,
                       be[::-1] + fe,
                       bopt[::-1] + fopt,
-                      split=False,
-                      extra=parameters["log_opt_steps"])
+                      split=False)
+
     return react_job
 
 
