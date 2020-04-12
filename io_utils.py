@@ -3,7 +3,6 @@ import numpy as np
 import re
 import os
 import pybel
-from datetime import datetime
 import subprocess
 import re
 
@@ -20,8 +19,7 @@ def metadata():
         "xtb":xtbvl,
         "commit":subprocess.check_output(
             ["git", "describe", "--always"],
-            cwd=os.path.dirname(__file__)).strip().decode(),
-        "date":datetime.today().ctime(),}
+            cwd=os.path.dirname(__file__)).strip().decode()}
 
 # =================== xTB output  reading/writing routines =====================
 def read_wbo(filepath):

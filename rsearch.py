@@ -7,6 +7,7 @@ import shutil
 import argparse
 from constants import hartree_ev, ev_kcalmol
 import yaml
+from datetime import datetime
 
 def rsearch(out_dir, defaults,
             log_level=0, nthreads=1):
@@ -16,6 +17,7 @@ def rsearch(out_dir, defaults,
         print("warning: $LOCALSCRATCH not set")
         scratch = "."
 
+    time_start = datetime.today().ctime()
     # load parameters
     with open(out_dir + "/user.yaml", "r") as f:
         user_params = yaml.load(f, Loader=yaml.Loader)
@@ -167,14 +169,20 @@ def rsearch(out_dir, defaults,
 
     if logfile:
         logfile.close()
-        
+
+    time_end = datetime.today().ctime()
     with open(out_dir + "/run.yaml", "w") as f:
         # begin with some metadata
+        meta = io_utils.metadata()
+        meta["start"] = time_start
+        meta["end"] =time_end
         yaml.dump(io_utils.metadata(),f)
         # Every parameter and then some
         yaml.dump(params,f)
         # dump extra stuff
         yaml.dump({"constraints":constraints,
+                   "nthreads":nthreads,
+                   "metadynamics_pts":list(mtd_indices),
                    "bond_stretch":pts})
 
 
