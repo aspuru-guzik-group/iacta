@@ -21,28 +21,28 @@ wall:
 # because we want to really push diversity and limit similarity.
 ewin: 70.0                      # maximum energy in kcal /mol above the energy
                                 # of the initial structure E0.
-rthr: 0.3                       # RMSD threshold (in A)
-ethr: 0.5                       # energy threshold (in kcal/mol)
-bthr: 0.1                       # rotational const threshold
+rthr: 0.8                       # RMSD threshold (in A)
+ethr: 1.0                       # energy threshold (in kcal/mol)
+bthr: 0.2                       # rotational const threshold
   
 # ---------------------------------------------------------------------------#
 # Parameters related to the atoms to be stretched. This will then be
 # turned into constraints.
 atoms:
 stretch_limits: [1.0, 3.0]
-stretch_resolution: 0.05        # Angstrom
+stretch_resolution: 0.03        # Angstrom
 force: 1.0                      # in Hartree/bohr
 
 
 # ---------------------------------------------------------------------------#
 # Points where metadynamics are performed.
 mtd_only_reactant: true         # Do metadynamics only for the reactant.
-mtd_step: 5                     # Metadynamics every x points of stretch.
+mtd_step: 3                     # Metadynamics every x points of stretch.
   
 # ---------------------------------------------------------------------------#
 metadynamics:
-  save: 10                      # number of artificial MTD potentials
-  time_per_atom: 0.5            # total time / Natoms (ps) for each mtd run
+  save: 20                      # number of artificial MTD potentials
+  time_per_atom: 0.1            # total time / Natoms (ps) for each mtd run
 
   jobs:
     # These are the parameters for each metadynamics runs, taken from CREST
@@ -57,8 +57,8 @@ metadynamics:
   md:
     # MD parameters, taken once again from CREST.
     - "dump=100.0"
-    - "shake=0"
-    - "step=2"
+    - "shake=2"
+    - "step=10"
 
 
 

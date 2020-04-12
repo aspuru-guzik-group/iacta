@@ -235,7 +235,10 @@ Summary:
 - Improve MTD convergence (smaller steps? force constant?)
 - More diversity (higher MTD index? lower resolution?)
 Result:
-- Dropping force constant to 1.0. (affect everything but DA) and increasing resolution to 0.3 A.
+- Dropping force constant to 1.0. (affect everything but DA).
+- Significant modification to the run file for Dieckmann (methanols instead of water, start from an optimized structure, move to center).
+- Reduce max stretch on CCR.
+- Decrease RMSD threshold to 0.3 A.
 *** Working
 - Sn2MeI, 70 structures, 33 kcal/mol barrier
 - Corey-Chaikovsky, plenty of structures selected from MTD, 80 reaction pathways *but* too many pathways without the main reactant, product not found within 300 reactions. Many CH2 dissociation
@@ -243,8 +246,26 @@ Result:
   out of MTD refine though.
 *** Not working
 - AroClaisen, fails on MTD refine (7 structures selected from 600!) but still gives the right result, with a 37 kcal /mol barrier.
-- Dieckmann, fails on MTD (1 structure)
+- Dieckmann, fails on MTD (1 structure). This is because of the wall group, which makes the initial optimization super fucky!
 - Gabes catalyst and Knorr both fail on MTD.
+** fa311a8
+Results:
+- The force constant did solve the MTD convergence issue, I believe. However, the runs are very slow, and some of them have very few structures coming out of the MTD.
+- I think a major issue is that the minima of energy is not sampled. Fixing
+  this now. Might as well add the MTD point just after the reactants too.
+- Probably we want to do more MTD indices, but for less long each time, to increase (again) the diversity of compounds. I'll up the thresholds but increase the tnumber of MTD indices.
+
+*** Working
+- Sn2MeI 131 traj, 122 react, 4 pathways, works.
+- DielsAlder 27 traj, 12 reaction, 3 pathways, works? CREGEN eliminates 1000
+  structures, potentially missing one product (the bi-cycle).
+- Gabe's Catalyst works fine, 315 trajectories, 122 reactions, 10 pathways,
+  product comes first, barrier is right.
+- AroClaisen, 4 traj, 4 react, 2 pathways, right product, but all the structures are getting selected out by CREGEN...
+- CoreyChaikovsky finds both the main product and the weird insertion one easily, but there is a whole bunch of crap too. We have to find some way of cutting out all the noise.
+*** Not working
+- So far, Knorr pyrazole only finds the substitution...
+- Dieckmann is very slow, with thousands of structures.
 
 
   
