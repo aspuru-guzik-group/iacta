@@ -1,3 +1,10 @@
 *.pyc
 __pycache__
 test_*
+test-set/*/react*
+test-set/*/init*
+test-set/*/metadyn
+test-set/*/CRE
+test-set/*/results/*
+test-set/*/run.yaml
+*.xyz

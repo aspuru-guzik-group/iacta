@@ -21,7 +21,7 @@ wall:
 # because we want to really push diversity and limit similarity.
 ewin: 70.0                      # maximum energy in kcal /mol above the energy
                                 # of the initial structure E0.
-rthr: 0.5                       # RMSD threshold (in A)
+rthr: 0.3                       # RMSD threshold (in A)
 ethr: 0.5                       # energy threshold (in kcal/mol)
 bthr: 0.1                       # rotational const threshold
   
@@ -31,7 +31,7 @@ bthr: 0.1                       # rotational const threshold
 atoms:
 stretch_limits: [1.0, 3.0]
 stretch_resolution: 0.05        # Angstrom
-force: 2.0                      # in Hartree/bohr
+force: 1.0                      # in Hartree/bohr
 
 
 # ---------------------------------------------------------------------------#

@@ -229,3 +229,22 @@ H         4.49924196130154   -3.11120115813486    0.76780179389113
 H         3.78885527445482   -1.67868196650361    0.37152372382105
 
 #+END_SRC
+* Results
+** b968583
+Summary: 
+- Improve MTD convergence (smaller steps? force constant?)
+- More diversity (higher MTD index? lower resolution?)
+Result:
+- Dropping force constant to 1.0. (affect everything but DA) and increasing resolution to 0.3 A.
+*** Working
+- Sn2MeI, 70 structures, 33 kcal/mol barrier
+- Corey-Chaikovsky, plenty of structures selected from MTD, 80 reaction pathways *but* too many pathways without the main reactant, product not found within 300 reactions. Many CH2 dissociation
+- DielsAlder. Gives two products from two reactions. Only 17 trajectories
+  out of MTD refine though.
+*** Not working
+- AroClaisen, fails on MTD refine (7 structures selected from 600!) but still gives the right result, with a 37 kcal /mol barrier.
+- Dieckmann, fails on MTD (1 structure)
+- Gabes catalyst and Knorr both fail on MTD.
+
+
+  

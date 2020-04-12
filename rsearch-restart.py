@@ -2,6 +2,7 @@ import os
 import argparse
 from rsearch import rsearch
 import yaml
+import shutil
 
 # ========================== CLI INTERFACE ================================
 if __name__ == "__main__":
@@ -39,23 +40,26 @@ if __name__ == "__main__":
     # --------------------
     if args.o:
         out_dir = args.o
-        try:
-            os.makedirs(out_dir)
-        except FileExistsError:
-            print("Output directory exists:")
-            if args.w:
-                # Delete the directory, make it and restart
-                print("   👍 but that's fine! -w flag is on.")
-                print("   📁 %s is overwritten."% args.o)
-                shutil.rmtree(out_dir)
-                os.makedirs(out_dir)
-            else:
-                print("   👎 -w flag is off -> exiting! 🚪")
-                raise SystemExit(-1)
     else:
+        # TODO: This and the -w flag is bad, we should fix it
         out_dir = os.path.dirname(args.user_params)
+        
+    try:
+        os.makedirs(out_dir)
+    except FileExistsError:
+        print("Output directory exists:")
+        if args.w:
+            # Delete the directory, make it and restart
+            print("   👍 but that's fine! -w flag is on.")
+            print("   📁 %s is overwritten."% args.o)
+            shutil.rmtree(out_dir)
+            os.makedirs(out_dir)
+        else:
+            print("   👎 -w flag is off -> exiting! 🚪")
+            raise SystemExit(-1)
 
-
+    # copy user params
+    shutil.copy(args.user_params, out_dir + "/user.yaml")
 
     # Get default parameters
     params_file = args.params
