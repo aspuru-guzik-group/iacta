@@ -266,6 +266,18 @@ Results:
 *** Not working
 - So far, Knorr pyrazole only finds the substitution...
 - Dieckmann is very slow, with thousands of structures.
+** 278686e
+Results: Way too little diversity. Even the ones that are working have high
+barriers.
 
+I think we *do* need long MTD propagation. I've pushed the propagation time
+back up, but reduced the number of dump structures. I've increased dt to hopefully make it converge somewhat faster.
 
-  
+*** Working
+- Sn2MeI, barrier high
+- DielsAlder
+- Dieckmann
+- AroClaisen
+*** Not working
+- CCR
+- Pyrazole
