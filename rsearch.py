@@ -50,13 +50,13 @@ def rsearch(out_dir, defaults,
                                delete=delete,
                                logfile=logfile)
 
-    xtb.extra_args = ["--gfn",params["gfn"]]
+    xtb.extra_args = ["--gfn",str(params["gfn"])]
     if params["etemp"]:
-        xtb.extra_args += ["--etemp", params["etemp"]]
+        xtb.extra_args += ["--etemp", str(params["etemp"])]
     if params["chrg"]:
-        xtb.extra_args += ["--chrg", params["chrg"]]
+        xtb.extra_args += ["--chrg", str(params["chrg"])]
     if params["uhf"]:
-        xtb.extra_args += ["--uhf", params["uhf"]]    
+        xtb.extra_args += ["--uhf", str(params["uhf"])]    
     if params["solvent"]:
         xtb.extra_args += ["--gbsa", params["solvent"]]
         
