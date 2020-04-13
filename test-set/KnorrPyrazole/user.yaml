@@ -1,7 +1,9 @@
 atoms:
 - 14
 - 27
-solvent: methanol
+solvent: 'methanol'
+mtd_only_reactant: false
+mtd_step: 8
 xyz: |
   28
   

@@ -229,6 +229,14 @@ H         4.49924196130154   -3.11120115813486    0.76780179389113
 H         3.78885527445482   -1.67868196650361    0.37152372382105
 
 #+END_SRC
+
+* Expected
+** AroClaisen
+- product: C=CCC1C=CC=CC1=O, barrier 30 kcal / mol?
+** Diels-Alder
+- Endo: O=C[C@H]1C[C@H]2C[C@@H]1C=C2
+- Exo: O=C[C@H]1C[C@H]2C[C@@H]1C=C2
+Endo more likely than exo
 * Results
 ** b968583
 Summary: 
@@ -281,3 +289,16 @@ back up, but reduced the number of dump structures. I've increased dt to hopeful
 *** Not working
 - CCR
 - Pyrazole
+** 59da815
+Appears to be working well now, except for Knorr. Removing the
+mtd_only_reactant in Knorr, see if that was the problem.
+*** Working
+- Sn2MeI: good barriers, 160 trajectories, 157 reactions
+- AroClaisen: only 9 trajectories... but the right structure and a barrier of
+  31.5
+- DielsAlder works fine
+- CCR works fine, lots of crap, barrier up to 12 instead of the old 4 kcal mol ?
+- Dieckmann works great
+- GabesCatalyst works great
+*** Not working
+- Still Knorr for some reason?
