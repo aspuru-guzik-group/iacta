@@ -1,5 +1,6 @@
 import numpy as np
 import react
+import read_reactions
 import xtb_utils
 import io_utils
 import os
@@ -139,31 +140,42 @@ def rsearch(out_dir, defaults,
     # geometries.
     reactant, E0 = io_utils.traj2smiles(init0, index=0)
     init, E = io_utils.traj2smiles(out_dir + "/init/opt.xyz")
+    reaction = read_reactions.read_reaction(out_dir + "/init")
     E = np.array(E)
     step = params["mtd_step"]
-    react_indices = [i for i,smi in enumerate(init) if smi==reactant]
-    
     print("Reactant 👉", reactant)
-    if params["mtd_only_reactant"]:
-        print("     ... metadynamics performed only for reactants")
-        mtd_indices = react_indices[::step]
-        # also do the final step and the next step over, as well as the first
-        # step and the one just before
-        mtd_indices += [react_indices[-1],
-                        min(react_indices[-1] + 1, len(E)-1),
-                        react_indices[0],
-                        max(react_indices[0]-1,0)]
-    else:
-        mtd_indices = [i for i,smi in enumerate(init)][::step]
+    print("Molecules 👇")
+    for i in range(len(reaction["E"])):
+        if reaction["is_stable"][i]:
+            print("%3i  %+7.3f -> %s" % (reaction["stretch_points"][i],
+                                          reaction["E"][i],
+                                          reaction["SMILES"][i]))
+        else:
+            print("%3i  %+7.3f     ...  ⛰  ..." %
+                  (reaction["stretch_points"][i], reaction["E"][i]))
+    mtd_indices = [k for k in reaction["stretch_points"]]
+    
+    # react_indices = [i for i,smi in enumerate(init) if smi==reactant]
+    # if params["mtd_only_reactant"]:
+    #     print("     ... metadynamics performed only for reactants")
+    #     mtd_indices = react_indices[::step]
+    #     # also do the final step and the next step over, as well as the first
+    #     # step and the one just before
+    #     mtd_indices += [react_indices[-1],
+    #                     min(react_indices[-1] + 1, len(E)-1),
+    #                     react_indices[0],
+    #                     max(react_indices[0]-1,0)]
+    # else:
+    #     mtd_indices = [i for i,smi in enumerate(init)][::step]
 
-    # if reactant is there, add the minima and maxima of reactant
-    if len(react_indices):
-        Ereact = E[react_indices]
-        mtd_indices += [react_indices[np.argmin(Ereact)],
-                        react_indices[np.argmax(Ereact)]]
-    else:
-        # otherwise, do global minima and maxima
-        mtd_indices += [np.argmax(E), np.argmin(E)]
+    # # if reactant is there, add the minima and maxima of reactant
+    # if len(react_indices):
+    #     Ereact = E[react_indices]
+    #     mtd_indices += [react_indices[np.argmin(Ereact)],
+    #                     react_indices[np.argmax(Ereact)]]
+    # else:
+    #     # otherwise, do global minima and maxima
+    #     mtd_indices += [np.argmax(E), np.argmin(E)]
         
     # Sort the indices, do not do the same point twice.
     mtd_indices = sorted(list(set(mtd_indices)))
