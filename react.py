@@ -30,6 +30,7 @@ def generate_initial_structures(xtb_driver,
     structures, energies = react_utils.successive_optimization(
         xtb_driver, guess_xyz_file,
         constraints, parameters, # no barrier for initial run
+        barrier=False,
         failout=outputdir + "/FAILED",
         verbose=verbose)
 
@@ -109,7 +110,7 @@ def metadynamics_refine(xtb_driver,
             for s in structures:
                 future = pool.submit(
                     react_utils.quick_opt_job,
-                    xtb_driver, s, parameters["optim"],
+                    xtb_driver, s, parameters["optcregen"],
                     dict(wall=parameters["wall"],
                          constrain=constraints[mtd_index]))
                 futures += [future]

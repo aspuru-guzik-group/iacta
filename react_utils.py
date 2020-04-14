@@ -41,6 +41,7 @@ def successive_optimization(xtb,
                             initial_xyz,
                             constraints,
                             parameters,
+                            barrier=True,
                             failout=None,
                             verbose=True):
     """Optimize a structure through successive constraints.
@@ -132,7 +133,7 @@ def successive_optimization(xtb,
             print("   step👣=%4i    energy💡= %9.5f Eₕ"%(len(news),
                                                          energies[-1]))
 
-        if newe[-1] > parameters["emax"]:
+        if newe[-1] > parameters["emax"] and barrier:
             if verbose:
                 print("   ----- energy threshold exceeded -----")
             break
