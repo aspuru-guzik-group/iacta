@@ -154,31 +154,20 @@ def rsearch(out_dir, defaults,
             print("%3i  %+7.3f     ...  ⛰  ..." %
                   (reaction["stretch_points"][i], reaction["E"][i]))
     mtd_indices = [k for k in reaction["stretch_points"]]
+    mtd_indices += list(np.arange(0,len(E), step))
     
-    # react_indices = [i for i,smi in enumerate(init) if smi==reactant]
-    # if params["mtd_only_reactant"]:
-    #     print("     ... metadynamics performed only for reactants")
-    #     mtd_indices = react_indices[::step]
-    #     # also do the final step and the next step over, as well as the first
-    #     # step and the one just before
-    #     mtd_indices += [react_indices[-1],
-    #                     min(react_indices[-1] + 1, len(E)-1),
-    #                     react_indices[0],
-    #                     max(react_indices[0]-1,0)]
-    # else:
-    #     mtd_indices = [i for i,smi in enumerate(init)][::step]
+    if params["mtd_only_reactant"]:
+        mtd_indices = [i for i in mtd_indices if init[i] == reactant]
+        print("     ... metadynamics performed only for reactants")
+        # also do the final step and the next step over, as well as the first
+        # step and the one just before
+        mtd_indices += [max(mtd_indices) + 1,
+                        min(mtd_indices) - 1]
 
-    # # if reactant is there, add the minima and maxima of reactant
-    # if len(react_indices):
-    #     Ereact = E[react_indices]
-    #     mtd_indices += [react_indices[np.argmin(Ereact)],
-    #                     react_indices[np.argmax(Ereact)]]
-    # else:
-    #     # otherwise, do global minima and maxima
-    #     mtd_indices += [np.argmax(E), np.argmin(E)]
-        
-    # Sort the indices, do not do the same point twice.
-    mtd_indices = sorted(list(set(mtd_indices)))
+    # Sort the indices, do not do the same point twice, make sure the points
+    # are in bound
+    mtd_indices = sorted(list(set([i for i in mtd_indices
+                                   if (i >= 0 and i < len(E))])))
     if len(mtd_indices) == 0:
         print("Reactant not found in initial stretch! 😢")
         print("Optimization probably reacted. Alter geometry and try again.")

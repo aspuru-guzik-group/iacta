@@ -203,7 +203,7 @@ def metadynamics_jobs(xtb,
     for metadyn_job, metadyn_params in enumerate(meta["jobs"]):
         outp = output_folder + "/mtd%4.4i_%2.2i.xyz" % (mtd_index,metadyn_job)
         mjobs += [
-            xtb.metadyn(inp,outp,
+            xtb.metadyn(inp, outp,
                         failout=output_folder +
                         "/FAIL%4.4i_%2.2i.xyz" % (mtd_index, metadyn_job),
                         xcontrol=dict(
@@ -279,7 +279,6 @@ def reaction_job(xtb,
         # for the backward propagation
         with open(output_folder + "/initial_backward.xyz", "w") as f:
             f.write(fstructs[0])
-            
         
         # Backward reaction
         bstructs, be = successive_optimization(
