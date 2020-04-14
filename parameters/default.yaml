@@ -8,12 +8,12 @@ uhf:
 
 # ---------------------------------------------------------------------------#
 # Optimization of stretched and unstretched structures. 
-optim: tight                    # default level
+optim: vtight                    # default level
 wall: 
   # Potential "wall" keeping molecules together. The following are just the
   # lines of the wall group.
-  - 'potential=logfermi'
-  - 'sphere: auto, all'
+  # - 'potential=logfermi'
+  # - 'sphere: auto, all'
 
 # ---------------------------------------------------------------------------#
 # Parameters used by CREGEN to compare structures and decide if they are
@@ -30,30 +30,33 @@ bthr: 2.0                       # rotational const threshold
 # turned into constraints.
 atoms:
 stretch_limits: [1.0, 3.0]
-stretch_resolution: 0.05        # Angstrom
-force: 1.0                      # in Hartree/bohr
+force: 1.0			# in Hartree/bohr
+# One of these two should be set
+stretch_num: 100		# Number of points for stretch
+stretch_resolution:		# Resolution of stretch in A
+
 
 
 # ---------------------------------------------------------------------------#
 # Points where metadynamics are performed.
 mtd_only_reactant: true         # Do metadynamics only for the reactant.
-mtd_step: 3                     # Metadynamics every x points of stretch.
+mtd_step: 5                     # Metadynamics every x points of stretch.
   
 # ---------------------------------------------------------------------------#
 metadynamics:
-  save: 40                      # number of artificial MTD potentials
+  save: 100                     # number of artificial MTD potentials
   time_per_atom: 0.6            # total time / Natoms (ps) for each mtd run
 
   jobs:
     # These are the parameters for each metadynamics runs, taken from CREST
     # mquick. As described in the CREST paper, the optimal values for kpush
     # and alpha are not known, so instead we do a parameter sweep.
-    - ["kpush=0.020", "alpha=1.000"]
-    - ["kpush=0.030", "alpha=0.500"]
-    - ["kpush=0.040", "alpha=0.250"]
+    - ["kpush=0.050", "alpha=0.200"]
+    - ["kpush=0.050", "alpha=1.000"]
+    - ["kpush=0.500", "alpha=0.200"]
+    - ["kpush=0.500", "alpha=1.000"]    
   md:
-    # MD parameters, taken once again from CREST.
-    - "dump=300.0"
+    - "dump=100.0"
     - "shake=0"
     - "step=1"
 

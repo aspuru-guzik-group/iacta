@@ -96,7 +96,22 @@ def rsearch(out_dir, defaults,
     # -------------------------
     slow, shigh = params["stretch_limits"]
     step = params["stretch_resolution"]
-    pts = np.arange(bond_length0 * slow, bond_length0 * shigh, step)
+    if params["stretch_resolution"]:
+        if params["stretch_num"]:
+            raise RuntimeError("Both stretch_num and stretch_resolution are"
+                               +" set. I don't know which one to pick!")
+        else:
+            step = params["stretch_resolution"]
+            pts = np.arange(bond_length0 * slow, bond_length0 * shigh, step)
+    elif params["stretch_num"]:
+        pts = np.linspace(bond_length0 * slow, bond_length0 * shigh,
+                          params["stretch_num"])
+    else:
+        raise RuntimeError("Neither stretch_num nor"
+                           +" stretch_resolution are set.")
+        
+
+
 
     print("Stretching bond between atoms %s%i and %s%i"
           %(atoms[bond[0]-1], bond[0], atoms[bond[1]-1], bond[1]))
@@ -244,7 +259,7 @@ if __name__ == "__main__":
     parser.add_argument("--optim", help="Optimization level.", type=str)
 
     parser.add_argument("-s","--stretch-limits", help="Bond stretch limits.", nargs=2,type=float)
-    parser.add_argument("-r","--stretch-resolution", help="Number of bond stretches.", type=int)
+    parser.add_argument("-n","--stretch-num", help="Number of bond stretches.", type=int)    
     parser.add_argument("-k","--force-constant", help="Force constant of the stretch.", type=float)
 
     parser.add_argument("--gfn", help="gfn version.", type=str)
