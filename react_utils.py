@@ -7,33 +7,19 @@ import re
 from io_utils import traj2str
 
 # ------------------- utility routines -----------------------------------#
-def dump_succ_opt(output_folder, structures, energies, opt_indices,
-                  split=False,
-                  extra=False):
-    os.makedirs(output_folder, exist_ok=True)
+def dump_succ_opt(output_folder, structures, energies,
+                  split=False):
     
-
+    os.makedirs(output_folder, exist_ok=True)
     # Dump the optimized structures in one file                
     with open(output_folder + "/opt.xyz", "w") as f:
-        for oi in opt_indices:
-            f.write(structures[oi])
+        for s in structures:
+            f.write(s)
             
     if split:
         # Also dump the optimized structures in many files            
-        for stepi, oi in enumerate(opt_indices):
+        for stepi, s in enumerate(structures):
             with open(output_folder + "/opt%4.4i.xyz" % stepi, "w") as f:
-                f.write(structures[oi])
-
-    # TODO remove E dumps, we don't need them
-    # Dump indices of optimized structures, energies of optimized structures,
-    # all energies and all structures
-    np.savetxt(output_folder + "/Eopt", np.array(energies)[opt_indices], fmt="%15.8f")
-
-    if extra:
-        np.savetxt(output_folder + "/indices", opt_indices, fmt="%i")
-        np.savetxt(output_folder + "/E", energies, fmt="%15.8f")
-        with open(output_folder + "/log.xyz", "w") as f:
-            for s in structures:
                 f.write(s)
 
 def quick_opt_job(xtb, xyz, level, xcontrol):
@@ -104,7 +90,7 @@ def successive_optimization(xtb,
     """
     if not constraints:
         # nothing to do
-        return [], [], []
+        return [], []
 
     # Make scratch files
     fdc, current = tempfile.mkstemp(suffix=".xyz", dir=xtb.scratchdir)
@@ -115,8 +101,6 @@ def successive_optimization(xtb,
     shutil.copyfile(initial_xyz, current)
     structures = []
     energies = []
-    opt_indices = []
-    
 
     if verbose:
         print("  %i successive optimizations" % len(constraints))
@@ -141,12 +125,12 @@ def successive_optimization(xtb,
             break
         
         news, newe = traj2str(log)
-        structures += news
-        energies += newe
-        opt_indices += [len(structures)-1]
+        structures += [news[np.argmin(newe)]]
+        energies += [np.min(newe)]
             
         if verbose:
-            print("   step👣=%4i    energy💡= %9.5f Eₕ"%(len(news), newe[-1]))
+            print("   step👣=%4i    energy💡= %9.5f Eₕ"%(len(news),
+                                                         energies[-1]))
 
         if newe[-1] > parameters["emax"]:
             if verbose:
@@ -160,7 +144,7 @@ def successive_optimization(xtb,
     os.remove(current)
     os.remove(log)
     os.remove(restart)
-    return structures, energies, opt_indices
+    return structures, energies
         
 
 def metadynamics_jobs(xtb,
@@ -283,7 +267,7 @@ def reaction_job(xtb,
             f.write(initial_xyz)
 
         # Forward reaction
-        fstructs, fe, fopt = successive_optimization(
+        fstructs, fe = successive_optimization(
             xtb, output_folder + "/initial.xyz",
             constraints[mtd_index:],
             parameters,
@@ -295,12 +279,11 @@ def reaction_job(xtb,
         with open(output_folder + "/initial_backward.xyz", "w") as f:
             f.write(fstructs[0])
             
-        cbacks = constraints[0:mtd_index][::-1]
-
+        
         # Backward reaction
-        bstructs, be, bopt = successive_optimization(
+        bstructs, be = successive_optimization(
             xtb, output_folder + "/initial_backward.xyz",
-            cbacks,
+            constraints[mtd_index-1:-1:-1],
             parameters,
             failout=output_folder + "/FAILED_BACKWARD",            
             verbose=False)          # otherwise its way too verbose
@@ -309,7 +292,6 @@ def reaction_job(xtb,
         dump_succ_opt(output_folder,
                       bstructs[::-1] + fstructs,
                       be[::-1] + fe,
-                      bopt[::-1] + fopt,
                       split=False)
 
     return react_job

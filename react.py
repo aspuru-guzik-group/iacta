@@ -27,18 +27,17 @@ def generate_initial_structures(xtb_driver,
     outputdir = workdir + "/init"
     os.makedirs(outputdir)
     
-    structures, energies, opt_indices = react_utils.successive_optimization(
+    structures, energies = react_utils.successive_optimization(
         xtb_driver, guess_xyz_file,
         constraints, parameters, # no barrier for initial run
         failout=outputdir + "/FAILED",
         verbose=verbose)
 
-    computed = len(opt_indices)
+    computed = len(structures)
 
     react_utils.dump_succ_opt(outputdir,
                               structures,
                               energies,
-                              opt_indices,
                               split=True)
     if verbose:
         print("Done!  %i steps were evaluated. \n"%computed)
@@ -214,6 +213,10 @@ def react(xtb_driver,
                     constraints,
                     parameters))]
             nreact = nreact + 1
+
+        for f in futures:
+            # crash if f raised exception
+            f.result()
 
     if verbose:
         print("No more work to do! 🧔🍻\n\n")
