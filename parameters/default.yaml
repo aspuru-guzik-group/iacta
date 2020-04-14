@@ -1,0 +1,68 @@
+# ---------------------------------------------------------------------------#
+# Parameters passed to xtb
+etemp: '300.0'                 # electronic temperature
+gfn: '2'                       # gfn version
+solvent:
+chrg:
+uhf:
+
+# ---------------------------------------------------------------------------#
+# Optimization of stretched and unstretched structures. 
+optim: tight                    # default level
+wall: 
+  # Potential "wall" keeping molecules together. The following are just the
+  # lines of the wall group.
+  - 'potential=logfermi'
+  - 'sphere: auto, all'
+
+# ---------------------------------------------------------------------------#
+# Parameters used by CREGEN to compare structures and decide if they are
+# identical. These are more generous (significantly) than the CREST one
+# because we want to really push diversity and limit similarity.
+ewin: 70.0                      # maximum energy in kcal /mol above the energy
+                                # of the initial structure E0.
+rthr: 0.4                       # RMSD threshold (in A)
+ethr: 0.5                       # energy threshold (in kcal/mol)
+bthr: 2.0                       # rotational const threshold
+  
+# ---------------------------------------------------------------------------#
+# Parameters related to the atoms to be stretched. This will then be
+# turned into constraints.
+atoms:
+stretch_limits: [1.0, 3.0]
+stretch_resolution: 0.05        # Angstrom
+force: 1.0                      # in Hartree/bohr
+
+
+# ---------------------------------------------------------------------------#
+# Points where metadynamics are performed.
+mtd_only_reactant: true         # Do metadynamics only for the reactant.
+mtd_step: 3                     # Metadynamics every x points of stretch.
+  
+# ---------------------------------------------------------------------------#
+metadynamics:
+  save: 40                      # number of artificial MTD potentials
+  time_per_atom: 0.6            # total time / Natoms (ps) for each mtd run
+
+  jobs:
+    # These are the parameters for each metadynamics runs, taken from CREST
+    # mquick. As described in the CREST paper, the optimal values for kpush
+    # and alpha are not known, so instead we do a parameter sweep.
+    - ["kpush=0.020", "alpha=1.000"]
+    - ["kpush=0.030", "alpha=0.500"]
+    - ["kpush=0.040", "alpha=0.250"]
+  md:
+    # MD parameters, taken once again from CREST.
+    - "dump=300.0"
+    - "shake=0"
+    - "step=1"
+
+
+
+# Initial geometry, as an xyz string
+xyz: |
+  3
+
+  O    0.00   0.00  0.00
+  etc.
+

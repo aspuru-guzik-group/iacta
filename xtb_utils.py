@@ -29,7 +29,7 @@ def make_xcontrol(xcontrol_dictionary, fn):
             if val is None:
                 pass
             else:
-                if type(val) == tuple:
+                if type(val) == list or type(val) == tuple:
                     f.write("$" + str(key) + "\n")
                     for v in val:
                         f.write(v + "\n")
@@ -44,6 +44,8 @@ class xtb_run:
                  before_geometry="--",
                  scratch=".",
                  prefix="",
+                 logfile=None,
+                 other_input_files=[],
                  xcontrol=None,
                  restart=None,
                  failout=None,
@@ -83,8 +85,9 @@ class xtb_run:
         will generate the file my_opt.xyz from the xtb optimized geometry
         xtbopt.xyz in the run directory.
 
+        TODO UPDATE PARAMETERS
         """
-
+        self.logfile = logfile
         self.dir = tempfile.mkdtemp(dir=scratch, prefix="tmp"+prefix)
         self.delete = delete
         if self.delete:
@@ -97,6 +100,9 @@ class xtb_run:
             
         self.err = open(self.dir + "/xtb.err", "w")
         self.coord = shutil.copy(geom_file, self.dir)
+        for fn in other_input_files:
+            shutil.copy(fn, self.dir)
+        
         self.failout = failout
         if restart:
             shutil.copy(restart, self.dir + "/xtbrestart")
@@ -123,6 +129,9 @@ class xtb_run:
     def start(self, blocking=True):
         """Start xtb job."""
         assert self.proc is None
+        if self.logfile:
+            self.logfile.write(self.get_cmdline())
+            self.logfile.flush()
         self.proc = subprocess.Popen(self.args, **self.kwargs)
         if blocking:
             self.proc.wait()
@@ -195,7 +204,13 @@ class xtb_run:
             return -1
         else:
             return self.proc.returncode
-            
+
+    def get_cmdline(self):
+        string = ""
+        for arg in self.args:
+            string += arg + " "
+        return string + "\n"
+
 
     def tempd_dump(self, name):
         """Dump content of run directory for reproducing errors."""
@@ -204,10 +219,7 @@ class xtb_run:
         shutil.copytree(self.dir, name)
         # Also, save xtb command line
         with open(name + "/xtb.sh", "w") as f:
-            for arg in self.proc.args:
-                f.write(arg)
-                f.write(" ")
-                
+            f.write(self.get_cmdline())
 
     def __call__(self, blocking=True):
         """Run xtb job and cleanup."""
@@ -218,7 +230,7 @@ class xtb_run:
 
 class xtb_driver:
     def __init__(self, path_to_xtb_binaries="",
-                 delete=True,
+                 delete=True, logfile=None,
                  xtb_args=[], scratch="."):
         """Utility driver for xtb runs.
 
@@ -242,6 +254,7 @@ class xtb_driver:
         self.xtb_bin = path_to_xtb_binaries + "xtb"
         self.crest_bin = path_to_xtb_binaries + "crest"
         self.scratchdir = scratch
+        self.logfile = logfile
         self.delete=delete
 
     def optimize(self,
@@ -315,6 +328,7 @@ class xtb_driver:
                       scratch=self.scratchdir,
                       delete=self.delete,
                       failout=failout,
+                      logfile=self.logfile,
                       return_files=return_files)
         return opt
 
@@ -357,8 +371,51 @@ class xtb_driver:
                      delete=self.delete,
                      scratch=self.scratchdir,
                      failout=failout,
+                     logfile=self.logfile,
                      return_files=return_files)
         return md
+
+    def cregen(self, reference_file, ensemble_file, out_file,
+               ewin=0.0, rthr=0.0, ethr=0.0, bthr=0.0):
+        """Sort and reduce an ensemble using CREGEN.
+
+        Parameters:
+        -----------
+        TODO
+
+        geom_file (str) : path to the file containing the initial molecular
+        geometries.
+
+        ensemble_file (str) : path to the file containing the ensemble.
+
+        out_file (str): path to file where results are saved.
+
+        Optional Parameters:
+        --------------------
+        TODO
+
+        Returns:
+        --------
+
+        cregen_run : The CREGEN job. Run using xtb_run().
+
+        """
+        return_files=[("crest_ensemble.xyz", out_file)]
+        cre = xtb_run(self.crest_bin,
+                      ensemble_file,
+                      os.path.basename(reference_file),
+                      "-ewin",str(ewin),
+                      "-rthr",str(rthr),
+                      "-ethr",str(ethr),
+                      "-bthr",str(bthr),                      
+                      prefix="CRE",
+                      before_geometry="-cregen",
+                      other_input_files=[reference_file],
+                      delete=self.delete,
+                      scratch=self.scratchdir,
+                      logfile=self.logfile,
+                      return_files=return_files)
+        return cre    
 
 
 

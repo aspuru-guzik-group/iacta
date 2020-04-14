@@ -2,8 +2,26 @@
 import numpy as np
 import re
 import os
+import pybel
+import subprocess
+import re
 
-# File reading/writing routines
+def metadata():
+    # Return a dictionary with some metadata to improve reproducibility
+    xtbv = subprocess.check_output(["xtb", "--version"],
+                                   stderr=subprocess.DEVNULL).strip().decode()
+    for line in xtbv.split("\n"):
+        if re.search("version", line):
+            xtbvl = line.strip()
+    return {
+        "hostname":subprocess.check_output(
+            ["hostname"]).strip().decode(),
+        "xtb":xtbvl,
+        "commit":subprocess.check_output(
+            ["git", "describe", "--always"],
+            cwd=os.path.dirname(__file__)).strip().decode()}
+
+# =================== xTB output  reading/writing routines =====================
 def read_wbo(filepath):
     bonds = []
     with open(filepath, 'r') as f:
@@ -53,18 +71,10 @@ def read_xtb_gradient(filen):
             else:
                 gradient += line
                 n+=1
-                
     return np.fromstring(gradient, sep=" ").reshape((n,3))
 
-def comment_line_energy(comment_line):
-    m = re.search('-?[0-9]*\.[0-9]*', comment_line)
-    if m:
-        E = float(m.group())
-    else:
-        E = np.nan
-    return E
-
-def read_trajectory(filepath, index=None):
+# =================== xyz trajectory files reading/writing routines =============================
+def traj2str(filepath, index=None, as_list=False):
     """Read an xyz file containing a trajectory."""
     structures = []
     energies = []
@@ -91,89 +101,64 @@ def read_trajectory(filepath, index=None):
                 energies += [E]
             else:
                 if k == index:
-                    return this_mol
+                    if as_list:
+                        return [this_mol], [E]
+                    else:
+                        return this_mol, E
                 
             k+=1
     return structures,energies
 
-def xyz2numpy(input, natoms):
-    """Read an xyz file."""
-    if type(input) == str:
-        lines = input.split("\n")
-    elif type(input) == list:
-        lines = input
-
-    atoms = []
-    positions = np.zeros((natoms, 3))
-    iatom = 0
-    for line in input:
-        positions[iatom,:] = np.fromstring(line[2:],
-                                       count=3, sep=" ")
-        atoms += [line[0:2].rstrip().lstrip()]
-        iatom+=1
-        if iatom == natoms:
-            break
-    return atoms, positions
-
-def read_xyz(filepath, index=0):
-    """Read an xyz file and convert to numpy arrays."""
-    atoms = []
-    xyzs = []
-    comments = []
-    with open(filepath, 'r') as f:
-        curr = 0
-        while True:
-            first_line = f.readline()
-            # EOF -> blank line
-            if not first_line:
-                break
-            natoms = int(first_line.rstrip())
-            comment_line = f.readline()
-
-            if index=="all":
-                at, r = xyz2numpy(f,natoms)
-                atoms += [at]
-                xyzs += [r]
-                comments += [comment_line]
-
-            elif curr == index:
-                atoms, pos = xyz2numpy(f, natoms)
-                return atoms, pos, comment_line
-            else:
-                for i in range(natoms):
-                    f.readline()
-                curr += 1
-    return atoms,xyzs,comments
-
-def dump_succ_opt(output_folder, structures, energies, opt_indices,
-                  split=False,
-                  extra=False):
-    os.makedirs(output_folder, exist_ok=True)
+def traj2smiles(filepath, index=None, chiral=False):
+    """Read an xyz file and convert to a list of SMILES ."""
+    # Read the trajectory
+    strs, E = traj2str(filepath, index=index, as_list=True)
+    output = []
     
+    if chiral:
+        flags = {"c":1,"n":1}
+    else:
+        flags = {"c":1,"n":1, "i":1}
+    for s in strs:
+        output+= [pybel.readstring("xyz", s).write(format="smi", opt=flags).rstrip()]
 
-    # Dump the optimized structures in one file                
-    with open(output_folder + "/opt.xyz", "w") as f:
-        for oi in opt_indices:
-            f.write(structures[oi])
-            
-    if split:
-        # Also dump the optimized structures in many files            
-        for stepi, oi in enumerate(opt_indices):
-            with open(output_folder + "/opt%4.4i.xyz" % stepi, "w") as f:
-                f.write(structures[oi])
+    if index is None:
+        return output, E
+    else:
+        return output[0], E[0]
 
-    # Dump indices of optimized structures, energies of optimized structures,
-    # all energies and all structures
-    np.savetxt(output_folder + "/Eopt", np.array(energies)[opt_indices], fmt="%15.8f")
+def traj2npy(filepath, index=None):
+    """Read an xyz file and convert to numpy arrays."""
+    # Read the trajectory
+    strs, E = traj2str(filepath, index=index, as_list=True)
+    
+    atoms = []
+    positions = []
+    for s in strs:
+        at, r = xyz2numpy(s)
+        atoms += [at]
+        positions += [r]
+        
+    if index is None:
+        return atoms, positions, E
+    else:
+        return atoms[0], positions[0], E[0]
 
-    if extra:
-        np.savetxt(output_folder + "/indices", opt_indices, fmt="%i")
-        np.savetxt(output_folder + "/E", energies, fmt="%15.8f")
-        with open(output_folder + "/log.xyz", "w") as f:
-            for s in structures:
-                f.write(s)
+def comment_line_energy(comment_line):
+    m = re.search('-?[0-9]*\.[0-9]*', comment_line)
+    if m:
+        E = float(m.group())
+    else:
+        E = np.nan
+    return E
 
-
-
-
-
+def xyz2numpy(string):
+    """Convert xyz file as a string to a numpy array."""
+    # remove the two lines of the header and any empty lines at the end
+    lines = [l for l in string.split("\n")[2:] if l]
+    atoms = []
+    positions = np.zeros((len(lines), 3))
+    for iatom, line in enumerate(lines):
+        positions[iatom,:] = np.fromstring(line[2:], count=3, sep=" ")
+        atoms += [line[0:2].rstrip().lstrip()]
+    return atoms, positions

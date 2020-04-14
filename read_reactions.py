@@ -5,17 +5,7 @@ from constants import hartree_ev, ev_kcalmol
 import io_utils
 import os
 
-def xyz2smiles(xyzfile, chiral=False):
-    output = []
-    if chiral:
-        flags = {"c":1,"n":1}
-    else:
-        flags = {"c":1,"n":1, "i":1}
-    for m in pybel.readfile("xyz",xyzfile):
-        output+= [m.write(format="smi", opt=flags).rstrip()]
-    return output
-
-def read_reaction(react_folder,chirality=False):
+def read_reaction(react_folder,chiral=False):
     """Extract chemical quantities from a reaction.
 
     Parameters:
@@ -30,8 +20,7 @@ def read_reaction(react_folder,chirality=False):
     TODO
     """
     opt = react_folder + "/opt.xyz"
-    smiles = xyz2smiles(opt, chirality)
-    E = np.loadtxt(react_folder + "/Eopt", ndmin=1)
+    smiles, E = io_utils.traj2smiles(opt, chiral=chiral)
     
     mols = [smiles[0]]
     regions = []
@@ -87,7 +76,7 @@ def read_reaction(react_folder,chirality=False):
            "stretch_points":ipots}
     return out
         
-def read_all_reactions(output_folder, verbose=True, chirality=False):
+def read_all_reactions(output_folder, verbose=True, chiral=False):
     """Read and parse all reactions in a given folder."""
     folders = glob.glob(output_folder + "/react[0-9]*")
     if verbose:
@@ -100,7 +89,7 @@ def read_all_reactions(output_folder, verbose=True, chirality=False):
     
     for f in folders:
         try:
-            read_out = read_reaction(f,chirality)
+            read_out = read_reaction(f,chiral=chiral)
         except OSError:
             # Convergence failed
             failed += [f]
@@ -174,7 +163,7 @@ if __name__ == "__main__":
         outfolder = folder + "/results"
     os.makedirs(outfolder, exist_ok=True)
     
-    pathways = read_all_reactions(folder, chirality=args.c)
+    pathways = read_all_reactions(folder, chiral=args.c)
     reactions = prune_pathways(pathways)
     print("   %6i reaction pathways are unique." % len(reactions))
     print("\n\n")
@@ -195,7 +184,7 @@ if __name__ == "__main__":
                 index += 1
 
 
-    start = "|--=====-----==-- REACTIONS AND BARRIERS (kcal/mol) --==------====---|\n"
+    start = "|--=====-----==--  ⏣ ⮂ 🔥 REACTIONS AND ⛰  BARRIERS (kcal/mol) --==------====---|\n"
     start+= "  #     File         Reaction\n"
     index = 1
     f = open(outfolder + "/summary", "w")
@@ -204,7 +193,7 @@ if __name__ == "__main__":
     for key, val in reactions:
         upper = "%3i >   " % index + val[5]+"   "+  key[0]
         for i in range(1,len(key)):
-            new = " == %.2f ==> " % (val[0][i-1]*hartree_ev * ev_kcalmol) + key[i]
+            new = " = ⛰ %.2f => " % (val[0][i-1]*hartree_ev * ev_kcalmol) + key[i]
             upper += new
         upper += "\n"
 
@@ -213,14 +202,14 @@ if __name__ == "__main__":
 
         with open(outfolder + "/reactions%i.xyz" % index, "w") as ftraj:
             for file, ind in val[3]:
-                xyz = io_utils.read_trajectory(file, ind)
+                xyz, E = io_utils.traj2str(file, ind)
                 ftraj.write(xyz)
         index += 1
 
     table = ("\n\nTable of molecules\n"
               +  "------------------\n")
     for smile, index in mol_index.items():
-        table += "mol%3.3i.png\t"% index + smile + "\n"
+        table += "📁 mol%3.3i.png\t"% index + smile + "\n"
 
     print(table)
     f.write(table)

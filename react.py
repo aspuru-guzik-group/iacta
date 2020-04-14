@@ -1,87 +1,16 @@
 from concurrent.futures import ThreadPoolExecutor
 import react_utils
-from io_utils import read_trajectory, dump_succ_opt
+from io_utils import traj2str
 from math import inf
 import os
+from glob import glob
+import tempfile
+from constants import hartree_ev, ev_kcalmol
 
 """
 This file contains a bunch of user-friendly, multithreaded drivers for
 react_utils.
 """
-
-def default_parameters(Natoms,
-                       nmtd=80,
-                       optlevel="tight",
-                       ethreshold=inf,
-                       shake=0,
-                       log_level=0):
-    """Generate a dictionary of default parameters for the reaction search.
-
-    The parameters are loosely based on those described in the CREST paper.
-
-    Parameters:
-    -----------
-
-    Natoms (int) : number of atoms.
-
-    Optional Parameters:
-    --------------------
-    nmtd (int) : number of structures to extract from the metadynamics
-    portion.
-
-    optlevel (str) : Optimization level to used throughout. Defaults to
-    "tight".
-
-    ethreshold (float) : Energy threshold for the successive optimizations. If
-    a barrier ever reaches this threshold, the optimization goes no further.
-
-    shake (int) : SHAKE level (0, 1 or 2). If SHAKE is > 0, the time
-    parameters are adjusted to go faster.
-
-    log_level (int) : Logging level. 0 -> normal, 1-> intermediate
-    optimization steps. 2 -> keep all temp files (TODO: not implemented yet).
-
-    Returns:
-    --------
-
-    dict : parameters dictionary to pass to other functions in react.py
-
-    """
-    parameters = {}
-    parameters["nmtd"] = nmtd
-    parameters["optlevel"] = optlevel
-    parameters["ethreshold"] = ethreshold
-
-    # Logging
-    if log_level > 0:
-        parameters["log_opt_steps"] = True
-    else:
-        parameters["log_opt_steps"] = False
-
-    
-    # xTB additional parameters
-    parameters["wall"] = ("potential=logfermi",
-                          "sphere: auto, all")
-
-    # Metadynamics parameters (somewhat adapted from CREST)
-    total_time = 0.5 * Natoms
-    dumpstep = 1000 * total_time/nmtd
-    parameters["metadyn"] = ("save=%i" % nmtd, 
-                             "kpush=0.2",
-                             "alp=0.8")
-
-    if shake == 0:
-        parameters["md"] = ("shake=0",
-                            "step=2",
-                            "dump=%f" % dumpstep,
-                            "time=%f" % total_time)
-    else:
-        parameters["md"] = ("shake=%i" % shake,
-                            "step=10",
-                            "dump=%f" % dumpstep,
-                            "time=%f" % total_time)
-
-    return parameters
 
 def generate_initial_structures(xtb_driver,
                                 workdir,
@@ -93,25 +22,23 @@ def generate_initial_structures(xtb_driver,
                                 
     if verbose:
         print("-----------------------------------------------------------------")
-        print("Performing initial stretching...")
+        print("Performing initial stretching 💪😎💪...")
 
     outputdir = workdir + "/init"
     os.makedirs(outputdir)
     
-    structures, energies, opt_indices = react_utils.successive_optimization(
+    structures, energies = react_utils.successive_optimization(
         xtb_driver, guess_xyz_file,
         constraints, parameters, # no barrier for initial run
         failout=outputdir + "/FAILED",
         verbose=verbose)
 
-    computed = len(opt_indices)
+    computed = len(structures)
 
-    dump_succ_opt(outputdir,
-                  structures,
-                  energies,
-                  opt_indices,
-                  extra=parameters["log_opt_steps"],
-                  split=True)
+    react_utils.dump_succ_opt(outputdir,
+                              structures,
+                              energies,
+                              split=True)
     if verbose:
         print("Done!  %i steps were evaluated. \n"%computed)
     return computed
@@ -126,22 +53,100 @@ def metadynamics_search(xtb_driver,
 
     if verbose:
         print("-----------------------------------------------------------------")
-        print("Performing metadynamics job on indices...")
+        print("Performing metadynamics jobs 👷...")
         print(mtd_indices)
-        print("with %i threads." % nthreads)
+        print("with %i threads. Working..." % nthreads)
 
-    futures = []
+        
     with ThreadPoolExecutor(max_workers=nthreads) as pool:
-        for mtd_index in mtd_indices:
-            futures += [
-                pool.submit(
-                    react_utils.metadynamics_job(
-                        xtb_driver, mtd_index,
-                        workdir +"/init", workdir + "/metadyn",
-                        constraints, parameters))]
+        futures = []
 
+        for mtd_index in mtd_indices:
+            mtd_jobs = react_utils.metadynamics_jobs(
+                xtb_driver, mtd_index,
+                workdir +"/init", workdir + "/metadyn",
+                constraints, parameters)
+
+            for ji,j in enumerate(mtd_jobs):
+                futures += [pool.submit(j)]
+                
+                if verbose:
+                    futures[-1].add_done_callback(
+                        lambda _: print("🔨",end="",flush=True))
+
+        for f in futures:
+            f.result()
+                    
     if verbose:
-        print("Done!\n")
+        print("\nDone!\n")
+
+def metadynamics_refine(xtb_driver,
+                        workdir,
+                        reference,
+                        mtd_indices,
+                        constraints,
+                        parameters,
+                        verbose=True,
+                        nthreads=1):
+    refined_dir = workdir + "/CRE"
+    mtd_dir = workdir + "/metadyn"
+    os.makedirs(refined_dir, exist_ok=True)
+    
+    for mtd_index in mtd_indices:
+        structures = []
+        Es = []
+        for file in glob(mtd_dir + "/mtd%4.4i_*.xyz"%mtd_index):
+            structs, E = traj2str(file)
+            structures += structs
+            Es += E
+            
+        # Loosely optimize the structures in parallel
+        if verbose:
+            print("MTD%i>\tloaded %i structures, optimizing 📐..."
+                  %(mtd_index, len(structures)))
+        with ThreadPoolExecutor(max_workers=nthreads) as pool:
+            futures = []
+            for s in structures:
+                future = pool.submit(
+                    react_utils.quick_opt_job,
+                    xtb_driver, s, parameters["optim"],
+                    dict(wall=parameters["wall"],
+                         constrain=constraints[mtd_index]))
+                futures += [future]
+                
+        converged = []
+        errors = []
+        for f in futures:
+            exc = f.exception()
+            if exc:
+                errors += [f]
+            else:
+                converged += [f.result()]
+
+        if verbose:
+            print("        converged 👍: %i"% len(converged))
+            print("        errors 👎: %i"%len(errors))
+
+        if verbose:
+            print("        carefully selecting conformers 🔎...")
+
+        fn = refined_dir + "/mtd%4.4i.xyz" % mtd_index
+        f = open(fn, "w")
+        for s, E in converged:
+            f.write(s)
+        f.close()
+
+        cre = xtb_driver.cregen(reference,
+                                fn, fn,
+                                ewin=parameters["ewin"],
+                                rthr=parameters["rthr"],
+                                ethr=parameters["ethr"],
+                                bthr=parameters["bthr"])
+
+        error = cre()
+        s, E = traj2str(fn)
+        if verbose:
+            print("  → %i structures selected for reactions 🔥" % len(s))
 
 def react(xtb_driver,
           workdir,
@@ -151,34 +156,67 @@ def react(xtb_driver,
           verbose=True,
           nthreads=1):
     if verbose:
+        print("\n")
         print("-----------------------------------------------------------------")
-        print("Performing reactions...")
+        print("  miniGabe 🧔,")
+        print("           a reaction search ⏣ → 🔥 algorithm")
+        print("-----------------------------------------------------------------")
     
     # load all the structures
-    meta = workdir+"/metadyn"
+    meta = workdir+"/CRE"
+
+    # Make a large list of all the reactions
+    if verbose:
+        print("Loading metadynamics structures...")
+
+    all_structures = []
+    for mtd_index in mtd_indices:
+        structures, energies = traj2str(
+            meta + "/mtd%4.4i.xyz" % mtd_index)
+        # CREGEN has sorted these too so the first element is the lowest
+        # energy one.
+        
+        if verbose:
+            print("   MTD%i> N(⏣ 🡒 🔥) = %i"
+                  %(mtd_index, len(structures)))
+            
+        all_structures += [[mtd_index,structures]]
+    if verbose:
+        print("building round-robin worklist...")
+
+    worklist = []
+    while True:
+        for mtd_index, ls_structs in all_structures:
+            if len(ls_structs):
+                worklist += [(mtd_index,ls_structs.pop(0))]
+            else:
+                all_structures.remove([mtd_index,ls_structs])
+                
+        if len(all_structures) == 0:
+            break
+        
+    if verbose:
+        print("📜 = %i reactions to compute"% len(worklist))
+        print("    with the help of 🧔 × %i threads" % nthreads)
 
     nreact = 0
     with ThreadPoolExecutor(max_workers=nthreads) as pool:
         futures = []
 
-        for mtd_index in mtd_indices:
-            structures, energies = read_trajectory(
-                meta + "/mtd%4.4i.xyz" % mtd_index)
+        for mtd_index, structure in worklist:
+            futures += [pool.submit(
+                react_utils.reaction_job(
+                    xtb_driver,
+                    structure,
+                    mtd_index,
+                    workdir + "/react%5.5i/" % nreact,
+                    constraints,
+                    parameters))]
+            nreact = nreact + 1
 
-            if verbose:
-                print("   mtdi = %4i    n(react) = %i"
-                      %(mtd_index+1, len(structures)))
-                
-            for s in structures:
-                futures += [pool.submit(
-                    react_utils.reaction_job(
-                        xtb_driver,
-                        s,
-                        mtd_index,
-                        workdir + "/react%5.5i/" % nreact,
-                        constraints,
-                        parameters))]
-                nreact = nreact + 1
+        for f in futures:
+            # crash if f raised exception
+            f.result()
 
     if verbose:
-        print("Done!\n\n")
+        print("No more work to do! 🧔🍻\n\n")

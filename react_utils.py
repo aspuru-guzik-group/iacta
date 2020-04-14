@@ -4,13 +4,43 @@ import subprocess
 import numpy as np
 import tempfile
 import re
-from io_utils import read_trajectory, dump_succ_opt
+from io_utils import traj2str
+
+# ------------------- utility routines -----------------------------------#
+def dump_succ_opt(output_folder, structures, energies,
+                  split=False):
+    
+    os.makedirs(output_folder, exist_ok=True)
+    # Dump the optimized structures in one file                
+    with open(output_folder + "/opt.xyz", "w") as f:
+        for s in structures:
+            f.write(s)
+            
+    if split:
+        # Also dump the optimized structures in many files            
+        for stepi, s in enumerate(structures):
+            with open(output_folder + "/opt%4.4i.xyz" % stepi, "w") as f:
+                f.write(s)
+
+def quick_opt_job(xtb, xyz, level, xcontrol):
+    # TODO comment
+    with tempfile.NamedTemporaryFile(suffix=".xyz",
+                                     dir=xtb.scratchdir) as T:
+        T.write(bytes(xyz, 'ascii'))
+        T.flush()
+        opt = xtb.optimize(T.name,
+                           T.name,
+                           level=level,
+                           xcontrol=xcontrol)
+        opt()
+        xyz, E = traj2str(T.name, 0)
+    return xyz, E
+# ------------------------------------------------------------------------------#
 
 def successive_optimization(xtb,
                             initial_xyz,
                             constraints,
                             parameters,
-                            barrier=np.inf,
                             failout=None,
                             verbose=True):
     """Optimize a structure through successive constraints.
@@ -60,7 +90,7 @@ def successive_optimization(xtb,
     """
     if not constraints:
         # nothing to do
-        return [], [], []
+        return [], []
 
     # Make scratch files
     fdc, current = tempfile.mkstemp(suffix=".xyz", dir=xtb.scratchdir)
@@ -71,13 +101,9 @@ def successive_optimization(xtb,
     shutil.copyfile(initial_xyz, current)
     structures = []
     energies = []
-    opt_indices = []
-    
 
     if verbose:
         print("  %i successive optimizations" % len(constraints))
-
-    Emin = np.inf
 
     for i in range(len(constraints)):
         direction = "->"
@@ -88,7 +114,7 @@ def successive_optimization(xtb,
                            current,
                            log=log,
                            failout=failout,
-                           level=parameters["optlevel"],
+                           level=parameters["optim"],
                            restart=restart,
                            xcontrol=dict(
                                wall=parameters["wall"],
@@ -98,19 +124,17 @@ def successive_optimization(xtb,
             # An optimization failed, we get out of this loop.
             break
         
-        news, newe = read_trajectory(log)
-        structures += news
-        energies += newe
-        opt_indices += [len(structures)-1]
-        if newe[-1] < Emin:
-            Emin = newe[-1]     # a new energy minimum
+        news, newe = traj2str(log)
+        structures += [news[np.argmin(newe)]]
+        energies += [np.min(newe)]
             
         if verbose:
-            print("   nsteps=%4i   Energy=%9.5f Eₕ"%(len(news), newe[-1]))
+            print("   step👣=%4i    energy💡= %9.5f Eₕ"%(len(news),
+                                                         energies[-1]))
 
-        if newe[-1] > barrier + Emin:
+        if newe[-1] > parameters["emax"]:
             if verbose:
-                print("   ----- barrier threshold exceeded -----")
+                print("   ----- energy threshold exceeded -----")
             break
 
     # Got to make sure that you close the filehandles!
@@ -120,15 +144,15 @@ def successive_optimization(xtb,
     os.remove(current)
     os.remove(log)
     os.remove(restart)
-    return structures, energies, opt_indices
+    return structures, energies
         
 
-def metadynamics_job(xtb,
-                     mtd_index,
-                     input_folder,
-                     output_folder,
-                     constraints,
-                     parameters):
+def metadynamics_jobs(xtb,
+               mtd_index,
+               input_folder,
+               output_folder,
+               constraints,
+               parameters):
     """Return a metadynamics search job for other "transition" conformers.
 
     mtd_index is the index of the starting structure to use as a starting
@@ -166,16 +190,27 @@ def metadynamics_job(xtb,
 
     """
     os.makedirs(output_folder, exist_ok=True)
-    
-    mjob = xtb.metadyn(input_folder + "/opt%4.4i.xyz" % mtd_index,
-                       output_folder + "/mtd%4.4i.xyz" % mtd_index,
-                       failout=output_folder +"/FAILEDmtd%4.4i"%mtd_index,
-                       xcontrol=dict(
-                           wall=parameters["wall"],
-                           metadyn=parameters["metadyn"],
-                           md=parameters["md"],
-                           constrain=constraints[mtd_index]))
-    return mjob
+
+    mjobs = []
+    meta = parameters["metadynamics"]
+    inp = input_folder + "/opt%4.4i.xyz" % mtd_index
+    # Set the time of the propagation based on the number of atoms.
+    with open(inp, "r") as f:
+        Natoms = int(f.readline())
+    md = meta["md"] + ["time=%f" % (meta["time_per_atom"] * Natoms)]
+        
+    for metadyn_job, metadyn_params in enumerate(meta["jobs"]):
+        outp = output_folder + "/mtd%4.4i_%2.2i.xyz" % (mtd_index,metadyn_job)
+        mjobs += [
+            xtb.metadyn(inp,outp,
+                        failout=output_folder +
+                        "/FAIL%4.4i_%2.2i.xyz" % (mtd_index, metadyn_job),
+                        xcontrol=dict(
+                            wall=parameters["wall"],
+                            metadyn=metadyn_params,
+                            md=md,
+                            constrain=constraints[mtd_index]))]
+    return mjobs
 
     
 def reaction_job(xtb,
@@ -232,11 +267,10 @@ def reaction_job(xtb,
             f.write(initial_xyz)
 
         # Forward reaction
-        fstructs, fe, fopt = successive_optimization(
+        fstructs, fe = successive_optimization(
             xtb, output_folder + "/initial.xyz",
             constraints[mtd_index:],
             parameters,
-            barrier=parameters["ethreshold"],
             failout=output_folder + "/FAILED_FORWARD",
             verbose=False)          # otherwise its way too verbose
 
@@ -245,14 +279,12 @@ def reaction_job(xtb,
         with open(output_folder + "/initial_backward.xyz", "w") as f:
             f.write(fstructs[0])
             
-        cbacks = constraints[0:mtd_index][::-1]
-
+        
         # Backward reaction
-        bstructs, be, bopt = successive_optimization(
+        bstructs, be = successive_optimization(
             xtb, output_folder + "/initial_backward.xyz",
-            cbacks,
+            constraints[mtd_index-1:-1:-1],
             parameters,
-            barrier=parameters["ethreshold"],
             failout=output_folder + "/FAILED_BACKWARD",            
             verbose=False)          # otherwise its way too verbose
 
@@ -260,8 +292,10 @@ def reaction_job(xtb,
         dump_succ_opt(output_folder,
                       bstructs[::-1] + fstructs,
                       be[::-1] + fe,
-                      bopt[::-1] + fopt,
-                      split=False,
-                      extra=parameters["log_opt_steps"])
-        
+                      split=False)
+
     return react_job
+
+
+
+

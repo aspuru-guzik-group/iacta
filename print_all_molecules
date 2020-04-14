@@ -1,0 +1,2 @@
+#!/bin/bash
+cat $@ | obabel -i xyz -o smiles -xi -xn | sort -u
