@@ -1,5 +1,6 @@
 import numpy as np
 import react
+import read_reactions
 import xtb_utils
 import io_utils
 import os
@@ -96,7 +97,22 @@ def rsearch(out_dir, defaults,
     # -------------------------
     slow, shigh = params["stretch_limits"]
     step = params["stretch_resolution"]
-    pts = np.arange(bond_length0 * slow, bond_length0 * shigh, step)
+    if params["stretch_resolution"]:
+        if params["stretch_num"]:
+            raise RuntimeError("Both stretch_num and stretch_resolution are"
+                               +" set. I don't know which one to pick!")
+        else:
+            step = params["stretch_resolution"]
+            pts = np.arange(bond_length0 * slow, bond_length0 * shigh, step)
+    elif params["stretch_num"]:
+        pts = np.linspace(bond_length0 * slow, bond_length0 * shigh,
+                          params["stretch_num"])
+    else:
+        raise RuntimeError("Neither stretch_num nor"
+                           +" stretch_resolution are set.")
+        
+
+
 
     print("Stretching bond between atoms %s%i and %s%i"
           %(atoms[bond[0]-1], bond[0], atoms[bond[1]-1], bond[1]))
@@ -124,34 +140,34 @@ def rsearch(out_dir, defaults,
     # geometries.
     reactant, E0 = io_utils.traj2smiles(init0, index=0)
     init, E = io_utils.traj2smiles(out_dir + "/init/opt.xyz")
+    reaction = read_reactions.read_reaction(out_dir + "/init")
     E = np.array(E)
     step = params["mtd_step"]
-    react_indices = [i for i,smi in enumerate(init) if smi==reactant]
-    
     print("Reactant 👉", reactant)
+    print("Molecules 👇")
+    for i in range(len(reaction["E"])):
+        if reaction["is_stable"][i]:
+            print("%3i  %+7.3f -> %s" % (reaction["stretch_points"][i],
+                                          reaction["E"][i],
+                                          reaction["SMILES"][i]))
+        else:
+            print("%3i  %+7.3f     ...  ⛰  ..." %
+                  (reaction["stretch_points"][i], reaction["E"][i]))
+    mtd_indices = [k for k in reaction["stretch_points"]]
+    mtd_indices += list(np.arange(0,len(E), step))
+    
     if params["mtd_only_reactant"]:
+        mtd_indices = [i for i in mtd_indices if init[i] == reactant]
         print("     ... metadynamics performed only for reactants")
-        mtd_indices = react_indices[::step]
         # also do the final step and the next step over, as well as the first
         # step and the one just before
-        mtd_indices += [react_indices[-1],
-                        min(react_indices[-1] + 1, len(E)-1),
-                        react_indices[0],
-                        max(react_indices[0]-1,0)]
-    else:
-        mtd_indices = [i for i,smi in enumerate(init)][::step]
+        mtd_indices += [max(mtd_indices) + 1,
+                        min(mtd_indices) - 1]
 
-    # if reactant is there, add the minima and maxima of reactant
-    if len(react_indices):
-        Ereact = E[react_indices]
-        mtd_indices += [react_indices[np.argmin(Ereact)],
-                        react_indices[np.argmax(Ereact)]]
-    else:
-        # otherwise, do global minima and maxima
-        mtd_indices += [np.argmax(E), np.argmin(E)]
-        
-    # Sort the indices, do not do the same point twice.
-    mtd_indices = sorted(list(set(mtd_indices)))
+    # Sort the indices, do not do the same point twice, make sure the points
+    # are in bound
+    mtd_indices = sorted(list(set([i for i in mtd_indices
+                                   if (i >= 0 and i < len(E))])))
     if len(mtd_indices) == 0:
         print("Reactant not found in initial stretch! 😢")
         print("Optimization probably reacted. Alter geometry and try again.")
@@ -244,7 +260,7 @@ if __name__ == "__main__":
     parser.add_argument("--optim", help="Optimization level.", type=str)
 
     parser.add_argument("-s","--stretch-limits", help="Bond stretch limits.", nargs=2,type=float)
-    parser.add_argument("-r","--stretch-resolution", help="Number of bond stretches.", type=int)
+    parser.add_argument("-n","--stretch-num", help="Number of bond stretches.", type=int)    
     parser.add_argument("-k","--force-constant", help="Force constant of the stretch.", type=float)
 
     parser.add_argument("--gfn", help="gfn version.", type=str)

@@ -38,6 +38,7 @@ if __name__ == "__main__":
         
     # Prepare output files
     # --------------------
+    # TODO: add restart capabs
     if args.o:
         out_dir = args.o
     else:

@@ -1,9 +1,6 @@
 atoms:
 - 2
 - 4
-stretch_limits:
-- 1.0
-- 3.0
 xyz: |
   30
   

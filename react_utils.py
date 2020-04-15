@@ -41,6 +41,7 @@ def successive_optimization(xtb,
                             initial_xyz,
                             constraints,
                             parameters,
+                            barrier=True,
                             failout=None,
                             verbose=True):
     """Optimize a structure through successive constraints.
@@ -132,7 +133,7 @@ def successive_optimization(xtb,
             print("   step👣=%4i    energy💡= %9.5f Eₕ"%(len(news),
                                                          energies[-1]))
 
-        if newe[-1] > parameters["emax"]:
+        if newe[-1] > parameters["emax"] and barrier:
             if verbose:
                 print("   ----- energy threshold exceeded -----")
             break
@@ -202,7 +203,7 @@ def metadynamics_jobs(xtb,
     for metadyn_job, metadyn_params in enumerate(meta["jobs"]):
         outp = output_folder + "/mtd%4.4i_%2.2i.xyz" % (mtd_index,metadyn_job)
         mjobs += [
-            xtb.metadyn(inp,outp,
+            xtb.metadyn(inp, outp,
                         failout=output_folder +
                         "/FAIL%4.4i_%2.2i.xyz" % (mtd_index, metadyn_job),
                         xcontrol=dict(
@@ -278,12 +279,11 @@ def reaction_job(xtb,
         # for the backward propagation
         with open(output_folder + "/initial_backward.xyz", "w") as f:
             f.write(fstructs[0])
-            
         
         # Backward reaction
         bstructs, be = successive_optimization(
             xtb, output_folder + "/initial_backward.xyz",
-            constraints[mtd_index-1:-1:-1],
+            constraints[:mtd_index][::-1],
             parameters,
             failout=output_folder + "/FAILED_BACKWARD",            
             verbose=False)          # otherwise its way too verbose
