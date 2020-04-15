@@ -40,8 +40,8 @@ stretch_resolution:             # Resolution of stretch in A
 
 # ---------------------------------------------------------------------------#
 # Points where metadynamics are performed.
-mtd_only_reactant: false        # Do metadynamics only for the reactant.
-mtd_step: 8                     # Metadynamics every x points of stretch.
+mtd_only_reactant: true         # Do metadynamics only for the reactant.
+mtd_step: 4                     # Metadynamics every x points of stretch.
 
   
 # ---------------------------------------------------------------------------#
@@ -58,9 +58,9 @@ metadynamics:
     - ["kpush=0.500", "alpha=0.200"]
     - ["kpush=0.500", "alpha=1.000"]    
   md:
-    - "dump=100.0"
+    - "dump=200.0"
     - "shake=2"
-    - "step=5"
+    - "step=3"
 
 # Initial geometry, as an xyz string
 xyz: |
