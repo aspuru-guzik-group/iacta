@@ -152,7 +152,13 @@ def rsearch(out_dir, defaults,
         else:
             print("%3i  %+7.3f     ...  ⛰  ..." %
                   (reaction["stretch_points"][i], reaction["E"][i]))
-    mtd_indices = [k for k in reaction["stretch_points"]]
+            
+    # mtd_indices at local minima and local maxima
+    dE = np.diff(E)
+    mtd_indices = []
+    for i in range(1,len(dE)):
+        if dE[i] * dE[i-1] < 0:     # intermediate value theorem
+            mtd_indices += [i]
 
     # additional indices at repeated intervals
     step = params["mtd_step"]
