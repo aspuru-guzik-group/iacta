@@ -1,6 +1,7 @@
 atoms:
 - 7
 - 8
+stretch_limits: [1.0, 6.0] # to get other positions
 xyz: |
   20
   

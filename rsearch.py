@@ -142,7 +142,6 @@ def rsearch(out_dir, defaults,
     init, E = io_utils.traj2smiles(out_dir + "/init/opt.xyz")
     reaction = read_reactions.read_reaction(out_dir + "/init")
     E = np.array(E)
-    step = params["mtd_step"]
     print("Reactant 👉", reactant)
     print("Molecules 👇")
     for i in range(len(reaction["E"])):
@@ -154,7 +153,11 @@ def rsearch(out_dir, defaults,
             print("%3i  %+7.3f     ...  ⛰  ..." %
                   (reaction["stretch_points"][i], reaction["E"][i]))
     mtd_indices = [k for k in reaction["stretch_points"]]
-    mtd_indices += list(np.arange(0,len(E), step))
+
+    # additional indices at repeated intervals
+    step = params["mtd_step"]
+    if step:
+        mtd_indices += list(np.arange(0,len(E), step))
     
     if params["mtd_only_reactant"]:
         mtd_indices = [i for i in mtd_indices if init[i] == reactant]

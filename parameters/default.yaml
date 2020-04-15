@@ -8,7 +8,7 @@ uhf:
 
 # ---------------------------------------------------------------------------#
 # Optimization of stretched and unstretched structures. 
-optim: tight                    # default level
+optim: tight                  # default level
 wall: 
   # Potential "wall" keeping molecules together. The following are just the
   # lines of the wall group.
@@ -40,8 +40,9 @@ stretch_resolution:             # Resolution of stretch in A
 
 # ---------------------------------------------------------------------------#
 # Points where metadynamics are performed.
-mtd_only_reactant: true         # Do metadynamics only for the reactant.
-mtd_step: 4                     # Metadynamics every x points of stretch.
+mtd_only_reactant: false        # Do metadynamics only for the reactant.
+mtd_step:                       # Metadynamics every x points of stretch. If
+                                # false, do mtd only at TS and minima.
 
   
 # ---------------------------------------------------------------------------#
