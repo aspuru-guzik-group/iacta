@@ -46,21 +46,16 @@ mtd_step: 4                     # Metadynamics every x points of stretch.
   
 # ---------------------------------------------------------------------------#
 metadynamics:
-  save: 50                      # number of artificial MTD potentials
+  nmtd: 120
   time_per_atom: 0.5            # total time / Natoms (ps) for each mtd run
 
   jobs:
     # These are the parameters for each metadynamics runs, taken from CREST
-    # mquick. As described in the CREST paper, the optimal values for kpush
-    # and alpha are not known, so instead we do a parameter sweep.
-    - ["kpush=0.100", "alpha=0.200"]
-    - ["kpush=0.100", "alpha=1.000"]
-    - ["kpush=0.500", "alpha=0.200"]
-    - ["kpush=0.500", "alpha=1.000"]    
+    # paper (nanoreactor part).
+    - ["kpush=0.200", "alp=0.800"]
   md:
-    - "dump=200.0"
-    - "shake=2"
-    - "step=3"
+    - "shake=0"
+    - "step=1"
 
 # Initial geometry, as an xyz string
 xyz: |
