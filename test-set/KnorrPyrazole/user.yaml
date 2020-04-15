@@ -1,6 +1,8 @@
 atoms:
 - 14
 - 27
+solvent: methanol
+etemp: 500.0
 xyz: |
   28
   

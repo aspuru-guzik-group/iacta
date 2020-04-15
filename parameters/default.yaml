@@ -41,7 +41,7 @@ stretch_resolution:             # Resolution of stretch in A
 # ---------------------------------------------------------------------------#
 # Points where metadynamics are performed.
 mtd_only_reactant: false        # Do metadynamics only for the reactant.
-mtd_step:                       # Metadynamics every x points of stretch. If
+mtd_step: 8                     # Metadynamics every x points of stretch. If
                                 # false, do mtd only at TS and minima.
 
   
