@@ -283,7 +283,7 @@ def reaction_job(xtb,
         # Backward reaction
         bstructs, be = successive_optimization(
             xtb, output_folder + "/initial_backward.xyz",
-            constraints[mtd_index-1:-1:-1],
+            constraints[:mtd_index][::-1],
             parameters,
             failout=output_folder + "/FAILED_BACKWARD",            
             verbose=False)          # otherwise its way too verbose
