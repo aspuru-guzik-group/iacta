@@ -166,8 +166,7 @@ def rsearch(out_dir, defaults,
         if params["mtd_only_reactant"]:
             mtd_indices = [i for i in mtd_indices if init[i] == reactant]
             print("     ... metadynamics performed only for reactants")
-            # also do the final step and the next step over, as well as the first
-            # step and the one just before
+            # Also do the steps just before and just after
             mtd_indices += [max(mtd_indices) + 1,
                             min(mtd_indices) - 1]
 

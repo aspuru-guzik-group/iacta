@@ -1,17 +1,19 @@
 # ---------------------------------------------------------------------------#
 # Parameters passed to xtb
-etemp: '300.0'                 # electronic temperature
 gfn: '2'                       # gfn version
+# Not setting the following = taking the xtb default
+etemp:
 solvent:
 chrg:
 uhf:
 
 # ---------------------------------------------------------------------------#
 # Optimization of stretched and unstretched structures. 
-optim: vtight                  # default level
+optim: normal
 
 # Potential "wall" keeping molecules together. The following are just the
-# lines of the wall group.
+# lines of the wall group. This is needed mainly for the metadynamics portion,
+# otherwise the molecules just fly away from eachother.
 wall: 
   - 'potential=logfermi'
   - 'sphere: auto, all'
@@ -20,47 +22,58 @@ wall:
 # Parameters used by CREGEN to compare structures and decide if they are
 # identical. These are more generous (significantly) than the CREST one
 # because we want to really push diversity and limit similarity.
-optcregen: normal
-ewin: 70.0                      # maximum energy in kcal /mol above the energy
+ewin: 60.0                      # maximum energy in kcal /mol above the energy
                                 # of the initial structure E0.
 rthr: 0.4                       # RMSD threshold (in A)
-ethr: 0.5                       # energy threshold (in kcal/mol)
+ethr: 1.0                       # energy threshold (in kcal/mol)
 bthr: 2.0                       # rotational const threshold
+
+# Before we start CREGEN, we first optimize the structures obtained in
+# metadynamics at the following optimization level,
+optcregen: loose
 
 # ---------------------------------------------------------------------------#
 # Parameters related to the atoms to be stretched. This will then be
 # turned into constraints.
 atoms:
-stretch_limits: [1.0, 3.0]
-force: 1.0                      # in Hartree/bohr
-# One of these two should be set
-stretch_num: 100                 # Number of points for stretch
+stretch_limits: [1.0, 3.0]      # Bond stretched between 1x and 3x eq. length
+force: 1.0                      # Force of stretch, in Hartree/bohr
+
+# Only one of these two should be set. 
+stretch_num: 100                # Number of points for stretch
 stretch_resolution:             # Resolution of stretch in A
 
-
-
 # ---------------------------------------------------------------------------#
-# Points where metadynamics are performed.
-mtd_only_reactant: false        # Do metadynamics only for the reactant.
-mtd_step:                       # Metadynamics every x points of stretch. If
-                                # false, do mtd only at TS and minima.
+# The following parameters determine where (in terms of bond stretch)
+# metadynamics is performed.
+mtd_only_reactant: true         # Do metadynamics only for the reactant.
+mtd_step: 4                     # Metadynamics every x points of stretch. If
+                                # null, do mtd only at TS and minima.
+# We can also set those points explicitly.
 mtdi:
   
 # ---------------------------------------------------------------------------#
+# The following parameters relate to the metadynamics portion. The defaults
+# balance performance and exploration.
 metadynamics:
+  # This is the number of structure to harvest from each metadynamics job
   nmtd: 80
+  time_per_atom: 0.5            # total time / Natoms (ps) for each job
+
+  # The remaining parameters are adapted from the CREST paper (the nanoreactor
+  # part). We do four sample at each index, with variying kpush and alpha
+  # parameters (similar to CREST conformer search).
   save: 80
-  time_per_atom: 0.5            # total time / Natoms (ps) for each mtd run
-
   jobs:
-    # These are the parameters for each metadynamics runs, taken from CREST
-    # paper (nanoreactor part).
     - ["kpush=0.200", "alp=0.800"]
+    - ["kpush=0.200", "alp=0.200"]
+    - ["kpush=0.050", "alp=0.800"]
+    - ["kpush=0.050", "alp=0.200"]    
   md:
-    - "shake=0"
-    - "step=2"
+    - "shake=0"                 # shake off
+    - "step=2"                  # MD timestep, in fs
 
-# Initial geometry, as an xyz string
+# Finally, the initial structure
 xyz: |
   3
 
