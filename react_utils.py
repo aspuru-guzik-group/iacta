@@ -201,7 +201,7 @@ def metadynamics_jobs(xtb,
     md = meta["md"] + ["time=%f" % (meta["time_per_atom"] * Natoms),
                        "dump=%f" % (meta["time_per_atom"] * Natoms
                                     * 1000.0/meta["nmtd"])]
-    S = "save=%i" % meta["nmtd"]
+    S = "save=%i" % meta["save"]
         
     for metadyn_job, metadyn_params in enumerate(meta["jobs"]):
         outp = output_folder + "/mtd%4.4i_%2.2i.xyz" % (mtd_index,metadyn_job)

@@ -19,7 +19,7 @@ wall:
 # Parameters used by CREGEN to compare structures and decide if they are
 # identical. These are more generous (significantly) than the CREST one
 # because we want to really push diversity and limit similarity.
-optcregen: lax
+optcregen: normal
 ewin: 70.0                      # maximum energy in kcal /mol above the energy
                                 # of the initial structure E0.
 rthr: 0.4                       # RMSD threshold (in A)
@@ -33,7 +33,7 @@ atoms:
 stretch_limits: [1.0, 3.0]
 force: 1.0                      # in Hartree/bohr
 # One of these two should be set
-stretch_num: 100                # Number of points for stretch
+stretch_num: 100                 # Number of points for stretch
 stretch_resolution:             # Resolution of stretch in A
 
 
@@ -41,19 +41,20 @@ stretch_resolution:             # Resolution of stretch in A
 # ---------------------------------------------------------------------------#
 # Points where metadynamics are performed.
 mtd_only_reactant: false        # Do metadynamics only for the reactant.
-mtd_step: 8                     # Metadynamics every x points of stretch. If
+mtd_step:                       # Metadynamics every x points of stretch. If
                                 # false, do mtd only at TS and minima.
 
   
 # ---------------------------------------------------------------------------#
 metadynamics:
-  nmtd: 120
+  nmtd: 500
+  save: 50
   time_per_atom: 0.5            # total time / Natoms (ps) for each mtd run
 
   jobs:
     # These are the parameters for each metadynamics runs, taken from CREST
     # paper (nanoreactor part).
-    - ["kpush=0.200", "alp=0.800"]
+    - ["kpush=0.200", "alp=0.200"]
   md:
     - "shake=0"
     - "step=1"
