@@ -278,6 +278,10 @@ def reaction_job(xtb,
             failout=output_folder + "/FAILED_FORWARD",
             verbose=False)          # otherwise its way too verbose
 
+        if len(fstructs) == 0:
+            # fail on the first opt
+            return
+
         # fstructs 0 is already optimized so we use it as the starting point
         # for the backward propagation
         with open(output_folder + "/initial_backward.xyz", "w") as f:
