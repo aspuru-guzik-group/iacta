@@ -305,3 +305,42 @@ mtd_only_reactant in Knorr, see if that was the problem.
 * Results
 Turns out that the previous runs were a bit broken by the presence of a very
 very serious bug. Now that this is fixed, we are starting anew.
+** a8963f5
+Summary:
+- Too many structures are eliminated by CREGEN (AroClaisen)
+- Too many trajectories (DieckmannCondensation)
+- Convergence issues in MTD (DieckmannCondensation, GabesCatalyst,
+  KnorrPyrazole)
+- Barriers too high in many runs (points to exploration issues)
+Result:
+- I will try back the old set of params, the one that originally worked...
+- Possibly shake needs to be removed for MTD to work
+- optcregen=lax is probably a major reason why CREGEN eliminates too many things in AroClaisen.
+*** AroClaisen
+- 20 trajectories, 1 pathway
+- Right product
+- Many structures eliminated by CREGEN
+*** CoreyChaikovsky
+- 853 trajectories, 50 pathways
+- Good!
+*** DieckmannCondensation
+- 1417 trajectories, 97 pathways
+- Good!
+- Some MTD convergence issues.
+*** DielsAlder
+- 272 trajectories, 9 pathways
+- Product is right
+- Barriers too high
+- Lots of structures (90%) eliminated by CREGEN
+*** GabesCatalyst
+- 344 trajectories, 3 pathways
+- Products are right
+- Barriers too high
+- MTD convergence issues
+*** KnorrPyrazole
+- 613 trajectories, 38 reaction pathways
+- Product not found...
+- MTD convergence issues
+*** Sn2MeI
+- 435 trajectories, 4 reaction pathways
+- Barriers way too high

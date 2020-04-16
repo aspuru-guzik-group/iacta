@@ -198,7 +198,10 @@ def metadynamics_jobs(xtb,
     # Set the time of the propagation based on the number of atoms.
     with open(inp, "r") as f:
         Natoms = int(f.readline())
-    md = meta["md"] + ["time=%f" % (meta["time_per_atom"] * Natoms)]
+    md = meta["md"] + ["time=%f" % (meta["time_per_atom"] * Natoms),
+                       "dump=%f" % (meta["time_per_atom"] * Natoms
+                                    * 1000.0/meta["nmtd"])]
+    S = "save=%i" % meta["save"]
         
     for metadyn_job, metadyn_params in enumerate(meta["jobs"]):
         outp = output_folder + "/mtd%4.4i_%2.2i.xyz" % (mtd_index,metadyn_job)
@@ -208,7 +211,7 @@ def metadynamics_jobs(xtb,
                         "/FAIL%4.4i_%2.2i.xyz" % (mtd_index, metadyn_job),
                         xcontrol=dict(
                             wall=parameters["wall"],
-                            metadyn=metadyn_params,
+                            metadyn=metadyn_params + [S],
                             md=md,
                             constrain=constraints[mtd_index]))]
     return mjobs
@@ -274,6 +277,10 @@ def reaction_job(xtb,
             parameters,
             failout=output_folder + "/FAILED_FORWARD",
             verbose=False)          # otherwise its way too verbose
+
+        if len(fstructs) == 0:
+            # fail on the first opt
+            return
 
         # fstructs 0 is already optimized so we use it as the starting point
         # for the backward propagation
