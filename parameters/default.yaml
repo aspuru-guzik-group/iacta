@@ -8,10 +8,11 @@ uhf:
 
 # ---------------------------------------------------------------------------#
 # Optimization of stretched and unstretched structures. 
-optim: tight                  # default level
+optim: vtight                  # default level
+
+# Potential "wall" keeping molecules together. The following are just the
+# lines of the wall group.
 wall: 
-  # Potential "wall" keeping molecules together. The following are just the
-  # lines of the wall group.
   - 'potential=logfermi'
   - 'sphere: auto, all'
 
@@ -43,21 +44,21 @@ stretch_resolution:             # Resolution of stretch in A
 mtd_only_reactant: false        # Do metadynamics only for the reactant.
 mtd_step:                       # Metadynamics every x points of stretch. If
                                 # false, do mtd only at TS and minima.
-
+mtdi:
   
 # ---------------------------------------------------------------------------#
 metadynamics:
-  nmtd: 500
-  save: 50
+  nmtd: 80
+  save: 80
   time_per_atom: 0.5            # total time / Natoms (ps) for each mtd run
 
   jobs:
     # These are the parameters for each metadynamics runs, taken from CREST
     # paper (nanoreactor part).
-    - ["kpush=0.200", "alp=0.200"]
+    - ["kpush=0.200", "alp=0.800"]
   md:
     - "shake=0"
-    - "step=1"
+    - "step=2"
 
 # Initial geometry, as an xyz string
 xyz: |

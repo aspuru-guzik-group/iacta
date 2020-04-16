@@ -153,25 +153,28 @@ def rsearch(out_dir, defaults,
             print("%3i  %+7.3f     ...  ⛰  ..." %
                   (reaction["stretch_points"][i], reaction["E"][i]))
 
-    mtd_indices = [k for k in reaction["stretch_points"]]
+    if params["mtdi"]:
+        mtd_indices = params["mtdi"]
+    else:
+        mtd_indices = [k for k in reaction["stretch_points"]]
 
-    # additional indices at repeated intervals
-    step = params["mtd_step"]
-    if step:
-        mtd_indices += list(np.arange(0,len(E), step))
-    
-    if params["mtd_only_reactant"]:
-        mtd_indices = [i for i in mtd_indices if init[i] == reactant]
-        print("     ... metadynamics performed only for reactants")
-        # also do the final step and the next step over, as well as the first
-        # step and the one just before
-        mtd_indices += [max(mtd_indices) + 1,
-                        min(mtd_indices) - 1]
+        # additional indices at repeated intervals
+        step = params["mtd_step"]
+        if step:
+            mtd_indices += list(np.arange(0,len(E), step))
 
-    # Sort the indices, do not do the same point twice, make sure the points
-    # are in bound
-    mtd_indices = sorted(list(set([i for i in mtd_indices
-                                   if (i >= 0 and i < len(E))])))
+        if params["mtd_only_reactant"]:
+            mtd_indices = [i for i in mtd_indices if init[i] == reactant]
+            print("     ... metadynamics performed only for reactants")
+            # also do the final step and the next step over, as well as the first
+            # step and the one just before
+            mtd_indices += [max(mtd_indices) + 1,
+                            min(mtd_indices) - 1]
+
+        # Sort the indices, do not do the same point twice, make sure the points
+        # are in bound
+        mtd_indices = sorted(list(set([i for i in mtd_indices
+                                       if (i >= 0 and i < len(E))])))
     if len(mtd_indices) == 0:
         print("Reactant not found in initial stretch! 😢")
         print("Optimization probably reacted. Alter geometry and try again.")
