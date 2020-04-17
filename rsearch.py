@@ -166,6 +166,12 @@ def rsearch(out_dir, defaults,
         if params["mtd_only_reactant"]:
             mtd_indices = [i for i in mtd_indices if init[i] == reactant]
             print("     ... metadynamics performed only for reactants")
+            
+            if len(mtd_indices) == 0:
+                print("Reactant not found in initial stretch! 😢")
+                print("Optimization probably reacted. Alter geometry and try again.")
+                raise SystemExit(-1)
+            
             # Also do the steps just before and just after
             mtd_indices += [max(mtd_indices) + 1,
                             min(mtd_indices) - 1]
@@ -174,10 +180,7 @@ def rsearch(out_dir, defaults,
         # are in bound
         mtd_indices = sorted(list(set([i for i in mtd_indices
                                        if (i >= 0 and i < len(E))])))
-    if len(mtd_indices) == 0:
-        print("Reactant not found in initial stretch! 😢")
-        print("Optimization probably reacted. Alter geometry and try again.")
-        raise SystemExit(-1)
+
 
 
     # STEP 2: Metadynamics
