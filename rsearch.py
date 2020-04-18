@@ -10,26 +10,13 @@ from constants import hartree_ev, ev_kcalmol
 import yaml
 from datetime import datetime
 
-def rsearch(out_dir, defaults,
-            log_level=0, nthreads=1):
+def init_xtb_driver(params, log_level=0):
+    # todo : move this stuff to xtb_driver
     if "LOCALSCRATCH" in os.environ:
         scratch = os.environ["LOCALSCRATCH"]
     else:
         print("warning: $LOCALSCRATCH not set")
         scratch = "."
-
-    time_start = datetime.today().ctime()
-    # load parameters
-    with open(out_dir + "/user.yaml", "r") as f:
-        user_params = yaml.load(f, Loader=yaml.Loader)
-    with open(defaults, "r") as f:
-        params = yaml.load(f, Loader=yaml.Loader)
-
-
-
-    # Merge, replacing defaults with user parameters
-    for key,val in user_params.items():
-        params[key] = val
 
     # Interpret log level
     if log_level>1:
@@ -39,9 +26,10 @@ def rsearch(out_dir, defaults,
 
     # Command log file
     if log_level >0:
-        logfile = open(out_dir + "/commandlog", "a")
-        logfile.write("--------------------------"
-                      +"--------------------------------------\n")
+        logfile = None          # TODO fix?
+        # logfile = open(out_dir + "/commandlog", "a")
+        # logfile.write("--------------------------"
+        #               +"--------------------------------------\n")
     else:
         logfile = None
 
@@ -60,6 +48,25 @@ def rsearch(out_dir, defaults,
         xtb.extra_args += ["--uhf", str(params["uhf"])]    
     if params["solvent"]:
         xtb.extra_args += ["--gbsa", params["solvent"]]
+    return xtb
+
+def rsearch(out_dir, defaults,
+            log_level=0, nthreads=1):
+
+    time_start = datetime.today().ctime()
+    
+
+    # load parameters
+    with open(out_dir + "/user.yaml", "r") as f:
+        user_params = yaml.load(f, Loader=yaml.Loader)
+    with open(defaults, "r") as f:
+        params = yaml.load(f, Loader=yaml.Loader)
+
+    # Merge, replacing defaults with user parameters
+    for key,val in user_params.items():
+        params[key] = val
+
+    xtb = init_xtb_driver(params, log_level=log_level)
         
     # Temporarily set -P to number of threads for the next, non-parallelizable
     # two steps.
@@ -208,9 +215,11 @@ def rsearch(out_dir, defaults,
         constraints,
         params,
         nthreads=nthreads)
+    
+    # todo: re-integrate
+    # if logfile:
+    #     logfile.close()
 
-    if logfile:
-        logfile.close()
 
     time_end = datetime.today().ctime()
     with open(out_dir + "/run.yaml", "w") as f:
