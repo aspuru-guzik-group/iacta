@@ -303,7 +303,10 @@ class xtb_driver:
         """
         
         file_ext = geom_file[-3:]
-        return_files=[("xtbopt." + file_ext, out_file)]
+        if "scan" in xcontrol:
+            return_files=[("xtbscan.log", out_file)]
+        else:
+            return_files=[("xtbopt." + file_ext, out_file)]
         if log:
             return_files += [("xtbopt.log", log)]
         if restart:

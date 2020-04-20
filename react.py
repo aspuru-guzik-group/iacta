@@ -15,7 +15,7 @@ react_utils.
 def generate_initial_structures(xtb_driver,
                                 workdir,
                                 guess_xyz_file,
-                                constraints,
+                                low,high,npts,
                                 parameters,
                                 verbose=True):
     
@@ -27,22 +27,22 @@ def generate_initial_structures(xtb_driver,
     outputdir = workdir + "/init"
     os.makedirs(outputdir)
     
-    structures, energies = react_utils.successive_optimization(
+    structures, energies = react_utils.stretch(
         xtb_driver, guess_xyz_file,
-        constraints, parameters, # no barrier for initial run
-        barrier=False,
+        *parameters["atoms"],
+        low, high, npts,
+        parameters,
         failout=outputdir + "/FAILED",
-        verbose=verbose)
-
-    computed = len(structures)
+        verbose=True)
 
     react_utils.dump_succ_opt(outputdir,
                               structures,
                               energies,
                               split=True)
     if verbose:
-        print("Done!  %i steps were evaluated. \n"%computed)
-    return computed
+        print("Done!")
+        
+
 
 def metadynamics_search(xtb_driver,
                         workdir,

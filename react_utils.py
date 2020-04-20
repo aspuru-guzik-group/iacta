@@ -35,8 +35,74 @@ def quick_opt_job(xtb, xyz, level, xcontrol):
         opt()
         xyz, E = traj2str(T.name, 0)
     return xyz, E
-# ------------------------------------------------------------------------------#
 
+# ------------------------------------------------------------------------------#
+def stretch(xtb, initial_xyz,
+            atom1, atom2, low, high, npts,
+            parameters,
+            failout=None,
+            verbose=True):
+    """Optimize a structure through successive constraints.
+
+    TODO FIX
+
+    Parameters:
+    -----------
+
+    xtb (xtb_driver) : driver object for xtb.
+
+    initial_xyz (str): path to initial structure xyz file.
+
+    parameters (dict) : additional parameters, as obtained from
+    default_parameters() above. TODO: Describe parameters in more details
+
+    Optional Parameters:
+    --------------------
+
+    failout (str) : Path where logging information is output if the
+    optimization fails.
+
+    verbose (bool) : print information about the run. defaults to True.
+
+    Returns:
+    --------
+
+    structures : list of .xyz formatted strings that include every structure
+    through the multiple optimization.
+
+    energies : list of floats of xtb energies (in Hartrees) for the structures.
+
+    """
+    # Make scratch files
+    fdc, current = tempfile.mkstemp(suffix=".xyz", dir=xtb.scratchdir)
+
+    # prepare the current file
+    shutil.copyfile(initial_xyz, current)
+
+    opt = xtb.optimize(current,
+                       current,
+                       failout=failout,
+                       level=parameters["optim"],
+                       xcontrol=dict(
+                           wall=parameters["wall"],
+                           constrain=(
+                               "force constant=%f" % parameters["force"],
+                               "distance: %i, %i, %f" % (atom1, atom2, low)),
+                           scan=("1: %f, %f, %i" % (low, high, npts),)
+                       ))
+
+    error = opt()
+    structs, energies = traj2str(current)
+            
+    if verbose:
+        for k, E in enumerate(energies):
+            print("   👣=%4i    energy💡= %9.5f Eₕ"%(k, E))
+                                                     
+    # Got to make sure that you close the filehandles!
+    os.close(fdc)
+    os.remove(current)
+    return structs, energies
+    
 def successive_optimization(xtb,
                             initial_xyz,
                             constraints,

@@ -82,7 +82,9 @@ def rsearch(out_dir, defaults,
     print("Optimizing initial geometry 📐...")
     opt = xtb.optimize(init0, init1,
                        level=params["optim"],
-                       xcontrol={"wall":params["wall"]})
+                       xcontrol={"wall":params["wall"],
+                                 # move to center of mass
+                                 "cma":""})
     opt()
 
     # Read result of optimization
@@ -98,46 +100,28 @@ def rsearch(out_dir, defaults,
     # -------------------
     bond_length0 = np.sqrt(np.sum((positions[params["atoms"][0]-1] -
                                    positions[params["atoms"][1]-1])**2))
-    bond = (params["atoms"][0], params["atoms"][1], bond_length0)
+    bond = (params["atoms"][0], params["atoms"][1])
 
     # Constraints for the search
     # -------------------------
     slow, shigh = params["stretch_limits"]
-    step = params["stretch_resolution"]
-    if params["stretch_resolution"]:
-        if params["stretch_num"]:
-            raise RuntimeError("Both stretch_num and stretch_resolution are"
-                               +" set. I don't know which one to pick!")
-        else:
-            step = params["stretch_resolution"]
-            pts = np.arange(bond_length0 * slow, bond_length0 * shigh, step)
-    elif params["stretch_num"]:
-        pts = np.linspace(bond_length0 * slow, bond_length0 * shigh,
-                          params["stretch_num"])
-    else:
-        raise RuntimeError("Neither stretch_num nor"
-                           +" stretch_resolution are set.")
+    npts = params["stretch_num"]
+    low = slow * bond_length0
+    high = shigh * bond_length0
         
-
-
-
     print("Stretching bond between atoms %s%i and %s%i"
           %(atoms[bond[0]-1], bond[0], atoms[bond[1]-1], bond[1]))
     print("    with force constant 💪💪 %f" % params["force"])
     print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
-          % (pts[0], pts[-1], slow, shigh))
-    print("    discretized with %i points" % len(pts))
-    constraints = [["force constant = %f" % params["force"],
-                    "distance: %i, %i, %f"% (bond[0],bond[1],p)]
-                   for p in pts]
-    
+          % (low, high, slow, shigh))
+    print("    discretized with %i points" % npts)
+        
     
     # STEP 1: Initial generation of guesses
     # ----------------------------------------------------------------------------
     react.generate_initial_structures(
-        xtb, out_dir,
-        init1,
-        constraints,
+        xtb, out_dir, init1,
+        low, high, npts,
         params)
 
     # reset threading
@@ -231,10 +215,9 @@ def rsearch(out_dir, defaults,
         # Every parameter and then some
         yaml.dump(params,f)
         # dump extra stuff
-        yaml.dump({"constraints":constraints,
-                   "nthreads":nthreads,
-                   "metadynamics_pts":list(mtd_indices),
-                   "bond_stretch":pts})
+        yaml.dump({"nthreads":nthreads,
+                   "done_metadynamics_pts":list(mtd_indices),
+                   "done_bond_stretch":pts})
 
 
 
