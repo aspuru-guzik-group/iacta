@@ -33,9 +33,9 @@ def make_xcontrol(xcontrol_dictionary, fn):
                     f.write("$" + str(key) + "\n")
                     for v in val:
                         f.write(v + "\n")
-                    f.write("$end\n")
                 else:
                     f.write("$" + str(key) + " " + str(val) + "\n")
+        f.write("$end\n")
     return fn
             
 
