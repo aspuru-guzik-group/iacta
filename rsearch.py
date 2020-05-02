@@ -100,7 +100,6 @@ def rsearch(out_dir, defaults,
     # -------------------
     bond_length0 = np.sqrt(np.sum((positions[params["atoms"][0]-1] -
                                    positions[params["atoms"][1]-1])**2))
-    bond = (params["atoms"][0], params["atoms"][1])
 
     # Constraints for the search
     # -------------------------
@@ -108,9 +107,10 @@ def rsearch(out_dir, defaults,
     npts = params["stretch_num"]
     low = slow * bond_length0
     high = shigh * bond_length0
+    atom1, atom2 = params["atoms"]
         
     print("Stretching bond between atoms %s%i and %s%i"
-          %(atoms[bond[0]-1], bond[0], atoms[bond[1]-1], bond[1]))
+          %(atoms[atom1-1], bond[0], atoms[atom2-1], bond[1]))
     print("    with force constant 💪💪 %f" % params["force"])
     print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
           % (low, high, slow, shigh))
@@ -121,7 +121,7 @@ def rsearch(out_dir, defaults,
     # ----------------------------------------------------------------------------
     react.generate_initial_structures(
         xtb, out_dir, init1,
-        low, high, npts,
+        atom1, atom2, low, high, npts,
         params)
 
     # reset threading
@@ -179,7 +179,7 @@ def rsearch(out_dir, defaults,
     react.metadynamics_search(
         xtb, out_dir,
         mtd_indices,
-        constraints,
+        atom1, atom2, low, high, npts,
         params,
         nthreads=nthreads)
 
@@ -187,7 +187,7 @@ def rsearch(out_dir, defaults,
         xtb, out_dir,
         init1,
         mtd_indices,
-        constraints,
+        atom1, atom2, low, high, npts,
         params,
         nthreads=nthreads)
 
@@ -196,7 +196,7 @@ def rsearch(out_dir, defaults,
     react.react(
         xtb, out_dir,
         mtd_indices,
-        constraints,
+        atom1, atom2, low, high, npts,        
         params,
         nthreads=nthreads)
     

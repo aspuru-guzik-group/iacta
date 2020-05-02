@@ -47,7 +47,7 @@ def generate_initial_structures(xtb_driver,
 def metadynamics_search(xtb_driver,
                         workdir,
                         mtd_indices,
-                        constraints,
+                        atom1, atom2, low, high, npts,                        
                         parameters,
                         verbose=True,
                         nthreads=1):
@@ -65,6 +65,7 @@ def metadynamics_search(xtb_driver,
         for mtd_index in mtd_indices:
             mtd_jobs = react_utils.metadynamics_jobs(
                 xtb_driver, mtd_index,
+                atom1, atom2, low, high, npts,        
                 workdir +"/init", workdir + "/metadyn",
                 constraints, parameters)
 
@@ -85,13 +86,16 @@ def metadynamics_refine(xtb_driver,
                         workdir,
                         reference,
                         mtd_indices,
-                        constraints,
+                        atom1, atom2, low, high, npts,                        
                         parameters,
                         verbose=True,
                         nthreads=1):
     refined_dir = workdir + "/CRE"
     mtd_dir = workdir + "/metadyn"
     os.makedirs(refined_dir, exist_ok=True)
+
+    # points
+    points = np.linspace(low, high, npts)
     
     for mtd_index in mtd_indices:
         structures = []
@@ -112,7 +116,12 @@ def metadynamics_refine(xtb_driver,
                     react_utils.quick_opt_job,
                     xtb_driver, s, parameters["optcregen"],
                     dict(wall=parameters["wall"],
-                         constrain=constraints[mtd_index]))
+                         cma="",
+                         constrain = react_utils.stretch_constraint(
+                             atom1, atom2,
+                             points[mtd_index], parameters["force"])
+                         )
+                    )
                 futures += [future]
                 
         converged = []
@@ -152,7 +161,7 @@ def metadynamics_refine(xtb_driver,
 def react(xtb_driver,
           workdir,
           mtd_indices,
-          constraints,
+          atom1, atom2, low, high, npts,        
           parameters,
           verbose=True,
           nthreads=1):
@@ -210,8 +219,8 @@ def react(xtb_driver,
                     xtb_driver,
                     structure,
                     mtd_index,
+                    atom1, atom2, low, high, npts,        
                     workdir + "/react%5.5i/" % nreact,
-                    constraints,
                     parameters))]
             nreact = nreact + 1
 
