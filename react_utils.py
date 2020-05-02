@@ -250,7 +250,7 @@ def reaction_job(xtb,
             f.write(fstructs[0])
         
         # Backward reaction
-        bstructs, be = successive_optimization(
+        bstructs, be = stretch(
             xtb, output_folder + "/initial_backward.xyz",
             atom1, atom2, back[0], back[-1], len(back),            
             parameters,
