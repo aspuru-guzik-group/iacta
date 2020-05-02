@@ -15,6 +15,7 @@ react_utils.
 def generate_initial_structures(xtb_driver,
                                 workdir,
                                 guess_xyz_file,
+                                atom1,atom2,
                                 low,high,npts,
                                 parameters,
                                 verbose=True):
@@ -29,7 +30,7 @@ def generate_initial_structures(xtb_driver,
     
     structures, energies = react_utils.stretch(
         xtb_driver, guess_xyz_file,
-        *parameters["atoms"],
+        atom1, atom2,
         low, high, npts,
         parameters,
         failout=outputdir + "/FAILED",
@@ -66,8 +67,7 @@ def metadynamics_search(xtb_driver,
             mtd_jobs = react_utils.metadynamics_jobs(
                 xtb_driver, mtd_index,
                 atom1, atom2, low, high, npts,        
-                workdir +"/init", workdir + "/metadyn",
-                constraints, parameters)
+                workdir +"/init", workdir + "/metadyn", parameters)
 
             for ji,j in enumerate(mtd_jobs):
                 futures += [pool.submit(j)]

@@ -110,7 +110,7 @@ def rsearch(out_dir, defaults,
     atom1, atom2 = params["atoms"]
         
     print("Stretching bond between atoms %s%i and %s%i"
-          %(atoms[atom1-1], bond[0], atoms[atom2-1], bond[1]))
+          %(atoms[atom1-1], atom1, atoms[atom2-1], atom2))
     print("    with force constant 💪💪 %f" % params["force"])
     print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
           % (low, high, slow, shigh))
