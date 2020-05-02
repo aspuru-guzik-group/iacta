@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 import react_utils
 from io_utils import traj2str
+import numpy as np
 from math import inf
 import os
 from glob import glob
