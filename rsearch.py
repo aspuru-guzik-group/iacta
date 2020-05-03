@@ -216,8 +216,8 @@ def rsearch(out_dir, defaults,
         yaml.dump(params,f)
         # dump extra stuff
         yaml.dump({"nthreads":nthreads,
-                   "done_metadynamics_pts":list(mtd_indices),
-                   "done_bond_stretch":pts})
+                   "done_metadynamics_pts":list(mtd_indices)})
+
 
 
 
