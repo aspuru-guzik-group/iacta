@@ -250,12 +250,16 @@ def reaction_job(xtb,
             f.write(fstructs[0])
         
         # Backward reaction
-        bstructs, be = stretch(
-            xtb, output_folder + "/initial_backward.xyz",
-            atom1, atom2, back[0], back[-1], len(back),            
-            parameters,
-            failout=output_folder + "/FAILED_BACKWARD",            
-            verbose=False)          # otherwise its way too verbose
+        if len(back):
+            bstructs, be = stretch(
+                xtb, output_folder + "/initial_backward.xyz",
+                atom1, atom2, back[0], back[-1], len(back),            
+                parameters,
+                failout=output_folder + "/FAILED_BACKWARD",            
+                verbose=False)          # otherwise its way too verbose
+        else:
+            bstructs = []
+            be = []
 
         # Dump forward reaction and backward reaction quantities
         dump_succ_opt(output_folder,
