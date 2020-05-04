@@ -221,7 +221,7 @@ def react(xtb_driver,
                     structure,
                     mtd_index,
                     atom1, atom2, low, high, npts,        
-                    workdir + "/react%5.5i/" % nreact,
+                    workdir + "/react%5.5i_%3.3i/" % (nreact, mtd_index),
                     parameters))]
             nreact = nreact + 1
 

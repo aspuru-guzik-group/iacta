@@ -99,7 +99,7 @@ def read_all_reactions(output_folder, verbose=True, chiral=False):
                               read_out["SMILES"],
                               read_out["files"],
                               read_out["is_stable"],
-                              "react"+f[-5:])]
+                              "react"+f[-9:])]
             else:
                 # No reaction in this pathway
                 noreact += [f]
