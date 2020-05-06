@@ -129,7 +129,7 @@ def rsearch(out_dir, defaults,
 
     # Read the successive optimization, then set mtd points to ground and TS
     # geometries.
-    reactant, E0 = io_utils.traj2smiles(init0, index=0)
+    reactant, E0 = io_utils.traj2smiles(init1, index=0)
     init, E = io_utils.traj2smiles(out_dir + "/init/opt.xyz")
     reaction = read_reactions.read_reaction(out_dir + "/init")
     E = np.array(E)
