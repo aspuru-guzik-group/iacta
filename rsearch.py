@@ -262,7 +262,7 @@ if __name__ == "__main__":
 
     parser.add_argument("-s","--stretch-limits", help="Bond stretch limits.", nargs=2,type=float)
     parser.add_argument("-n","--stretch-num", help="Number of bond stretches.", type=int)    
-    parser.add_argument("-k","--force-constant", help="Force constant of the stretch.", type=float)
+    parser.add_argument("-k","--force", help="Force constant of the stretch.", type=float)
 
     parser.add_argument("--gfn", help="gfn version.", type=str)
     parser.add_argument("--etemp", help="Electronic temperature.", type=str)
