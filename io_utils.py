@@ -23,12 +23,12 @@ def metadata():
 
 # =================== xTB output  reading/writing routines =====================
 def read_wbo(filepath):
-    bonds = []
+    bonds = {}
     with open(filepath, 'r') as f:
         for line in f:
             i,j, wbo = line.split()
             # These are 1-indexed
-            bonds += [(int(i)-1, int(j)-1, float(wbo))]
+            bonds[(int(j)-1, int(i)-1)] =  float(wbo)
     return bonds
 
 def read_charges(filepath):
@@ -43,11 +43,16 @@ def read_xtb_output(xyzfile):
     if not dir:
         dir = "."
     # Read in the xyz file
-    atoms, positions = read_xyz(xyzfile)
+    atoms, positions, E = traj2npy(xyzfile, 0)
     # Read in wbo file
-    wbo = read_wbo(dir  + "/wbo")
+    bond_order = read_wbo(dir  + "/wbo")
+    wbo = np.zeros((len(atoms),len(atoms)))
+    for (i,j), val in bond_order.items():
+        wbo[i,j] = val
+        wbo[j,i] = val
+
     # Read in partial charges
-    charges = read_charges(dir + "/charges")
+    charges = np.array(read_charges(dir + "/charges"))
     return atoms, charges, positions, wbo
 
 def read_xtb_gradient(filen):

@@ -3,6 +3,7 @@ import subprocess
 import shutil
 import os
 import tempfile
+import io_utils
 
 def make_xcontrol(xcontrol_dictionary, fn):
     """Transform a dictionary of parameters to an xTB xcontrol file.
@@ -256,6 +257,60 @@ class xtb_driver:
         self.scratchdir = scratch
         self.logfile = logfile
         self.delete=delete
+
+
+    def wf(self,
+            geom_file,
+            xcontrol=None,
+            failout=None,
+            restart=None):
+        """Compute single-point wf properties.
+
+        Parameters:
+        -----------
+
+        geom_file (str) : path to the file containing the molecular geometry.
+
+
+        Optional Parameters:
+        --------------------
+
+        xcontrol (dict) : xcontrol dictionary to be interpreted by
+        make_xcontrol.
+
+        failout (str) : Path where xtb.out is output if the optimization
+        fails.
+
+        restart (str) : Setup a xtbrestart file that will be read for the run
+        and written with restart details when the run is over.
+
+        Returns:
+        --------
+
+        A dictionary of properties (this function evaluates immediately).
+
+        """
+            
+        opt = xtb_run(self.xtb_bin, geom_file, 
+                      '--wbo',
+                      *self.extra_args,
+                      xcontrol=xcontrol,
+                      restart=restart,
+                      prefix="SP",
+                      scratch=self.scratchdir,
+                      delete=self.delete,
+                      failout=failout)
+        opt.start(blocking=True) # run
+
+        atoms, charges, positions, wbo = io_utils.read_xtb_output(opt.coord)
+        output = {}
+        output['atoms'] = atoms
+        output['charges'] = charges
+        output['positions'] = positions
+        output['wbo'] = wbo
+
+        opt.close()
+        return output
 
     def optimize(self,
                  geom_file,
