@@ -229,7 +229,8 @@ def reaction_network_layer(pathways, reactant, exclude=[]):
     return out
 
 
-def analyse_reaction_network(pathways, species, reactants, verbose=True):
+def analyse_reaction_network(pathways, species, reactants, verbose=True,
+                             sort_by_barrier=False):
     final_reactions = []
     
     verbose=True
@@ -244,7 +245,11 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True):
         current = todo.pop(0)
         layer = reaction_network_layer(pathways, current, exclude=done + [current])
         E0 = species.loc[current].E
-        products = set(layer.to)
+        products = list(set(layer.to))
+        if sort_by_barrier:
+            products = sorted(products, key=lambda x:layer[layer.to==x].E_TS.min())
+        else:
+            products = sorted(products, key=lambda x:species.loc[x].E)
 
         if len(products) == 0:
             done += [current]

@@ -14,7 +14,10 @@ if __name__ == "__main__":
                         action="store_true")
     parser.add_argument("--all", help="Do not limit reaction network to reactant"
                         +" and connected products. Defaults to false.",
-                        action="store_true")    
+                        action="store_true")
+    parser.add_argument("--ts", help="Sort products by TS energy as opposed"
+                        +" to enthalpy. (the default).",
+                        action="store_true")
     args = parser.parse_args()
     folder =args.folder
     pathways = read_all_reactions(folder, resolve_chiral=args.resolve_chiral)
@@ -23,9 +26,11 @@ if __name__ == "__main__":
 
     reactant, E = io_utils.traj2smiles(folder + "/init_opt.xyz", index=0)
     if args.all:
-        final = analyse_reaction_network(pathways,species,list(species.index))
+        final = analyse_reaction_network(pathways,species,list(species.index),
+                                         sort_by_barrier=args.ts)
     else:
-        final = analyse_reaction_network(pathways,species,[reactant])
+        final = analyse_reaction_network(pathways,species,[reactant],
+                                         sort_by_barrier=args.ts)
 
     # Finally, save parsed reaction network
     final.to_csv(folder + "/parsed_reactions.csv")
