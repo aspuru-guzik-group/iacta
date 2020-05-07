@@ -3,80 +3,18 @@ import numpy as np
 import glob
 from constants import hartree_ev, ev_kcalmol
 import io_utils
+import analysis
+import pandas as pd
 import os
+import importlib
 
-def read_reaction(react_folder,chiral=False):
-    """Extract chemical quantities from a reaction.
+importlib.reload(analysis)
 
-    Parameters:
-    -----------
-    react_folder (str) : folder storing the reaction data, obtained from the
-    reaction_job() routine in react.py.
-
-    chirality (bool) : whether to separate enantiomers.
-
-    Returns:
-    -------
-    TODO
-    """
-    opt = react_folder + "/opt.xyz"
-    smiles, E = io_utils.traj2smiles(opt, chiral=chiral)
-    
-    mols = [smiles[0]]
-    regions = []
-    rstart = 0
-
-    # loop through smiles and detect changes in smiles
-    for si,s in enumerate(smiles):
-        if s == mols[-1]:
-            pass
-        else:
-            mols += [s]
-            regions += [(rstart,si)]
-            rstart = si
-
-    regions += [(rstart, len(smiles))]
-
-    imins = []
-    for start,end in regions:
-        imin = np.argmin(E[start:end]) + start
-        stable = True
-        # Check if imin is a local minima
-        if imin < len(smiles)-1:
-            if E[imin]>E[imin+1]:
-                stable = False
-        if imin > 0:
-            if E[imin]>E[imin-1]:
-                stable = False
-
-        if stable:
-            imins += [imin]
-                
-    # Important potential energy surface points
-    ipots = [imins[0]]
-    # determine if these are stable, ts or errors
-    stable = [1]
-    for k in range(1,len(imins)):
-        # maximum between minima
-        imax = np.argmax(E[imins[k-1]:imins[k]]) + imins[k-1]
-        # if imax is different from both, we add it to the pot curve too
-        if imax != imins[k] and imax != imins[k-1]:
-            ipots += [imax]
-            stable += [0]
-        ipots += [imins[k]]
-        stable += [1]
-
-    energies = np.array([E[k] for k in ipots])
-    smiles = [smiles[k] for k in ipots]
-    structures = [(opt,k) for k in ipots]
-    out = {"E":energies,
-           "SMILES":smiles,
-           "files":structures,
-           "is_stable":stable,
-           "stretch_points":ipots}
-    return out
-        
-def read_all_reactions(output_folder, verbose=True, chiral=False):
+def read_all_reactions(output_folder,
+                       verbose=True,
+                       restart=True,
+                       save=True,
+                       resolve_chiral=False):
     """Read and parse all reactions in a given folder."""
     folders = glob.glob(output_folder + "/react[0-9]*")
     if verbose:
@@ -86,64 +24,141 @@ def read_all_reactions(output_folder, verbose=True, chiral=False):
     failed = []
     noreact = []
     pathways = []
-    
-    for f in folders:
+    if restart:
         try:
-            read_out = read_reaction(f,chiral=chiral)
+            old_df = pd.read_pickle(output_folder+"/results_raw.pkl")
+        except FileNotFoundError:
+            old_df = pd.DataFrame()
+        else:
+            if verbose:
+                print(" - %6i trajectories in restart file" % len(old_df))
+
+    old_indices = old_df.index
+    new_indices = []
+    for f in folders:
+        # nasty parsing...
+        index = int(f[-9:-4])
+        if index in old_indices:
+            # already in restart file
+            continue
+        
+        imtd = int(f[-3:])
+        try:
+            read_out = analysis.read_reaction(f,
+                                              resolve_chiral=resolve_chiral)
         except OSError:
             # Convergence failed
             failed += [f]
         else:
-            if len(read_out["SMILES"])>1:
-                pathways += [(read_out["E"],
-                              read_out["SMILES"],
-                              read_out["files"],
-                              read_out["is_stable"],
-                              "react"+f[-9:])]
-            else:
-                # No reaction in this pathway
-                noreact += [f]
+            read_out['folder'] = "react"+f[-9:]
+            read_out['iMTD'] = imtd
+            new_indices += [index]
+            pathways += [read_out]
 
             
     if verbose:
         print(" - %6i that did not converge" % len(failed))
-        print(" - %6i with no reactions" % len(noreact))
         print("--------------")
-        print(" = %6i reactions found" % len(pathways))
-    return pathways
 
-def prune_pathways(pathways):
-    reactions = {}
+    new = pd.DataFrame(pathways, index=new_indices)
+    data = old_df.append(new)
 
-    for energies, species, files, stable, where in pathways:
-        stables = []
-        barriers = []
-        current = 0.0
-        for i in range(len(species)):
-            if stable[i]:
-                stables += [species[i]]
-                barriers += [current]
-                estable = energies[i]
-                current = 0.0
-            else:
-                barrier = energies[i] - estable
-                if barrier > current:
-                    current = barrier
-        barriers = np.array(barriers[1:])
-        stables = tuple(stables)
-
-        if stables in reactions:
-            if (np.max(barriers)< np.max(reactions[stables][0])):
-                # if all the barriers are smaller, we make this the new best
-                # reaction.
-                reactions[stables] = (barriers, energies, species,
-                                      files, stable, where)
+    if verbose:
+        if len(old_df):
+            print(" = %6i new pathways loaded" % len(pathways))
+            print("   %6i pathways including restart" % len(data))
         else:
-            reactions[stables] = (barriers, energies, species,
-                                  files, stable, where)
+            print(" = %6i pathways" % len(pathways))
+            
+    if save:
+        if len(new):
+            if verbose:
+                print("       ... saving new data ...")
+            data.to_pickle(output_folder+"/results_raw.pkl")
 
-    return reactions
+    if verbose:
+        print("                                      done.")
+    
+    return data
 
+def get_species_table(pathways, verbose=True):
+    if verbose:
+        print("\nBuilding table of chemical species, from")
+        print("   %6i reaction pathways" % len(pathways))
+
+    species = {}
+    for irow, row in pathways.iterrows():
+        for k in range(len(row.is_stable)):
+            if row.is_stable[k]:
+                smi = row.SMILES[k]
+                if smi in species:
+                    if row.E[k] < species[smi]['E']:
+                        species[smi] = {
+                            'smiles':smi,
+                            'E':row.E[k],
+                            'folder':row.folder,
+                            'position':row.stretch_points[k]}
+                else:
+                    species[smi] = {
+                        'smiles':smi,
+                        'E':row.E[k],
+                        'folder':row.folder,
+                        'position':row.stretch_points[k]}
+
+    k,v = zip(*species.items())
+    out = pd.DataFrame(v).sort_values('E').reset_index(drop=True)
+    if verbose:
+        print("   %6i stable-ish species found" % len(out))
+        evspan = (out.E.max() - out.E.min()) * hartree_ev
+        print("          with energies spanning %3.1f eV" % (evspan))
+        print("          saving structures...")
+        print("                                      done.")
+
+    return out
+
+def reaction_network_layer(pathways, reactant):
+    to_smiles = []
+    ts_i = []
+    ts_E = []
+    folder = []
+    imtd = []
+    for k, rowk in pathways.iterrows():
+        if reactant in rowk.SMILES:
+            i = rowk.SMILES.index(reactant)
+            E = rowk.E
+            stable = rowk.is_stable
+
+            # forward
+            for j in range(i+1, len(stable)):
+                if stable[j]:
+                    # we have a stable -> stable reaction
+                    to_smiles += [rowk.SMILES[j]]
+                    tspos = np.argmax(E[i:j]) + i
+                    ts_i += [rowk.stretch_points[tspos]]
+                    ts_E += [E[tspos]]
+                    folder += [rowk.folder]
+                    imtd += [rowk.iMTD]
+
+            # backward
+            for j in range(i-1, -1, -1):
+                if stable[j]:
+                    # we have a stable -> stable reaction
+                    to_smiles += [rowk.SMILES[j]]
+                    tspos = np.argmax(E[j:i]) + j
+                    ts_i += [rowk.stretch_points[tspos]]
+                    ts_E += [E[tspos]]
+                    folder += [rowk.folder]
+                    imtd += [rowk.iMTD]                    
+
+    out = pd.DataFrame({
+        'from':[reactant] * len(to_smiles),
+        'to':to_smiles,
+        'E_TS':ts_E,
+        'i_TS':ts_i,
+        'folder':folder,
+        'iMTD':imtd})
+
+    return out
 
 
 if __name__ == "__main__":
@@ -162,8 +177,35 @@ if __name__ == "__main__":
     if outfolder is None:
         outfolder = folder + "/results"
     os.makedirs(outfolder, exist_ok=True)
+
+    pathways = read_all_reactions(folder, resolve_chiral=args.c)
+    species = get_species_table(pathways)
+
+
+    reactant, E = io_utils.traj2smiles(folder + "/init_opt.xyz", index=0)
+    verbose=True
+    if verbose:
+        print("\nBuilding reaction network iteratively,")
+        print("Reactant: %s" % reactant)
+
+    layer = reaction_network_layer(pathways, reactant)
+    E0 = species[species.smiles == reactant].E
+    if verbose:
+        products = set(layer.to)
+        print("   %6i reactions found, with" % len(layer))
+        print("   %6i products:" %len(products))
+        for p in products:
+            print("    %s" % p)
+            # print("    dH:%8.4f kcal/mol" % 
+
     
-    pathways = read_all_reactions(folder, chiral=args.c)
+    
+
+
+
+    
+
+    """
     reactions = prune_pathways(pathways)
     print("   %6i reaction pathways are unique." % len(reactions))
     print("\n\n")
@@ -215,7 +257,7 @@ if __name__ == "__main__":
     f.write(table)
         
     f.close()
-    
+    """    
 
         
     
