@@ -106,7 +106,7 @@ def get_species_table(pathways, verbose=True):
                         'position':row.stretch_points[k]}
 
     k,v = zip(*species.items())
-    out = pd.DataFrame(v).sort_values('E').reset_index(drop=True)
+    out = pd.DataFrame(v).sort_values('E').set_index('smiles')
     if verbose:
         print("   %6i stable-ish species found" % len(out))
         evspan = (out.E.max() - out.E.min()) * hartree_ev
@@ -116,7 +116,7 @@ def get_species_table(pathways, verbose=True):
 
     return out
 
-def reaction_network_layer(pathways, reactant):
+def reaction_network_layer(pathways, reactant, exclude=[]):
     to_smiles = []
     ts_i = []
     ts_E = []
@@ -130,7 +130,7 @@ def reaction_network_layer(pathways, reactant):
 
             # forward
             for j in range(i+1, len(stable)):
-                if stable[j]:
+                if stable[j] and rowk.SMILES[j] not in exclude:
                     # we have a stable -> stable reaction
                     to_smiles += [rowk.SMILES[j]]
                     tspos = np.argmax(E[i:j]) + i
@@ -141,7 +141,7 @@ def reaction_network_layer(pathways, reactant):
 
             # backward
             for j in range(i-1, -1, -1):
-                if stable[j]:
+                if stable[j] and rowk.SMILES[j] not in exclude:
                     # we have a stable -> stable reaction
                     to_smiles += [rowk.SMILES[j]]
                     tspos = np.argmax(E[j:i]) + j
@@ -158,7 +158,71 @@ def reaction_network_layer(pathways, reactant):
         'folder':folder,
         'iMTD':imtd})
 
+
     return out
+
+def analyse_reaction_network(reactants, verbose=True):
+    final_reactions = []
+    
+    verbose=True
+    if verbose:
+        print("\nReaction network analysis")
+
+    todo = reactants[:]
+    done = []
+
+    layerind = 1
+    while todo:
+        current = todo.pop(0)
+        layer = reaction_network_layer(pathways, current, exclude=done + [current])
+        E0 = species.loc[reactant].E
+        products = set(layer.to)
+
+        if len(products) == 0:
+            done += [current]
+            continue
+        
+        if verbose:
+            print("-"*78)
+            print("%i." % layerind)
+            print("  %s" % current)        
+
+        for p in products:
+            if verbose:
+                print("  → %s" % p)
+            reacts = layer[layer.to == p]
+            dE = (species.loc[p].E-E0) * hartree_ev * ev_kcalmol
+            mean_dEd = (reacts.E_TS.mean() - E0) * hartree_ev * ev_kcalmol
+
+            # best ts
+            best = reacts.loc[reacts.E_TS.idxmin()]
+            min_dEd = (best.E_TS - E0) * hartree_ev * ev_kcalmol
+
+            if verbose:
+                print("           ΔE  = %8.4f kcal/mol" % dE)
+                print("           ΔE† = %8.4f kcal/mol" % min_dEd)
+                print("           %s" % best.folder)            
+                print("           + %5i similar pathways\n" % (len(reacts)-1))
+
+            final_reactions += [
+                {'from':current, 'to':p,
+                 'dE':dE,
+                 'dE_TS':min_dEd,
+                 'best_TS_pathway':best.folder,
+                 'TS_index':best.i_TS,
+                 'iMTD':best.iMTD,
+                }
+            ]
+
+            if (not p in done) and (not p in todo):
+                todo += [p]
+
+        done += [current]
+        layerind += 1
+
+    final_reactions = pd.DataFrame(final_reactions)
+    return final_reactions
+    
 
 
 if __name__ == "__main__":
@@ -167,41 +231,31 @@ if __name__ == "__main__":
         description="Read reaction products."
         )
     parser.add_argument("folder", help="Folder containing the react*** files.")
-    parser.add_argument("-o", help="Folder where final results are stored.",
+    parser.add_argument("-o", "--output",
+                        help="Folder where final results are stored.",
                         default=None)
-    parser.add_argument("-c", help="Resolve chiral compounds. Defaults to no.",
+    parser.add_argument("-c", "--resolve-chiral",
+                        help="Resolve chiral compounds. Defaults to no.",
                         action="store_true")
+    parser.add_argument("--all", help="Do not limit reaction network to reactant"
+                        +" and connected products. Defaults to false.",
+                        action="store_true")    
     args = parser.parse_args()
     folder =args.folder
-    outfolder = args.o
+    outfolder = args.output
     if outfolder is None:
         outfolder = folder + "/results"
     os.makedirs(outfolder, exist_ok=True)
 
-    pathways = read_all_reactions(folder, resolve_chiral=args.c)
+    pathways = read_all_reactions(folder, resolve_chiral=args.resolve_chiral)
     species = get_species_table(pathways)
 
 
     reactant, E = io_utils.traj2smiles(folder + "/init_opt.xyz", index=0)
-    verbose=True
-    if verbose:
-        print("\nBuilding reaction network iteratively,")
-        print("Reactant: %s" % reactant)
-
-    layer = reaction_network_layer(pathways, reactant)
-    E0 = species[species.smiles == reactant].E
-    if verbose:
-        products = set(layer.to)
-        print("   %6i reactions found, with" % len(layer))
-        print("   %6i products:" %len(products))
-        for p in products:
-            print("    %s" % p)
-            # print("    dH:%8.4f kcal/mol" % 
-
-    
-    
-
-
+    if args.all:
+        final = analyse_reaction_network(list(species.index))
+    else:
+        final = analyse_reaction_network([reactant])
 
     
 
