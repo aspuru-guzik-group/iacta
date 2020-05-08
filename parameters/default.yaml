@@ -41,7 +41,6 @@ force: 1.0                      # Force of stretch, in Hartree/bohr
 
 # Only one of these two should be set. 
 stretch_num: 100                # Number of points for stretch
-stretch_resolution:             # Resolution of stretch in A
 
 # ---------------------------------------------------------------------------#
 # The following parameters determine where (in terms of bond stretch)

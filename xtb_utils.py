@@ -33,9 +33,9 @@ def make_xcontrol(xcontrol_dictionary, fn):
                     f.write("$" + str(key) + "\n")
                     for v in val:
                         f.write(v + "\n")
-                    f.write("$end\n")
                 else:
                     f.write("$" + str(key) + " " + str(val) + "\n")
+        f.write("$end\n")
     return fn
             
 
@@ -303,7 +303,10 @@ class xtb_driver:
         """
         
         file_ext = geom_file[-3:]
-        return_files=[("xtbopt." + file_ext, out_file)]
+        if "scan" in xcontrol:
+            return_files=[("xtbscan.log", out_file)]
+        else:
+            return_files=[("xtbopt." + file_ext, out_file)]
         if log:
             return_files += [("xtbopt.log", log)]
         if restart:

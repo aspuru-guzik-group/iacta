@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 import react_utils
 from io_utils import traj2str
+import numpy as np
 from math import inf
 import os
 from glob import glob
@@ -15,7 +16,8 @@ react_utils.
 def generate_initial_structures(xtb_driver,
                                 workdir,
                                 guess_xyz_file,
-                                constraints,
+                                atom1,atom2,
+                                low,high,npts,
                                 parameters,
                                 verbose=True):
     
@@ -27,27 +29,27 @@ def generate_initial_structures(xtb_driver,
     outputdir = workdir + "/init"
     os.makedirs(outputdir)
     
-    structures, energies = react_utils.successive_optimization(
+    structures, energies = react_utils.stretch(
         xtb_driver, guess_xyz_file,
-        constraints, parameters, # no barrier for initial run
-        barrier=False,
+        atom1, atom2,
+        low, high, npts,
+        parameters,
         failout=outputdir + "/FAILED",
-        verbose=verbose)
-
-    computed = len(structures)
+        verbose=True)
 
     react_utils.dump_succ_opt(outputdir,
                               structures,
                               energies,
                               split=True)
     if verbose:
-        print("Done!  %i steps were evaluated. \n"%computed)
-    return computed
+        print("Done!")
+        
+
 
 def metadynamics_search(xtb_driver,
                         workdir,
                         mtd_indices,
-                        constraints,
+                        atom1, atom2, low, high, npts,                        
                         parameters,
                         verbose=True,
                         nthreads=1):
@@ -65,8 +67,8 @@ def metadynamics_search(xtb_driver,
         for mtd_index in mtd_indices:
             mtd_jobs = react_utils.metadynamics_jobs(
                 xtb_driver, mtd_index,
-                workdir +"/init", workdir + "/metadyn",
-                constraints, parameters)
+                atom1, atom2, low, high, npts,        
+                workdir +"/init", workdir + "/metadyn", parameters)
 
             for ji,j in enumerate(mtd_jobs):
                 futures += [pool.submit(j)]
@@ -85,13 +87,16 @@ def metadynamics_refine(xtb_driver,
                         workdir,
                         reference,
                         mtd_indices,
-                        constraints,
+                        atom1, atom2, low, high, npts,                        
                         parameters,
                         verbose=True,
                         nthreads=1):
     refined_dir = workdir + "/CRE"
     mtd_dir = workdir + "/metadyn"
     os.makedirs(refined_dir, exist_ok=True)
+
+    # points
+    points = np.linspace(low, high, npts)
     
     for mtd_index in mtd_indices:
         structures = []
@@ -112,7 +117,12 @@ def metadynamics_refine(xtb_driver,
                     react_utils.quick_opt_job,
                     xtb_driver, s, parameters["optcregen"],
                     dict(wall=parameters["wall"],
-                         constrain=constraints[mtd_index]))
+                         cma="",
+                         constrain = react_utils.stretch_constraint(
+                             atom1, atom2,
+                             points[mtd_index], parameters["force"])
+                         )
+                    )
                 futures += [future]
                 
         converged = []
@@ -152,7 +162,7 @@ def metadynamics_refine(xtb_driver,
 def react(xtb_driver,
           workdir,
           mtd_indices,
-          constraints,
+          atom1, atom2, low, high, npts,        
           parameters,
           verbose=True,
           nthreads=1):
@@ -210,8 +220,8 @@ def react(xtb_driver,
                     xtb_driver,
                     structure,
                     mtd_index,
-                    workdir + "/react%5.5i/" % nreact,
-                    constraints,
+                    atom1, atom2, low, high, npts,        
+                    workdir + "/react%5.5i_%3.3i/" % (nreact, mtd_index),
                     parameters))]
             nreact = nreact + 1
 

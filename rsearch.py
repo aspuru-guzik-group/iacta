@@ -10,26 +10,13 @@ from constants import hartree_ev, ev_kcalmol
 import yaml
 from datetime import datetime
 
-def rsearch(out_dir, defaults,
-            log_level=0, nthreads=1):
+def init_xtb_driver(params, log_level=0):
+    # todo : move this stuff to xtb_driver
     if "LOCALSCRATCH" in os.environ:
         scratch = os.environ["LOCALSCRATCH"]
     else:
         print("warning: $LOCALSCRATCH not set")
         scratch = "."
-
-    time_start = datetime.today().ctime()
-    # load parameters
-    with open(out_dir + "/user.yaml", "r") as f:
-        user_params = yaml.load(f, Loader=yaml.Loader)
-    with open(defaults, "r") as f:
-        params = yaml.load(f, Loader=yaml.Loader)
-
-
-
-    # Merge, replacing defaults with user parameters
-    for key,val in user_params.items():
-        params[key] = val
 
     # Interpret log level
     if log_level>1:
@@ -39,9 +26,10 @@ def rsearch(out_dir, defaults,
 
     # Command log file
     if log_level >0:
-        logfile = open(out_dir + "/commandlog", "a")
-        logfile.write("--------------------------"
-                      +"--------------------------------------\n")
+        logfile = None          # TODO fix?
+        # logfile = open(out_dir + "/commandlog", "a")
+        # logfile.write("--------------------------"
+        #               +"--------------------------------------\n")
     else:
         logfile = None
 
@@ -60,6 +48,25 @@ def rsearch(out_dir, defaults,
         xtb.extra_args += ["--uhf", str(params["uhf"])]    
     if params["solvent"]:
         xtb.extra_args += ["--gbsa", params["solvent"]]
+    return xtb
+
+def rsearch(out_dir, defaults,
+            log_level=0, nthreads=1):
+
+    time_start = datetime.today().ctime()
+    
+
+    # load parameters
+    with open(out_dir + "/user.yaml", "r") as f:
+        user_params = yaml.load(f, Loader=yaml.Loader)
+    with open(defaults, "r") as f:
+        params = yaml.load(f, Loader=yaml.Loader)
+
+    # Merge, replacing defaults with user parameters
+    for key,val in user_params.items():
+        params[key] = val
+
+    xtb = init_xtb_driver(params, log_level=log_level)
         
     # Temporarily set -P to number of threads for the next, non-parallelizable
     # two steps.
@@ -75,7 +82,9 @@ def rsearch(out_dir, defaults,
     print("Optimizing initial geometry 📐...")
     opt = xtb.optimize(init0, init1,
                        level=params["optim"],
-                       xcontrol={"wall":params["wall"]})
+                       xcontrol={"wall":params["wall"],
+                                 # move to center of mass
+                                 "cma":""})
     opt()
 
     # Read result of optimization
@@ -91,46 +100,28 @@ def rsearch(out_dir, defaults,
     # -------------------
     bond_length0 = np.sqrt(np.sum((positions[params["atoms"][0]-1] -
                                    positions[params["atoms"][1]-1])**2))
-    bond = (params["atoms"][0], params["atoms"][1], bond_length0)
 
     # Constraints for the search
     # -------------------------
     slow, shigh = params["stretch_limits"]
-    step = params["stretch_resolution"]
-    if params["stretch_resolution"]:
-        if params["stretch_num"]:
-            raise RuntimeError("Both stretch_num and stretch_resolution are"
-                               +" set. I don't know which one to pick!")
-        else:
-            step = params["stretch_resolution"]
-            pts = np.arange(bond_length0 * slow, bond_length0 * shigh, step)
-    elif params["stretch_num"]:
-        pts = np.linspace(bond_length0 * slow, bond_length0 * shigh,
-                          params["stretch_num"])
-    else:
-        raise RuntimeError("Neither stretch_num nor"
-                           +" stretch_resolution are set.")
+    npts = params["stretch_num"]
+    low = slow * bond_length0
+    high = shigh * bond_length0
+    atom1, atom2 = params["atoms"]
         
-
-
-
     print("Stretching bond between atoms %s%i and %s%i"
-          %(atoms[bond[0]-1], bond[0], atoms[bond[1]-1], bond[1]))
+          %(atoms[atom1-1], atom1, atoms[atom2-1], atom2))
     print("    with force constant 💪💪 %f" % params["force"])
     print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
-          % (pts[0], pts[-1], slow, shigh))
-    print("    discretized with %i points" % len(pts))
-    constraints = [["force constant = %f" % params["force"],
-                    "distance: %i, %i, %f"% (bond[0],bond[1],p)]
-                   for p in pts]
-    
+          % (low, high, slow, shigh))
+    print("    discretized with %i points" % npts)
+        
     
     # STEP 1: Initial generation of guesses
     # ----------------------------------------------------------------------------
     react.generate_initial_structures(
-        xtb, out_dir,
-        init1,
-        constraints,
+        xtb, out_dir, init1,
+        atom1, atom2, low, high, npts,
         params)
 
     # reset threading
@@ -138,7 +129,7 @@ def rsearch(out_dir, defaults,
 
     # Read the successive optimization, then set mtd points to ground and TS
     # geometries.
-    reactant, E0 = io_utils.traj2smiles(init0, index=0)
+    reactant, E0 = io_utils.traj2smiles(init1, index=0)
     init, E = io_utils.traj2smiles(out_dir + "/init/opt.xyz")
     reaction = read_reactions.read_reaction(out_dir + "/init")
     E = np.array(E)
@@ -188,7 +179,7 @@ def rsearch(out_dir, defaults,
     react.metadynamics_search(
         xtb, out_dir,
         mtd_indices,
-        constraints,
+        atom1, atom2, low, high, npts,
         params,
         nthreads=nthreads)
 
@@ -196,7 +187,7 @@ def rsearch(out_dir, defaults,
         xtb, out_dir,
         init1,
         mtd_indices,
-        constraints,
+        atom1, atom2, low, high, npts,
         params,
         nthreads=nthreads)
 
@@ -205,12 +196,14 @@ def rsearch(out_dir, defaults,
     react.react(
         xtb, out_dir,
         mtd_indices,
-        constraints,
+        atom1, atom2, low, high, npts,        
         params,
         nthreads=nthreads)
+    
+    # todo: re-integrate
+    # if logfile:
+    #     logfile.close()
 
-    if logfile:
-        logfile.close()
 
     time_end = datetime.today().ctime()
     with open(out_dir + "/run.yaml", "w") as f:
@@ -222,10 +215,9 @@ def rsearch(out_dir, defaults,
         # Every parameter and then some
         yaml.dump(params,f)
         # dump extra stuff
-        yaml.dump({"constraints":constraints,
-                   "nthreads":nthreads,
-                   "metadynamics_pts":list(mtd_indices),
-                   "bond_stretch":pts})
+        yaml.dump({"nthreads":nthreads,
+                   "done_metadynamics_pts":list(mtd_indices)})
+
 
 
 
@@ -270,7 +262,7 @@ if __name__ == "__main__":
 
     parser.add_argument("-s","--stretch-limits", help="Bond stretch limits.", nargs=2,type=float)
     parser.add_argument("-n","--stretch-num", help="Number of bond stretches.", type=int)    
-    parser.add_argument("-k","--force-constant", help="Force constant of the stretch.", type=float)
+    parser.add_argument("-k","--force", help="Force constant of the stretch.", type=float)
 
     parser.add_argument("--gfn", help="gfn version.", type=str)
     parser.add_argument("--etemp", help="Electronic temperature.", type=str)
