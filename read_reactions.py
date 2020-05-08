@@ -29,7 +29,8 @@ if __name__ == "__main__":
         final = analyse_reaction_network(pathways,species,list(species.index),
                                          sort_by_barrier=args.ts)
     else:
-        if reactant in species:
+        print("Reactant: %s" % reactant)
+        if reactant in species.index:
             final = analyse_reaction_network(pathways,species,[reactant],
                                              sort_by_barrier=args.ts)
         else:
