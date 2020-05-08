@@ -29,8 +29,12 @@ if __name__ == "__main__":
         final = analyse_reaction_network(pathways,species,list(species.index),
                                          sort_by_barrier=args.ts)
     else:
-        final = analyse_reaction_network(pathways,species,[reactant],
-                                         sort_by_barrier=args.ts)
+        if reactant in species:
+            final = analyse_reaction_network(pathways,species,[reactant],
+                                             sort_by_barrier=args.ts)
+        else:
+            print("Error! Reactant not in found species")
+            raise SystemExit(-1)
 
     # Finally, save parsed reaction network
     final.to_csv(folder + "/parsed_reactions.csv")
