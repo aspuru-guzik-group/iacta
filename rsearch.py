@@ -124,9 +124,6 @@ def rsearch(out_dir, defaults,
         atom1, atom2, low, high, npts,
         params)
 
-    # reset threading
-    xtb.extra_args = xtb.extra_args[:-2]
-
     # Read the successive optimization, then set mtd points to ground and TS
     # geometries.
     reactant, E0 = io_utils.traj2smiles(init1, index=0)
@@ -147,9 +144,29 @@ def rsearch(out_dir, defaults,
     if params["mtdi"]:
         mtd_indices = params["mtdi"]
     else:
-        mtd_indices = [k for k in reaction["stretch_points"]]
+        # Evaluate single point wavefunction quantities
+        
+        # TODO: this code needs to be refactored out of there
+        print("evaluating bond orders...")
+        from scipy.signal import find_peaks
+        
+        sp_props = []
+        for i in range(npts):
+            inputf = out_dir + "/init/opt%4.4i.xyz"%i
+            sp_props += [xtb.wf(inputf)]
 
-        # additional indices at repeated intervals
+        # Compute R, bond order at points
+        R = np.sqrt([np.sum((o['positions'][atom1-1,:]
+                             - o['positions'][atom2-1,:])**2)
+                     for o in sp_props])
+        orders = np.array([o['wbo'][atom1-1,atom2-1] for o in sp_props])
+
+        # Use peak finding to find good mtd indices
+        dO = abs(np.diff(orders)/np.diff(R))
+        indices, _ = find_peaks(abs(dO), prominence=0.2)
+        mtd_indices = indices + 1
+
+        # # additional indices at repeated intervals
         step = params["mtd_step"]
         if step:
             mtd_indices += list(np.arange(0,len(E), step))
@@ -162,20 +179,21 @@ def rsearch(out_dir, defaults,
                 print("Reactant not found in initial stretch! 😢")
                 print("Optimization probably reacted. Alter geometry and try again.")
                 raise SystemExit(-1)
-            
-            # Also do the steps just before and just after
-            mtd_indices += [max(mtd_indices) + 1,
-                            min(mtd_indices) - 1]
+
 
         # Sort the indices, do not do the same point twice, make sure the points
         # are in bound
-        mtd_indices = sorted(list(set([i for i in mtd_indices
-                                       if (i >= 0 and i < len(E))])))
+    mtd_indices = sorted(list(set([i for i in mtd_indices
+                                   if (i >= 0 and i < len(E))])))
 
 
 
     # STEP 2: Metadynamics
     # ----------------------------------------------------------------------------
+    # reset threading
+    xtb.extra_args = xtb.extra_args[:-2]
+
+    
     react.metadynamics_search(
         xtb, out_dir,
         mtd_indices,

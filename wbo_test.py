@@ -6,9 +6,9 @@ xtb = xtb_utils.xtb_driver()
 
 outputs = []
 at1 = 0
-at2 = 2
+at2 = 1
 for i in range(100):
-    inputf = "GabesCatalyst/init/opt%4.4i.xyz"%i
+    inputf = "test-set-out/Sn2MeI/init/opt%4.4i.xyz"%i
     outputs += [xtb.wf(inputf)]
     print(inputf, outputs[-1]['wbo'][at1,at2])
     
