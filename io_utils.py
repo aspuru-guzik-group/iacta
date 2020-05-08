@@ -2,7 +2,7 @@
 import numpy as np
 import re
 import os
-import pybel
+import openbabel.pybel as pybel
 import subprocess
 import re
 
