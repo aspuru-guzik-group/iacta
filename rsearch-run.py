@@ -7,27 +7,29 @@ import shutil
 # ========================== CLI INTERFACE ================================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Simple driver for reaction search. Runs reactions for a  user.yaml parameter file.")
+        description="Driver for (single start) reaction search.")
 
     # These parameters do not have defaults
     parser.add_argument("user_params",
-                        help="Path to user.yaml file.",
+                        help="Path to a user.yaml file.",
                         type=str)
-
+    parser.add_argument("out_dir",
+                        help="Output folder.",
+                        type=str)
+    
     # These are run specific parameters
-    parser.add_argument("-o",
-                        help="Output folder. Defaults to the same directory as user_params",
-                        type=str, default=None)
     parser.add_argument("-w",
                         help="Overwrite output directory. Defaults to false.",
                         action="store_true")
     parser.add_argument("-t", "--threads",
                         help="Number of threads to use.",
-                        type=int, default=1)
+                        type=int, default=1) # TODO default to OMP?
     parser.add_argument("--log-level",
                         help="Level of debug printout (see react.py for details).",
                         default=0, type=int)
-    parser.add_argument("-p", "--params", help="File containing default parameters, i.e. those not set in user.yaml. Defaults to parameters/default.yaml.",
+    parser.add_argument("-p", "--params", help="File containing default parameters"+
+                        " , i.e. those not set in user.yaml. Defaults to"
+                        +" parameters/default.yaml.",
                         type=str, default=None)
 
     args = parser.parse_args()
@@ -38,13 +40,7 @@ if __name__ == "__main__":
         
     # Prepare output files
     # --------------------
-    # TODO: add restart capabs
-    if args.o:
-        out_dir = args.o
-    else:
-        # TODO: This and the -w flag is bad, we should fix it
-        out_dir = os.path.dirname(args.user_params)
-        
+    out_dir = args.out_dir
     try:
         os.makedirs(out_dir)
     except FileExistsError:
@@ -52,7 +48,7 @@ if __name__ == "__main__":
         if args.w:
             # Delete the directory, make it and restart
             print("   👍 but that's fine! -w flag is on.")
-            print("   📁 %s is overwritten."% args.o)
+            print("   📁 %s is overwritten."% out_dir)
             shutil.rmtree(out_dir)
             os.makedirs(out_dir)
         else:
@@ -72,7 +68,6 @@ if __name__ == "__main__":
     with open(params_file, "r") as f:
         default_params = yaml.load(f, Loader=yaml.Loader)
         
-
     rsearch(out_dir, params_file,
             log_level=args.log_level,
             nthreads=args.threads)

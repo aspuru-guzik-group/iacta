@@ -35,7 +35,7 @@ def generate_initial_structures(xtb_driver,
         low, high, npts,
         parameters,
         failout=outputdir + "/FAILED",
-        verbose=True)
+        verbose=verbose)
 
     react_utils.dump_succ_opt(outputdir,
                               structures,
