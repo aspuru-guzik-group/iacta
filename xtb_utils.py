@@ -44,7 +44,6 @@ class xtb_run:
                  before_geometry="--",
                  scratch=".",
                  prefix="",
-                 logfile=None,
                  other_input_files=[],
                  xcontrol=None,
                  restart=None,
@@ -87,7 +86,6 @@ class xtb_run:
 
         TODO UPDATE PARAMETERS
         """
-        self.logfile = logfile
         self.dir = tempfile.mkdtemp(dir=scratch, prefix="tmp"+prefix)
         self.delete = delete
         if self.delete:
@@ -129,9 +127,6 @@ class xtb_run:
     def start(self, blocking=True):
         """Start xtb job."""
         assert self.proc is None
-        if self.logfile:
-            self.logfile.write(self.get_cmdline())
-            self.logfile.flush()
         self.proc = subprocess.Popen(self.args, **self.kwargs)
         if blocking:
             self.proc.wait()
@@ -230,7 +225,7 @@ class xtb_run:
 
 class xtb_driver:
     def __init__(self, path_to_xtb_binaries="",
-                 delete=True, logfile=None,
+                 delete=True, 
                  xtb_args=[], scratch="."):
         """Utility driver for xtb runs.
 
@@ -254,7 +249,6 @@ class xtb_driver:
         self.xtb_bin = path_to_xtb_binaries + "xtb"
         self.crest_bin = path_to_xtb_binaries + "crest"
         self.scratchdir = scratch
-        self.logfile = logfile
         self.delete=delete
 
     def optimize(self,
@@ -331,7 +325,6 @@ class xtb_driver:
                       scratch=self.scratchdir,
                       delete=self.delete,
                       failout=failout,
-                      logfile=self.logfile,
                       return_files=return_files)
         return opt
 
@@ -374,7 +367,6 @@ class xtb_driver:
                      delete=self.delete,
                      scratch=self.scratchdir,
                      failout=failout,
-                     logfile=self.logfile,
                      return_files=return_files)
         return md
 
@@ -416,7 +408,6 @@ class xtb_driver:
                       other_input_files=[reference_file],
                       delete=self.delete,
                       scratch=self.scratchdir,
-                      logfile=self.logfile,
                       return_files=return_files)
         return cre    
 

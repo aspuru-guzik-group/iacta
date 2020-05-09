@@ -22,20 +22,11 @@ def init_xtb_driver(params, log_level=0):
     else:
         delete=True
 
-    # Command log file
-    if log_level >0:
-        logfile = None          # TODO fix?
-        # logfile = open(out_dir + "/commandlog", "a")
-        # logfile.write("--------------------------"
-        #               +"--------------------------------------\n")
-    else:
-        logfile = None
-
     # Initialize the xtb driver
     # -------------------------
     xtb = xtb_utils.xtb_driver(scratch=scratch,
-                               delete=delete,
-                               logfile=logfile)
+                               delete=delete)
+
 
     xtb.extra_args = ["--gfn",str(params["gfn"])]
     if params["etemp"]:
@@ -198,11 +189,6 @@ def rsearch(out_dir, defaults,
         params,
         nthreads=nthreads)
     
-    # todo: re-integrate
-    # if logfile:
-    #     logfile.close()
-
-
     time_end = datetime.today().ctime()
     with open(out_dir + "/run.yaml", "w") as f:
         # begin with some metadata
@@ -215,8 +201,3 @@ def rsearch(out_dir, defaults,
         # dump extra stuff
         yaml.dump({"nthreads":nthreads,
                    "done_metadynamics_pts":list(mtd_indices)})
-
-
-
-
-
