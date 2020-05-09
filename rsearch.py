@@ -64,12 +64,15 @@ def rsearch(out_dir, defaults,
         f.write(params["xyz"])
 
     # Load individual conformers
-    conformers, energies = traj2str(conformers_file)
+    conformers, energies = io_utils.traj2str(conformers_file)
 
     # Main loop over conformers
     for iconformer, conformer in enumerate(conformers):
+        print("="*30 + " React. conf. %i of %i " %(iconformer+1,len(conformers))
+              + "="*30)
         # Make the conformer directory
-        conformer_dir = os.makedirs(out_dir + "/conformer-%i" % iconformer)
+        conformer_dir = out_dir + "/conformer-%i" % (iconformer+1)
+        os.makedirs(conformer_dir)
         
         # Temporarily set -P to number of threads for the next, non-parallelizable
         # two steps.
@@ -202,7 +205,8 @@ def rsearch(out_dir, defaults,
             atom1, atom2, low, high, npts,        
             params,
             nthreads=nthreads)
-    
+    print("="*60)
+    print("... dumping run parameters ...")
     time_end = datetime.today().ctime()
     with open(out_dir + "/run.yaml", "w") as f:
         # begin with some metadata
@@ -216,3 +220,4 @@ def rsearch(out_dir, defaults,
         yaml.dump(params,f)
 
 
+    print("minigabe OUT. No more work to do! 🧔🍻\n\n")

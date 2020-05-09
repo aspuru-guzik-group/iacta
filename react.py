@@ -230,4 +230,5 @@ def react(xtb_driver,
             f.result()
 
     if verbose:
-        print("No more work to do! 🧔🍻\n\n")
+        print("done!\n")
+
