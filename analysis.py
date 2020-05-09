@@ -269,11 +269,11 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
 
             # best ts
             best = reacts.loc[reacts.E_TS.idxmin()]
-            min_dEd = (best.E_TS - E0) * hartree_ev * ev_kcalmol
+            min_dEd = (reacts.E_TS.min() - E0) * hartree_ev * ev_kcalmol
 
             if verbose:
-                print("           ΔE  = %8.4f kcal/mol" % dE)
-                print("           ΔE† = %8.4f kcal/mol" % min_dEd)
+                print("           ΔE     = %8.4f kcal/mol" % dE)
+                print("           ΔE(TS) = %8.4f kcal/mol" % min_dEd)
                 print("           %s" % best.folder)            
                 print("           + %5i similar pathways\n" % (len(reacts)-1))
 
