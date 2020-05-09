@@ -2,7 +2,11 @@
 import numpy as np
 import re
 import os
-import openbabel.pybel as pybel
+try:
+    import openbabel.pybel as pybel
+except ModuleNotFoundError:
+    import pybel
+    
 import subprocess
 import re
 
