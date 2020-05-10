@@ -87,7 +87,7 @@ def read_all_reactions(output_folder,
                        save=True,
                        resolve_chiral=False):
     """Read and parse all reactions in a given folder."""
-    folders = glob.glob(output_folder + "/react[0-9]*")
+    folders = glob.glob(output_folder + "/reactions/[0-9]*")
     if verbose:
         print("Parsing folder <%s>, with" % output_folder)
         print("   %6i trajectories..." % len(folders))
