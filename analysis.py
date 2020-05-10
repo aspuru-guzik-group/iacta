@@ -22,7 +22,7 @@ def read_reaction(react_folder, resolve_chiral=False):
     # Get the smiles
     smiles, E = io_utils.traj2smiles(opt,
                                      chiral=resolve_chiral)
-    
+
     mols = [smiles[0]]
     regions = []
     rstart = 0
@@ -54,26 +54,28 @@ def read_reaction(react_folder, resolve_chiral=False):
             imins += [imin]
                 
     # Important potential energy surface points
-    ipots = [imins[0]]
+    ipots = [imins[0]] 
     # determine if these are stable, ts or errors
-    stable = [1]
+    stable = [True]
     for k in range(1,len(imins)):
         # maximum between minima
         imax = np.argmax(E[imins[k-1]:imins[k]]) + imins[k-1]
         # if imax is different from both, we add it to the pot curve too
         if imax != imins[k] and imax != imins[k-1]:
             ipots += [imax]
-            stable += [0]
+            stable += [False]
         ipots += [imins[k]]
-        stable += [1]
+        stable += [True]
 
-    energies = np.array([E[k] for k in ipots])
+    energies = [float(E[k]) for k in ipots]
     smiles = [smiles[k] for k in ipots]
     out = {
         "E":energies,
         "SMILES":smiles,
         "is_stable":stable,
-        "stretch_points":ipots}
+        "folder":react_folder,
+        # type conversions for json-izability        
+        "stretch_points":[int(i) for i in ipots]}
     return out
         
 

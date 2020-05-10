@@ -270,12 +270,16 @@ def reaction_job(xtb,
                       split=False)
 
         # Now read the reaction we dumped
-        isomeric = read_reaction(output_folder, chiral=True)
-        nisomeric = read_reaction(output_folder, chiral=False)
+        isomeric = read_reaction(output_folder, resolve_chiral=True)
+        nisomeric = read_reaction(output_folder, resolve_chiral=False)
+
+        isomeric['mtdi'] = int(mtd_index)
+        nisomeric['mtdi'] = int(mtd_index)
+        
         # summarized
-        with open(output_folder + "/reaction.json","w") as f:
+        with open(output_folder + "/react.json","w") as f:
             json.dump(nisomeric, f)
-        with open(output_folder + "/reaction-i.json","w") as f:
+        with open(output_folder + "/react-iso.json","w") as f:
             json.dump(isomeric, f)            
         
 
