@@ -3,10 +3,9 @@ import numpy as np
 import re
 import os
 try:
-    import openbabel.pybel as pybel
-except ModuleNotFoundError:
     import pybel
-    
+except ModuleNotFoundError:
+    import openbabel.pybel as pybel
 import subprocess
 import re
 
