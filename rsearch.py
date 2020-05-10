@@ -215,9 +215,7 @@ def rsearch(out_dir, defaults,
         meta["end"] =time_end
         meta["nthreads"] = nthreads
         yaml.dump(io_utils.metadata(),f)
-        
         # dump every other parameter
         yaml.dump(params,f)
-
-
+        
     print("minigabe OUT. No more work to do! 🧔🍻\n\n")

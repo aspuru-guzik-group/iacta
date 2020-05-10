@@ -3,6 +3,7 @@ import numpy as np
 from constants import hartree_ev, ev_kcalmol
 import pandas as pd
 import glob
+import json
 
 def read_reaction(react_folder, resolve_chiral=False):
     """Extract chemical quantities from a reaction.
@@ -22,7 +23,7 @@ def read_reaction(react_folder, resolve_chiral=False):
     # Get the smiles
     smiles, E = io_utils.traj2smiles(opt,
                                      chiral=resolve_chiral)
-    
+
     mols = [smiles[0]]
     regions = []
     rstart = 0
@@ -54,26 +55,28 @@ def read_reaction(react_folder, resolve_chiral=False):
             imins += [imin]
                 
     # Important potential energy surface points
-    ipots = [imins[0]]
+    ipots = [imins[0]] 
     # determine if these are stable, ts or errors
-    stable = [1]
+    stable = [True]
     for k in range(1,len(imins)):
         # maximum between minima
         imax = np.argmax(E[imins[k-1]:imins[k]]) + imins[k-1]
         # if imax is different from both, we add it to the pot curve too
         if imax != imins[k] and imax != imins[k-1]:
             ipots += [imax]
-            stable += [0]
+            stable += [False]
         ipots += [imins[k]]
-        stable += [1]
+        stable += [True]
 
-    energies = np.array([E[k] for k in ipots])
+    energies = [float(E[k]) for k in ipots]
     smiles = [smiles[k] for k in ipots]
     out = {
         "E":energies,
         "SMILES":smiles,
         "is_stable":stable,
-        "stretch_points":ipots}
+        "folder":react_folder,
+        # type conversions for json-izability        
+        "stretch_points":[int(i) for i in ipots]}
     return out
         
 
@@ -84,7 +87,7 @@ def read_all_reactions(output_folder,
                        save=True,
                        resolve_chiral=False):
     """Read and parse all reactions in a given folder."""
-    folders = glob.glob(output_folder + "/conformer-[0-9]*/react[0-9]*")
+    folders = glob.glob(output_folder + "/conformer-[0-9]*/reactions/[0-9]*")
     if verbose:
         print("Parsing folder <%s>, with" % output_folder)
         print("   %6i trajectories..." % len(folders))
@@ -104,20 +107,24 @@ def read_all_reactions(output_folder,
     old_indices = old_df.index
     new_indices = []
     for f in folders:
-        index = f
-        if index in old_indices:
+        # nasty parsing...
+        if f in old_indices:
+            # already in restart file
             continue
-        
-        imtd = int(f[-3:])
         try:
-            read_out = read_reaction(f,resolve_chiral=resolve_chiral)
+            if resolve_chiral:
+                fn = f + "/react-iso.json"
+            else:
+                fn = f + "/react.json"
+                
+            with open(fn,"r") as fin:
+                read_out = json.load(fin)
+                
         except OSError:
             # Convergence failed
             failed += [f]
         else:
-            read_out['folder'] = f
-            read_out['iMTD'] = imtd
-            new_indices += [index]
+            new_indices += [f]
             pathways += [read_out]
 
             
@@ -186,7 +193,7 @@ def reaction_network_layer(pathways, reactant, exclude=[]):
     ts_i = []
     ts_E = []
     folder = []
-    imtd = []
+    mtdi = []
     for k, rowk in pathways.iterrows():
         if reactant in rowk.SMILES:
             i = rowk.SMILES.index(reactant)
@@ -202,7 +209,7 @@ def reaction_network_layer(pathways, reactant, exclude=[]):
                     ts_i += [rowk.stretch_points[tspos]]
                     ts_E += [E[tspos]]
                     folder += [rowk.folder]
-                    imtd += [rowk.iMTD]
+                    mtdi += [rowk.mtdi]
 
             # backward
             for j in range(i-1, -1, -1):
@@ -213,7 +220,7 @@ def reaction_network_layer(pathways, reactant, exclude=[]):
                     ts_i += [rowk.stretch_points[tspos]]
                     ts_E += [E[tspos]]
                     folder += [rowk.folder]
-                    imtd += [rowk.iMTD]                    
+                    mtdi += [rowk.mtdi]                    
 
     out = pd.DataFrame({
         'from':[reactant] * len(to_smiles),
@@ -221,7 +228,7 @@ def reaction_network_layer(pathways, reactant, exclude=[]):
         'E_TS':ts_E,
         'i_TS':ts_i,
         'folder':folder,
-        'iMTD':imtd})
+        'mtdi':mtdi})
 
 
     return out
@@ -281,7 +288,7 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
                  'dE_TS':min_dEd,
                  'best_TS_pathway':best.folder,
                  'TS_index':best.i_TS,
-                 'iMTD':best.iMTD,
+                 'mtdi':best.mtdi,
                 }
             ]
 
