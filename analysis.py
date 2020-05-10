@@ -3,6 +3,7 @@ import numpy as np
 from constants import hartree_ev, ev_kcalmol
 import pandas as pd
 import glob
+import json
 
 def read_reaction(react_folder, resolve_chiral=False):
     """Extract chemical quantities from a reaction.
@@ -107,21 +108,23 @@ def read_all_reactions(output_folder,
     new_indices = []
     for f in folders:
         # nasty parsing...
-        index = int(f[-9:-4])
-        if index in old_indices:
+        if f in old_indices:
             # already in restart file
             continue
-        
-        imtd = int(f[-3:])
         try:
-            read_out = read_reaction(f,resolve_chiral=resolve_chiral)
+            if resolve_chiral:
+                fn = f + "/react-iso.json"
+            else:
+                fn = f + "/react.json"
+                
+            with open(fn,"r") as fin:
+                read_out = json.load(fin)
+                
         except OSError:
             # Convergence failed
             failed += [f]
         else:
-            read_out['folder'] = "react"+f[-9:]
-            read_out['iMTD'] = imtd
-            new_indices += [index]
+            new_indices += [f]
             pathways += [read_out]
 
             
@@ -190,7 +193,7 @@ def reaction_network_layer(pathways, reactant, exclude=[]):
     ts_i = []
     ts_E = []
     folder = []
-    imtd = []
+    mtdi = []
     for k, rowk in pathways.iterrows():
         if reactant in rowk.SMILES:
             i = rowk.SMILES.index(reactant)
@@ -206,7 +209,7 @@ def reaction_network_layer(pathways, reactant, exclude=[]):
                     ts_i += [rowk.stretch_points[tspos]]
                     ts_E += [E[tspos]]
                     folder += [rowk.folder]
-                    imtd += [rowk.iMTD]
+                    mtdi += [rowk.mtdi]
 
             # backward
             for j in range(i-1, -1, -1):
@@ -217,7 +220,7 @@ def reaction_network_layer(pathways, reactant, exclude=[]):
                     ts_i += [rowk.stretch_points[tspos]]
                     ts_E += [E[tspos]]
                     folder += [rowk.folder]
-                    imtd += [rowk.iMTD]                    
+                    mtdi += [rowk.mtdi]                    
 
     out = pd.DataFrame({
         'from':[reactant] * len(to_smiles),
@@ -225,7 +228,7 @@ def reaction_network_layer(pathways, reactant, exclude=[]):
         'E_TS':ts_E,
         'i_TS':ts_i,
         'folder':folder,
-        'iMTD':imtd})
+        'mtdi':mtdi})
 
 
     return out
@@ -285,7 +288,7 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
                  'dE_TS':min_dEd,
                  'best_TS_pathway':best.folder,
                  'TS_index':best.i_TS,
-                 'iMTD':best.iMTD,
+                 'mtdi':best.mtdi,
                 }
             ]
 
