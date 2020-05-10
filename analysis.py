@@ -84,7 +84,7 @@ def read_all_reactions(output_folder,
                        save=True,
                        resolve_chiral=False):
     """Read and parse all reactions in a given folder."""
-    folders = glob.glob(output_folder + "/react[0-9]*")
+    folders = glob.glob(output_folder + "/conformer-[0-9]*/react[0-9]*")
     if verbose:
         print("Parsing folder <%s>, with" % output_folder)
         print("   %6i trajectories..." % len(folders))
@@ -104,10 +104,8 @@ def read_all_reactions(output_folder,
     old_indices = old_df.index
     new_indices = []
     for f in folders:
-        # nasty parsing...
-        index = int(f[-9:-4])
+        index = f
         if index in old_indices:
-            # already in restart file
             continue
         
         imtd = int(f[-3:])
@@ -117,7 +115,7 @@ def read_all_reactions(output_folder,
             # Convergence failed
             failed += [f]
         else:
-            read_out['folder'] = "react"+f[-9:]
+            read_out['folder'] = f
             read_out['iMTD'] = imtd
             new_indices += [index]
             pathways += [read_out]

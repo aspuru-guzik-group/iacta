@@ -24,18 +24,21 @@ if __name__ == "__main__":
     species = get_species_table(pathways)
 
 
-    reactant, E = io_utils.traj2smiles(folder + "/init_opt.xyz", index=0)
+    reactants, E = io_utils.traj2smiles(folder + "/conformers.xyz")
+    reactants = list(set(reactants))
     if args.all:
         final = analyse_reaction_network(pathways,species,list(species.index),
                                          sort_by_barrier=args.ts)
     else:
-        print("Reactant: %s" % reactant)
-        if reactant in species.index:
-            final = analyse_reaction_network(pathways,species,[reactant],
-                                             sort_by_barrier=args.ts)
-        else:
-            print("Error! Reactant not in found species")
-            raise SystemExit(-1)
+        print("Reactant: %s" % reactants)
+        todo = []
+        for reactant in reactants:
+            if reactant in species.index:
+                todo += [reactant]
+            else:
+                print("warning: reactant %s not in species"% reactant)
+        final = analyse_reaction_network(pathways,species,todo,
+                                         sort_by_barrier=args.ts)
 
     # Finally, save parsed reaction network
     final.to_csv(folder + "/parsed_reactions.csv")
