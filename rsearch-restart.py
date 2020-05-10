@@ -66,8 +66,12 @@ if __name__ == "__main__":
     params_file = args.params
     if params_file is None:
         # use parameters/default.yaml
-        params_file = os.path.dirname(__file__)\
+        folder = os.path.dirname(__file__)
+        if not folder:
+            folder = "."
+        params_file = folder \
             + "/parameters/default.yaml"
+
     
     with open(params_file, "r") as f:
         default_params = yaml.load(f, Loader=yaml.Loader)
