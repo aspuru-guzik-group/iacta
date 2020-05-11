@@ -79,13 +79,28 @@ def rsearch(out_dir, defaults,
         f.write(params["xyz"])
     init1 = out_dir + "/init_opt.xyz"
 
-    print("Optimizing initial geometry 📐...")
+    if not params["force"]:
+        print("Optimizing initial geometry 📐and getting Hessian...")
+        calc_force = True
+    else:
+        print("Optimizing initial geometry...")        
+        calc_force = False
+        
     opt = xtb.optimize(init0, init1,
                        level=params["optim"],
+                       compute_hessian=calc_force,
                        xcontrol={"wall":params["wall"],
                                  # move to center of mass
                                  "cma":""})
     opt()
+    if calc_force:
+        force = react.force_constant(init1 + "_hessian",
+                                     params["atoms"][0]-1,
+                                     params["atoms"][1]-1)
+        print("Force constant calculated from Hessian: %f Hartree/bohr" % force)
+        params["force"] = force
+
+        raise SystemExit(1)
 
     # Read result of optimization
     atoms, positions, E = io_utils.traj2npy(init1, index=0)
@@ -93,7 +108,6 @@ def rsearch(out_dir, defaults,
     Emax = E + params["ewin"] / (hartree_ev * ev_kcalmol)
     print("    max E = %15.7f Eₕ  (E₀ + %5.1f kcal/mol)" %
           (Emax,params["ewin"]))
-    params["emax"] = Emax           # update parameters
 
 
     # Get bond parameters

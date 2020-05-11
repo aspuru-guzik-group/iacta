@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 import react_utils
-from io_utils import traj2str
+from io_utils import traj2str, read_xtb_hessian
 import numpy as np
 from math import inf
 import os
@@ -44,7 +44,11 @@ def generate_initial_structures(xtb_driver,
     if verbose:
         print("Done!")
         
-
+def force_constant(hessian_file, atom1, atom2):
+    # TODO comment
+    H = read_xtb_hessian(hessian_file)
+    return 1.0
+        
 
 def metadynamics_search(xtb_driver,
                         workdir,

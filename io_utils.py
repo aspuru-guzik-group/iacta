@@ -76,6 +76,28 @@ def read_xtb_gradient(filen):
                 n+=1
     return np.fromstring(gradient, sep=" ").reshape((n,3))
 
+def read_xtb_hessian(file):
+    with open(file, "r") as f:
+        vals = []
+        for line in f:
+            m = re.findall('(-?[0-9]*\.[0-9]*)', line)
+            if len(m) > 0:
+                vals += [float(s) for s in m]
+
+    N = len(vals)
+    natom = np.sqrt(N)
+    # Check if integer
+    assert abs(int(natom) - natom) < 1e-15
+    natom = int(natom)
+
+    # Check if div by 3
+    assert natom % 3 == 0
+    natom = natom//3
+
+    H = np.array(vals).reshape((3*natom, 3*natom))
+    return H
+
+
 # =================== xyz trajectory files reading/writing routines =============================
 def traj2str(filepath, index=None, as_list=False):
     """Read an xyz file containing a trajectory."""

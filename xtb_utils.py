@@ -316,7 +316,7 @@ class xtb_driver:
             oflag = "--ohess"
             if level is None:
                 level="vtight"
-            return_files += [("hessian", "hessian_" + out_file)]
+            return_files += [("hessian", out_file + "_hessian")]
         else:
             oflag = "--opt"
             if level is None:

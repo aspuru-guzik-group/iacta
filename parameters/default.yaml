@@ -37,7 +37,9 @@ optcregen: loose
 # turned into constraints.
 atoms:
 stretch_limits: [1.0, 3.0]      # Bond stretched between 1x and 3x eq. length
-force: 1.0                      # Force of stretch, in Hartree/bohr
+force:                          # Force of stretch, in Hartree/bohr. If empty,
+                                # the force is determined from a Hessian
+                                # calculation at the starting geometry.
 
 # Only one of these two should be set. 
 stretch_num: 100                # Number of points for stretch
