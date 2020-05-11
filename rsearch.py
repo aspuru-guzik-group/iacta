@@ -1,12 +1,13 @@
 import numpy as np
 import react
 import read_reactions
+from react_utils import stretch
 import xtb_utils
 import io_utils
 import os
 import shutil
 import argparse
-from constants import hartree_ev, ev_kcalmol
+from constants import hartree_ev, ev_kcalmol, bohr_ang
 import yaml
 from datetime import datetime
 
@@ -115,14 +116,10 @@ def rsearch(out_dir, defaults,
     print("    discretized with %i points" % npts)    
     
     if not params['force']:
-        # todo refactor
-        import react_utils
-        from constants import bohr_ang
-
-        print("Computing force constant of bond...")
+        # we do so quite simply from a 4 points polynomial fit
         params['force'] = 2.0
         x0 = np.linspace(bond_length0-0.05, bond_length0 + 0.05, 5)
-        structs, y = react_utils.stretch(
+        structs, y = stretch(
             xtb, init1,
             atom1, atom2,
             x0[0],x0[-1],len(x0),
@@ -139,7 +136,6 @@ def rsearch(out_dir, defaults,
         k = 2*p[0]
         params["force"] = k * bohr_ang
         print("    computed force constant 💪💪 %f" % params["force"])
-            
     else:
         print("    with force constant 💪💪 %f" % params["force"])
     

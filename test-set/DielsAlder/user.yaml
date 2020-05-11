@@ -4,6 +4,8 @@ atoms:
 stretch_limits:
 - 0.95
 - 1.4
+mtd_step: 12
+optim: tight
 xyz: |
   19
   
