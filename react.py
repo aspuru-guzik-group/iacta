@@ -44,10 +44,22 @@ def generate_initial_structures(xtb_driver,
     if verbose:
         print("Done!")
         
-def force_constant(hessian_file, atom1, atom2):
+def force_constant(hessian_file, atom1, atom2, geom):
     # TODO comment
     H = read_xtb_hessian(hessian_file)
-    return 1.0
+
+    # Following ref. doi:10.3998/ark.5550190.0012.506, we compute the energy difference at the initial geoemtry
+
+    dx = np.zeros(len(geom)*3)
+    dx[3*atom1   ] =  1
+    dx[3*atom1+1 ] =  1
+    dx[3*atom1+2 ] =  1
+    dx[3*atom2   ] = -1
+    dx[3*atom2+1 ] = -1
+    dx[3*atom2+2 ] = -1    
+
+    k = dx.dot(H.dot(dx))/dx.dot(dx)
+    return k
         
 
 def metadynamics_search(xtb_driver,

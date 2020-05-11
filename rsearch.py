@@ -93,14 +93,6 @@ def rsearch(out_dir, defaults,
                                  # move to center of mass
                                  "cma":""})
     opt()
-    if calc_force:
-        force = react.force_constant(init1 + "_hessian",
-                                     params["atoms"][0]-1,
-                                     params["atoms"][1]-1)
-        print("Force constant calculated from Hessian: %f Hartree/bohr" % force)
-        params["force"] = force
-
-        raise SystemExit(1)
 
     # Read result of optimization
     atoms, positions, E = io_utils.traj2npy(init1, index=0)
@@ -108,6 +100,22 @@ def rsearch(out_dir, defaults,
     Emax = E + params["ewin"] / (hartree_ev * ev_kcalmol)
     print("    max E = %15.7f Eₕ  (E₀ + %5.1f kcal/mol)" %
           (Emax,params["ewin"]))
+    atom1, atom2 = params["atoms"]
+    print("Stretching bond between atoms %s%i and %s%i"
+          %(atoms[atom1-1], atom1, atoms[atom2-1], atom2))
+
+    
+    if calc_force:
+        force = react.force_constant(init1 + "_hessian",
+                                     params["atoms"][0]-1,
+                                     params["atoms"][1]-1,
+                                     positions)
+
+        params["force"] = force
+        print("    with (computed) force constant 💪💪 %f" % params["force"])
+    else:
+        print("    with force constant 💪💪 %f" % params["force"])
+    
 
 
     # Get bond parameters
@@ -121,11 +129,8 @@ def rsearch(out_dir, defaults,
     npts = params["stretch_num"]
     low = slow * bond_length0
     high = shigh * bond_length0
-    atom1, atom2 = params["atoms"]
         
-    print("Stretching bond between atoms %s%i and %s%i"
-          %(atoms[atom1-1], atom1, atoms[atom2-1], atom2))
-    print("    with force constant 💪💪 %f" % params["force"])
+
     print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
           % (low, high, slow, shigh))
     print("    discretized with %i points" % npts)
