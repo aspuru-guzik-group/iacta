@@ -79,16 +79,10 @@ def rsearch(out_dir, defaults,
         f.write(params["xyz"])
     init1 = out_dir + "/init_opt.xyz"
 
-    if not params["force"]:
-        print("Optimizing initial geometry 📐and getting Hessian...")
-        calc_force = True
-    else:
-        print("Optimizing initial geometry...")        
-        calc_force = False
-        
+
+    print("Optimizing initial geometry...")        
     opt = xtb.optimize(init0, init1,
                        level=params["optim"],
-                       compute_hessian=calc_force,
                        xcontrol={"wall":params["wall"],
                                  # move to center of mass
                                  "cma":""})
@@ -100,41 +94,54 @@ def rsearch(out_dir, defaults,
     Emax = E + params["ewin"] / (hartree_ev * ev_kcalmol)
     print("    max E = %15.7f Eₕ  (E₀ + %5.1f kcal/mol)" %
           (Emax,params["ewin"]))
-    atom1, atom2 = params["atoms"]
-    print("Stretching bond between atoms %s%i and %s%i"
-          %(atoms[atom1-1], atom1, atoms[atom2-1], atom2))
 
     
-    if calc_force:
-        force = react.force_constant(init1 + "_hessian",
-                                     params["atoms"][0]-1,
-                                     params["atoms"][1]-1,
-                                     positions)
-
-        params["force"] = force
-        print("    with (computed) force constant 💪💪 %f" % params["force"])
-    else:
-        print("    with force constant 💪💪 %f" % params["force"])
-    
-
-
     # Get bond parameters
     # -------------------
-    bond_length0 = np.sqrt(np.sum((positions[params["atoms"][0]-1] -
-                                   positions[params["atoms"][1]-1])**2))
-
+    atom1, atom2 = params["atoms"]    
+    bond_length0 = np.sqrt(np.sum((positions[atom1-1] -
+                                   positions[atom2-1])**2))
     # Constraints for the search
     # -------------------------
     slow, shigh = params["stretch_limits"]
     npts = params["stretch_num"]
     low = slow * bond_length0
     high = shigh * bond_length0
-        
 
+    print("Stretching bond between atoms %s%i and %s%i"
+          %(atoms[atom1-1], atom1, atoms[atom2-1], atom2))
     print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
           % (low, high, slow, shigh))
-    print("    discretized with %i points" % npts)
-        
+    print("    discretized with %i points" % npts)    
+    
+    if not params['force']:
+        # todo refactor
+        import react_utils
+        from constants import bohr_ang
+
+        print("Computing force constant of bond...")
+        params['force'] = 2.0
+        x0 = np.linspace(bond_length0-0.05, bond_length0 + 0.05, 5)
+        structs, y = react_utils.stretch(
+            xtb, init1,
+            atom1, atom2,
+            x0[0],x0[-1],len(x0),
+            params,
+            verbose=True)
+
+        x = []
+        for s in structs:
+            at,pos = io_utils.xyz2numpy(s)
+            x += [np.sqrt(np.sum((pos[atom1-1] - pos[atom2-1])**2))]
+        x = np.array(x)
+        y = np.array(y)
+        p = np.polyfit(x, y, 2)
+        k = 2*p[0]
+        params["force"] = k * bohr_ang
+        print("    computed force constant 💪💪 %f" % params["force"])
+            
+    else:
+        print("    with force constant 💪💪 %f" % params["force"])
     
     # STEP 1: Initial generation of guesses
     # ----------------------------------------------------------------------------
