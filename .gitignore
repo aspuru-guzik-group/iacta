@@ -7,4 +7,3 @@ test-set/*/metadyn
 test-set/*/CRE
 test-set/*/results/*
 test-set/*/run.yaml
-*.xyz
