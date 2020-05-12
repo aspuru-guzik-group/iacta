@@ -4,6 +4,7 @@ from constants import hartree_ev, ev_kcalmol
 import pandas as pd
 import glob
 import json
+import os
 
 def read_reaction(react_folder, resolve_chiral=False):
     """Extract chemical quantities from a reaction.
@@ -53,9 +54,9 @@ def read_reaction(react_folder, resolve_chiral=False):
 
         if stable:
             imins += [imin]
-                
+
     # Important potential energy surface points
-    ipots = [imins[0]] 
+    ipots = [imins[0]]
     # determine if these are stable, ts or errors
     stable = [True]
     for k in range(1,len(imins)):
@@ -75,10 +76,9 @@ def read_reaction(react_folder, resolve_chiral=False):
         "SMILES":smiles,
         "is_stable":stable,
         "folder":react_folder,
-        # type conversions for json-izability        
+        # type conversions for json-izability
         "stretch_points":[int(i) for i in ipots]}
     return out
-        
 
 
 def read_all_reactions(output_folder,
@@ -93,7 +93,6 @@ def read_all_reactions(output_folder,
         print("   %6i trajectories..." % len(folders))
 
     failed = []
-    noreact = []
     pathways = []
     if restart:
         try:
@@ -112,14 +111,16 @@ def read_all_reactions(output_folder,
             # already in restart file
             continue
         try:
+            if os.path.exists(f + "/FAILED_FORWARD")\
+               or os.path.exists(f + "/FAILED_BACKWARD"):
+                raise OSError()
+
             if resolve_chiral:
                 fn = f + "/react-iso.json"
             else:
                 fn = f + "/react.json"
-                
             with open(fn,"r") as fin:
                 read_out = json.load(fin)
-                
         except OSError:
             # Convergence failed
             failed += [f]
@@ -127,7 +128,7 @@ def read_all_reactions(output_folder,
             new_indices += [f]
             pathways += [read_out]
 
-            
+
     if verbose:
         print(" - %6i that did not converge" % len(failed))
         print("--------------")
@@ -141,7 +142,7 @@ def read_all_reactions(output_folder,
             print("   %6i pathways including restart" % len(data))
         else:
             print(" = %6i pathways" % len(pathways))
-            
+
     if save:
         if len(new):
             if verbose:
@@ -150,7 +151,7 @@ def read_all_reactions(output_folder,
 
     if verbose:
         print("                                      done.")
-    
+
     return data
 
 def get_species_table(pathways, verbose=True):
@@ -237,7 +238,7 @@ def reaction_network_layer(pathways, reactant, exclude=[]):
 def analyse_reaction_network(pathways, species, reactants, verbose=True,
                              sort_by_barrier=False):
     final_reactions = []
-    
+
     verbose=True
     if verbose:
         print("\nReaction network analysis")
@@ -259,11 +260,11 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
         if len(products) == 0:
             done += [current]
             continue
-        
+
         if verbose:
             print("-"*78)
             print("%i." % layerind)
-            print("  %s" % current)        
+            print("  %s" % current)
 
         for p in products:
             if verbose:
@@ -279,7 +280,7 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
             if verbose:
                 print("           ΔE     = %8.4f kcal/mol" % dE)
                 print("           ΔE(TS) = %8.4f kcal/mol" % min_dEd)
-                print("           %s" % best.folder)            
+                print("           %s" % best.folder)
                 print("           + %5i similar pathways\n" % (len(reacts)-1))
 
             final_reactions += [
@@ -300,4 +301,3 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
 
     final_reactions = pd.DataFrame(final_reactions)
     return final_reactions
-
