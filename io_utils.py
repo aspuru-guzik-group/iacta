@@ -60,13 +60,13 @@ def read_xtb_gradient(filen):
             if "$gradient" in line:
                 # start of the gradient group
                 break
-            
+
         gradient = ""
         n = 0
         for line in f:
             if "$end" in line:
                 break
-            
+
             # The non-gradient line have atoms at the end
             char = re.search(" [A-z]", line)
             if char:
@@ -110,7 +110,7 @@ def traj2str(filepath, index=None, as_list=False):
             # EOF -> blank line
             if not first_line:
                 break
-                
+
             this_mol = first_line
             natoms = int(first_line.rstrip())
 
@@ -130,7 +130,7 @@ def traj2str(filepath, index=None, as_list=False):
                         return [this_mol], [E]
                     else:
                         return this_mol, E
-                
+
             k+=1
     return structures,energies
 
@@ -139,13 +139,14 @@ def traj2smiles(filepath, index=None, chiral=False):
     # Read the trajectory
     strs, E = traj2str(filepath, index=index, as_list=True)
     output = []
-    
+
     if chiral:
         flags = {"c":1,"n":1}
     else:
         flags = {"c":1,"n":1, "i":1}
     for s in strs:
-        output+= [pybel.readstring("xyz", s).write(format="smi", opt=flags).rstrip()]
+        # put string in lowercase to fix stupid openbabel bug
+        output+= [pybel.readstring("xyz", s.lower()).write(format="smi", opt=flags).rstrip()]
 
     if index is None:
         return output, E
@@ -156,14 +157,14 @@ def traj2npy(filepath, index=None):
     """Read an xyz file and convert to numpy arrays."""
     # Read the trajectory
     strs, E = traj2str(filepath, index=index, as_list=True)
-    
+
     atoms = []
     positions = []
     for s in strs:
         at, r = xyz2numpy(s)
         atoms += [at]
         positions += [r]
-        
+
     if index is None:
         return atoms, positions, E
     else:

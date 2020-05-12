@@ -85,6 +85,7 @@ def read_all_reactions(output_folder,
                        verbose=True,
                        restart=True,
                        save=True,
+                       recompute=False,
                        resolve_chiral=False):
     """Read and parse all reactions in a given folder."""
     folders = glob.glob(output_folder + "/reactions/[0-9]*")
@@ -94,6 +95,8 @@ def read_all_reactions(output_folder,
 
     failed = []
     pathways = []
+    if recompute:
+        restart = False
     if restart:
         try:
             old_df = pd.read_pickle(output_folder+"/results_raw.pkl")
@@ -102,6 +105,8 @@ def read_all_reactions(output_folder,
         else:
             if verbose:
                 print(" - %6i trajectories in restart file" % len(old_df))
+    else:
+        old_df = pd.DataFrame()
 
     old_indices = old_df.index
     new_indices = []
@@ -115,12 +120,17 @@ def read_all_reactions(output_folder,
                or os.path.exists(f + "/FAILED_BACKWARD"):
                 raise OSError()
 
-            if resolve_chiral:
-                fn = f + "/react-iso.json"
+            if recompute:
+                # recompute instead of using the jsons
+                read_out = read_reaction(f, resolve_chiral=resolve_chiral)
+                read_out['mtdi'] = -1
             else:
-                fn = f + "/react.json"
-            with open(fn,"r") as fin:
-                read_out = json.load(fin)
+                if resolve_chiral:
+                    fn = f + "/react-iso.json"
+                else:
+                    fn = f + "/react.json"
+                with open(fn,"r") as fin:
+                    read_out = json.load(fin)
         except OSError:
             # Convergence failed
             failed += [f]

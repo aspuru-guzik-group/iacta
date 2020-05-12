@@ -18,9 +18,12 @@ if __name__ == "__main__":
     parser.add_argument("--ts", help="Sort products by TS energy as opposed"
                         +" to enthalpy. (the default).",
                         action="store_true")
+    parser.add_argument("--recompute", help="Force recomputation of pathways.",
+                        action="store_true")
     args = parser.parse_args()
     folder =args.folder
-    pathways = read_all_reactions(folder, resolve_chiral=args.resolve_chiral)
+    pathways = read_all_reactions(folder, resolve_chiral=args.resolve_chiral,
+                                  recompute=args.recompute)
     species = get_species_table(pathways)
 
 
@@ -39,5 +42,4 @@ if __name__ == "__main__":
 
     # Finally, save parsed reaction network
     final.to_csv(folder + "/parsed_reactions.csv")
-    species.to_csv(folder + "/parsed_species.csv")    
-
+    species.to_csv(folder + "/parsed_species.csv")
