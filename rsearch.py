@@ -134,7 +134,7 @@ def rsearch(out_dir, defaults,
         y = np.array(y)
         p = np.polyfit(x, y, 2)
         k = 2*p[0]
-        params["force"] = k * bohr_ang
+        params["force"] = float(k * bohr_ang)
         print("    computed force constant 💪💪 %f" % params["force"])
     else:
         print("    with force constant 💪💪 %f" % params["force"])
