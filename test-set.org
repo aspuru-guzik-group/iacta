@@ -5,6 +5,8 @@
 ** May 11th
 *** Diels-Alder
     Lot's of weird flip-flops between products and reactants?
+
+    Appears to be solved when including solvent...
 *** HEW
     As far as I can tell, the product is only really found once. basically, we
     need more sampling.
