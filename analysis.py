@@ -221,7 +221,7 @@ def reaction_network_layer(pathways, reactant, exclude=[]):
                     ts_i += [rowk.stretch_points[tspos]]
                     ts_E += [E[tspos]]
                     folder += [rowk.folder]
-                    mtdi += [rowk.mtdi]                    
+                    mtdi += [rowk.mtdi]
 
     out = pd.DataFrame({
         'from':[reactant] * len(to_smiles),
@@ -244,6 +244,10 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
         print("\nReaction network analysis")
 
     todo = reactants[:]
+    if len(todo) == 1:
+        global_reference = species.loc[todo[0]].E
+    else:
+        global_reference = None
     done = []
 
     layerind = 1
@@ -270,23 +274,33 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
             if verbose:
                 print("  → %s" % p)
             reacts = layer[layer.to == p]
-            dE = (species.loc[p].E-E0) * hartree_ev * ev_kcalmol
-            mean_dEd = (reacts.E_TS.mean() - E0) * hartree_ev * ev_kcalmol
+            local_dE = (species.loc[p].E-E0) * hartree_ev * ev_kcalmol
 
             # best ts
             best = reacts.loc[reacts.E_TS.idxmin()]
-            min_dEd = (reacts.E_TS.min() - E0) * hartree_ev * ev_kcalmol
+            local_TS = (reacts.E_TS.min() - E0) * hartree_ev * ev_kcalmol
+
+            if global_reference:
+                global_TS = (reacts.E_TS.min() - global_reference) \
+                    * hartree_ev * ev_kcalmol
+                global_dE = (species.loc[p].E-global_reference) \
+                    * hartree_ev * ev_kcalmol
 
             if verbose:
-                print("           ΔE     = %8.4f kcal/mol" % dE)
-                print("           ΔE(TS) = %8.4f kcal/mol" % min_dEd)
+                line1 = "       ΔE(R->P)  = %8.4f kcal/mol" % local_dE
+                line2 = "       ΔE(R->TS) = %8.4f kcal/mol" % local_TS
+                if global_reference:
+                    line1+= " ( %8.4f kcal/mol )" % global_dE
+                    line2+= " ( %8.4f kcal/mol )" % global_TS
+                print(line1)
+                print(line2)
                 print("           %s" % best.folder)
                 print("           + %5i similar pathways\n" % (len(reacts)-1))
 
             final_reactions += [
                 {'from':current, 'to':p,
-                 'dE':dE,
-                 'dE_TS':min_dEd,
+                 'dE':local_dE,
+                 'dE_TS':local_TS,
                  'best_TS_pathway':best.folder,
                  'TS_index':best.i_TS,
                  'mtdi':best.mtdi,
