@@ -267,10 +267,7 @@ def reaction_job(xtb,
                 atom1, atom2, back[0], back[-1], len(back),
                 parameters,
                 failout=output_folder + "/FAILED_BACKWARD",
-<<<<<<< HEAD
-=======
                 get_xcontrol=output_folder + "/xcontrol_backward",
->>>>>>> c7ea91b34cae6a90ebe21cd16d631c63de82f4a9
                 verbose=False)          # otherwise its way too verbose
         else:
             bstructs = []
