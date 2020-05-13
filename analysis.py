@@ -199,12 +199,16 @@ def get_species_table(pathways, verbose=True):
 
     return out
 
-def reaction_network_layer(pathways, reactant, exclude=[]):
+def reaction_network_layer(pathways, reactant, species, exclude=[]):
     to_smiles = []
     ts_i = []
     ts_E = []
+    barrier = []
     folder = []
     mtdi = []
+    dE = []
+    local_dE = []
+    Ereactant = species.E.loc[reactant]
     for k, rowk in pathways.iterrows():
         if reactant in rowk.SMILES:
             i = rowk.SMILES.index(reactant)
@@ -215,28 +219,41 @@ def reaction_network_layer(pathways, reactant, exclude=[]):
             for j in range(i+1, len(stable)):
                 if stable[j] and rowk.SMILES[j] not in exclude:
                     # we have a stable -> stable reaction
-                    to_smiles += [rowk.SMILES[j]]
+                    product = rowk.SMILES[j]
+                    Eproducts = species.E.loc[product]
+                    to_smiles += [product]
+                    dE += [Eproducts - Ereactant]
+                    local_dE += [E[j] - E[i]]
                     tspos = np.argmax(E[i:j]) + i
                     ts_i += [rowk.stretch_points[tspos]]
                     ts_E += [E[tspos]]
                     folder += [rowk.folder]
                     mtdi += [rowk.mtdi]
+                    barrier += [E[tspos]-E[i]]
 
             # backward
             for j in range(i-1, -1, -1):
                 if stable[j] and rowk.SMILES[j] not in exclude:
                     # we have a stable -> stable reaction
-                    to_smiles += [rowk.SMILES[j]]
+                    product = rowk.SMILES[j]
+                    Eproducts = species.E.loc[product]
+                    to_smiles += [product]
+                    local_dE += [E[j] - E[i]]
+                    dE += [Eproducts - Ereactant]
                     tspos = np.argmax(E[j:i]) + j
                     ts_i += [rowk.stretch_points[tspos]]
                     ts_E += [E[tspos]]
                     folder += [rowk.folder]
                     mtdi += [rowk.mtdi]
+                    barrier += [E[tspos]-E[i]]
 
     out = pd.DataFrame({
         'from':[reactant] * len(to_smiles),
         'to':to_smiles,
         'E_TS':ts_E,
+        'barrier':barrier,
+        'dE':dE,
+        'local_dE':local_dE,
         'i_TS':ts_i,
         'folder':folder,
         'mtdi':mtdi})
@@ -246,7 +263,7 @@ def reaction_network_layer(pathways, reactant, exclude=[]):
 
 
 def analyse_reaction_network(pathways, species, reactants, verbose=True,
-                             sort_by_barrier=False):
+                             sort_by_barrier=False, reaction_local=False):
     final_reactions = []
 
     verbose=True
@@ -254,22 +271,29 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
         print("\nReaction network analysis")
 
     todo = reactants[:]
-    if len(todo) == 1:
-        global_reference = species.loc[todo[0]].E
-    else:
-        global_reference = None
     done = []
 
     layerind = 1
     while todo:
         current = todo.pop(0)
-        layer = reaction_network_layer(pathways, current, exclude=done + [current])
+        layer = reaction_network_layer(pathways, current, species,
+                                       exclude=done + [current])
         E0 = species.loc[current].E
         products = list(set(layer.to))
         if sort_by_barrier:
-            products = sorted(products, key=lambda x:layer[layer.to==x].E_TS.min())
+            if reaction_local:
+                products = sorted(products,
+                                  key=lambda x:layer[layer.to==x].barrier.min())
+            else:
+                products = sorted(products,
+                                  key=lambda x:layer[layer.to==x].E_TS.min())
         else:
-            products = sorted(products, key=lambda x:species.loc[x].E)
+            if reaction_local:
+                products = sorted(products,
+                                  key=lambda x:layer[layer.to==x].local_dE.min())
+            else:
+                products = sorted(products,
+                                  key=lambda x:layer[layer.to==x].dE.min())
 
         if len(products) == 0:
             done += [current]
@@ -284,24 +308,21 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
             if verbose:
                 print("  → %s" % p)
             reacts = layer[layer.to == p]
-            local_dE = (species.loc[p].E-E0) * hartree_ev * ev_kcalmol
 
-            # best ts
-            best = reacts.loc[reacts.E_TS.idxmin()]
-            local_TS = (reacts.E_TS.min() - E0) * hartree_ev * ev_kcalmol
+            if reaction_local:
+                best = reacts.loc[reacts.barrier.idxmin()]
+                TS = best.barrier * hartree_ev * ev_kcalmol
+                dE = best.local_dE * hartree_ev * ev_kcalmol
+            else:
+                best = reacts.loc[reacts.E_TS.idxmin()]
+                TS = (best.E_TS - E0) * hartree_ev * ev_kcalmol
+                dE = best.dE * hartree_ev * ev_kcalmol
 
-            if global_reference:
-                global_TS = (reacts.E_TS.min() - global_reference) \
-                    * hartree_ev * ev_kcalmol
-                global_dE = (species.loc[p].E-global_reference) \
-                    * hartree_ev * ev_kcalmol
+
 
             if verbose:
-                line1 = "       ΔE(R->P)  = %8.4f kcal/mol" % local_dE
-                line2 = "       ΔE(R->TS) = %8.4f kcal/mol" % local_TS
-                if global_reference:
-                    line1+= " ( %8.4f kcal/mol )" % global_dE
-                    line2+= " ( %8.4f kcal/mol )" % global_TS
+                line1 = "       ΔE(R->P)  = %8.4f kcal/mol" % dE
+                line2 = "       ΔE(R->TS) = %8.4f kcal/mol" % TS
                 print(line1)
                 print(line2)
                 print("           %s" % best.folder)
@@ -309,8 +330,8 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
 
             final_reactions += [
                 {'from':current, 'to':p,
-                 'dE':local_dE,
-                 'dE_TS':local_TS,
+                 'dE':dE,
+                 'dE_TS':TS,
                  'best_TS_pathway':best.folder,
                  'TS_index':best.i_TS,
                  'mtdi':best.mtdi,
