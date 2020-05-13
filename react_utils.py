@@ -47,6 +47,7 @@ def stretch(xtb, initial_xyz,
             atom1, atom2, low, high, npts,
             parameters,
             failout=None,
+            get_xcontrol=None,
             verbose=True):
     """Optimize a structure through successive constraints.
 
@@ -85,16 +86,22 @@ def stretch(xtb, initial_xyz,
     # prepare the current file
     shutil.copyfile(initial_xyz, current)
 
+    xcontrol = dict(
+                    wall=parameters["wall"],
+                    constrain=stretch_constraint(atom1, atom2,
+                                                 low, parameters["force"]),
+                    scan=("1: %f, %f, %i" % (low, high, npts),))
+
+    if parameters["stretch_maxcycles"]:
+        xcontrol["opt"] = ("maxcycle=%i"%parameters["stretch_maxcycles"],)
+
     opt = xtb.optimize(current,
                        current,
                        failout=failout,
                        level=parameters["optim"],
-                       xcontrol=dict(
-                           opt=("maxcycle=%i"%parameters["stretch_maxcycles"],),
-                           wall=parameters["wall"],
-                           constrain=stretch_constraint(atom1, atom2,
-                                                        low, parameters["force"]),
-                           scan=("1: %f, %f, %i" % (low, high, npts),)))
+                       xcontrol=xcontrol)
+    if get_xcontrol:
+        opt.copy_xcontrol(get_xcontrol)
 
     error = opt()
     structs, energies = traj2str(current)
@@ -245,6 +252,7 @@ def reaction_job(xtb,
             atom1, atom2, forw[0], forw[-1], len(forw),
             parameters,
             failout=output_folder + "/FAILED_FORWARD",
+            get_xcontrol=output_folder + "/xcontrol_forward",
             verbose=False)          # otherwise its way too verbose
 
         # fstructs 0 is already optimized so we use it as the starting point
@@ -259,6 +267,7 @@ def reaction_job(xtb,
                 atom1, atom2, back[0], back[-1], len(back),
                 parameters,
                 failout=output_folder + "/FAILED_BACKWARD",
+                get_xcontrol=output_folder + "/xcontrol_backward",
                 verbose=False)          # otherwise its way too verbose
         else:
             bstructs = []
