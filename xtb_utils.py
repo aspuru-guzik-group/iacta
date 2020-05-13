@@ -37,7 +37,7 @@ def make_xcontrol(xcontrol_dictionary, fn):
                     f.write("$" + str(key) + " " + str(val) + "\n")
         f.write("$end\n")
     return fn
-            
+
 
 class xtb_run:
     def __init__(self, xtb, geom_file, *args,
@@ -97,19 +97,19 @@ class xtb_run:
             self.out = subprocess.DEVNULL
         else:
             self.out = open(self.dir + "/xtb.out", "w")
-            
+
         self.err = open(self.dir + "/xtb.err", "w")
         self.coord = shutil.copy(geom_file, self.dir)
         for fn in other_input_files:
             shutil.copy(fn, self.dir)
-        
+
         self.failout = failout
         if restart:
             shutil.copy(restart, self.dir + "/xtbrestart")
-            
+
         self.return_files = return_files   # list of files to take out when
                                            # run finishes
-        
+
         self.args = [xtb]
         if xcontrol:
             self.xcontrol = make_xcontrol(xcontrol, self.dir + "/.xcontrol")
@@ -119,11 +119,11 @@ class xtb_run:
 
         self.args += args
         self.args += [before_geometry, os.path.basename(self.coord)]
-        
+
         self.kwargs = dict(stderr=self.err,
                            stdout=self.out,
                            cwd=self.dir)
-        
+
         self.proc = None
 
     def start(self, blocking=True):
@@ -145,7 +145,7 @@ class xtb_run:
         """Raise RuntimeError if job is not done."""
         if self.proc is None:
             raise RuntimeError("Process not started")
-        
+
         if self.proc.poll() is None:
             raise RuntimeError("Process not finished")
 
@@ -153,22 +153,25 @@ class xtb_run:
         """Raise RuntimeError if job is not currently running."""
         if self.proc is None:
             raise RuntimeError("Process not started")
-        
+
         if self.proc.poll() is None:
             pass
         else:
             raise RuntimeError("Process finished")
 
     def cp(self, file_in, file_out=""):
-        """Copy a file from the xtb temporary directory to file_out."""        
+        """Copy a file from the xtb temporary directory to file_out."""
         self.assert_done()
         if file_out == "":
             file_out = os.path.basename(file_in)
         return shutil.copy(self.dir + "/" + file_in, file_out)
 
+    def copy_xcontrol(self, destination):
+        return shutil.copy(self.xcontrol, destination)
+
     def close(self, kill=False):
         """Cleanup xtb job."""
-        if self.proc:        
+        if self.proc:
             if kill:
                 try:
                     self.kill()
@@ -190,12 +193,12 @@ class xtb_run:
             IOERROR = False
         except FileNotFoundError:
             IOERROR = True
-            
+
         # Check error code != 0 and execute failout copying if non-zero.
         if self.proc.returncode !=0 or IOERROR:
             if self.failout:
                 self.tempd_dump(self.failout)
-            
+
         # Finally delete the temporary directory if needed.
         if self.delete:
             shutil.rmtree(self.dir)
@@ -301,7 +304,7 @@ class xtb_driver:
         xtb_run : The optimization job. Run using xtb_run().
 
         """
-        
+
         file_ext = geom_file[-3:]
         if "scan" in xcontrol:
             return_files=[("xtbscan.log", out_file)]
@@ -311,7 +314,7 @@ class xtb_driver:
             return_files += [("xtbopt.log", log)]
         if restart:
             return_files += [("xtbrestart", restart)]
-            
+
         if compute_hessian:
             oflag = "--ohess"
             if level is None:
@@ -321,8 +324,8 @@ class xtb_driver:
             oflag = "--opt"
             if level is None:
                 level="normal"
-            
-        opt = xtb_run(self.xtb_bin, geom_file, 
+
+        opt = xtb_run(self.xtb_bin, geom_file,
                       oflag, level,
                       *self.extra_args,
                       xcontrol=xcontrol,
@@ -364,7 +367,7 @@ class xtb_driver:
         xtb_run : The metadynamics job. Run using xtb_run().
 
         """
-        
+
         return_files=[("xtb.trj", out_file)]
         md = xtb_run(self.xtb_bin, geom_file,
                      "--metadyn",
@@ -410,7 +413,7 @@ class xtb_driver:
                       "-ewin",str(ewin),
                       "-rthr",str(rthr),
                       "-ethr",str(ethr),
-                      "-bthr",str(bthr),                      
+                      "-bthr",str(bthr),
                       prefix="CRE",
                       before_geometry="-cregen",
                       other_input_files=[reference_file],
@@ -418,8 +421,4 @@ class xtb_driver:
                       scratch=self.scratchdir,
                       logfile=self.logfile,
                       return_files=return_files)
-        return cre    
-
-
-
-
+        return cre
