@@ -241,23 +241,32 @@ def reaction_job(xtb,
         # happens
         back = points[:mtd_index+1][::-1]
 
+        # We want to make sure to optimize the initial xyz so that both
+        # forward and backward start from optimized structures.
+        opt = xtb.optimize(output_folder + "initial.xyz",
+                           output_folder + "start.xyz",
+                           failout=output_folder + "/FAILED_OPT",
+                           level=parameters["optim"],
+                           xcontrol=dict(
+                               wall=parameters["wall"],
+                               constrain=stretch_constraint(
+                                   atom1, atom2,
+                                   low, parameters["force"])))
+        opt()
+
+
         # Forward reaction
         fstructs, fe = stretch(
-            xtb, output_folder + "/initial.xyz",
+            xtb, output_folder + "/start.xyz",
             atom1, atom2, forw[0], forw[-1], len(forw),
             parameters,
             failout=output_folder + "/FAILED_FORWARD",
             verbose=False)          # otherwise its way too verbose
 
-        # fstructs 0 is already optimized so we use it as the starting point
-        # for the backward propagation
-        with open(output_folder + "/initial_backward.xyz", "w") as f:
-            f.write(fstructs[0])
-
         # Backward reaction
         if len(back)>1:
             bstructs, be = stretch(
-                xtb, output_folder + "/initial_backward.xyz",
+                xtb, output_folder + "/start.xyz",
                 atom1, atom2, back[0], back[-1], len(back),
                 parameters,
                 failout=output_folder + "/FAILED_BACKWARD",
