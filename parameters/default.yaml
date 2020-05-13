@@ -8,13 +8,14 @@ chrg:
 uhf:
 
 # ---------------------------------------------------------------------------#
-# Optimization of stretched and unstretched structures. 
+# Optimization of stretched and unstretched structures.
 optim: normal
+stretch_maxcycles: 10
 
 # Potential "wall" keeping molecules together. The following are just the
 # lines of the wall group. This is needed mainly for the metadynamics portion,
 # otherwise the molecules just fly away from eachother.
-wall: 
+wall:
   - 'potential=logfermi'
   - 'sphere: auto, all'
 
@@ -41,7 +42,7 @@ force:                          # Force of stretch, in Hartree/bohr. If empty,
                                 # the force is determined from a Hessian
                                 # calculation at the starting geometry.
 
-# Only one of these two should be set. 
+# Only one of these two should be set.
 stretch_num: 100                # Number of points for stretch
 
 # ---------------------------------------------------------------------------#
@@ -52,7 +53,7 @@ mtd_step: 4                     # Metadynamics every x points of stretch. If
                                 # null, do mtd only at TS and minima.
 # We can also set those points explicitly.
 mtdi:
-  
+
 # ---------------------------------------------------------------------------#
 # The following parameters relate to the metadynamics portion. The defaults
 # balance performance and exploration.
@@ -69,7 +70,7 @@ metadynamics:
     - ["kpush=0.200", "alp=0.800"]
     - ["kpush=0.200", "alp=0.200"]
     - ["kpush=0.050", "alp=0.800"]
-    - ["kpush=0.050", "alp=0.200"]    
+    - ["kpush=0.050", "alp=0.200"]
   md:
     - "shake=0"                 # shake off
     - "step=2"                  # MD timestep, in fs
@@ -80,4 +81,3 @@ xyz: |
 
   O    0.00   0.00  0.00
   etc.
-
