@@ -248,10 +248,11 @@ def reaction_job(xtb,
                            failout=output_folder + "/FAILED_OPT",
                            level=parameters["optim"],
                            xcontrol=dict(
+                               cma="",
                                wall=parameters["wall"],
                                constrain=stretch_constraint(
                                    atom1, atom2,
-                                   low, parameters["force"])))
+                                   forw[0], parameters["force"])))
         opt()
 
 
