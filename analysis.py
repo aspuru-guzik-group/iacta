@@ -231,21 +231,27 @@ def reaction_network_layer(pathways, reactant, species, exclude=[]):
                     mtdi += [rowk.mtdi]
                     barrier += [E[tspos]-E[i]]
 
-            # backward
-            for j in range(i-1, -1, -1):
-                if stable[j] and rowk.SMILES[j] not in exclude:
-                    # we have a stable -> stable reaction
-                    product = rowk.SMILES[j]
-                    Eproducts = species.E.loc[product]
-                    to_smiles += [product]
-                    local_dE += [E[j] - E[i]]
-                    dE += [Eproducts - Ereactant]
-                    tspos = np.argmax(E[j:i]) + j
-                    ts_i += [rowk.stretch_points[tspos]]
-                    ts_E += [E[tspos]]
-                    folder += [rowk.folder]
-                    mtdi += [rowk.mtdi]
-                    barrier += [E[tspos]-E[i]]
+            # TODO: Major issue
+
+            # the problem is that some of the trajectories are majorly fucked,
+            # but only on the backwards propagation. We can avoid confronting
+            # the issue by not loading backwards. It's rather unclear to me
+            # what the problem is and I've dug pretty deep.
+
+            # for j in range(i-1, -1, -1):
+            #     if stable[j] and rowk.SMILES[j] not in exclude:
+            #         # we have a stable -> stable reaction
+            #         product = rowk.SMILES[j]
+            #         Eproducts = species.E.loc[product]
+            #         to_smiles += [product]
+            #         local_dE += [E[j] - E[i]]
+            #         dE += [Eproducts - Ereactant]
+            #         tspos = np.argmax(E[j:i]) + j
+            #         ts_i += [rowk.stretch_points[tspos]]
+            #         ts_E += [E[tspos]]
+            #         folder += [rowk.folder]
+            #         mtdi += [rowk.mtdi]
+            #         barrier += [E[tspos]-E[i]]
 
     out = pd.DataFrame({
         'from':[reactant] * len(to_smiles),
