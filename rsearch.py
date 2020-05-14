@@ -46,7 +46,7 @@ def init_xtb_driver(params, log_level=0):
     if params["chrg"]:
         xtb.extra_args += ["--chrg", str(params["chrg"])]
     if params["uhf"]:
-        xtb.extra_args += ["--uhf", str(params["uhf"])]    
+        xtb.extra_args += ["--uhf", str(params["uhf"])]
     if params["solvent"]:
         xtb.extra_args += ["--gbsa", params["solvent"]]
     return xtb
@@ -55,7 +55,7 @@ def rsearch(out_dir, defaults,
             log_level=0, nthreads=1):
 
     time_start = datetime.today().ctime()
-    
+
 
     # load parameters
     with open(out_dir + "/user.yaml", "r") as f:
@@ -68,7 +68,7 @@ def rsearch(out_dir, defaults,
         params[key] = val
 
     xtb = init_xtb_driver(params, log_level=log_level)
-        
+
     # Temporarily set -P to number of threads for the next, non-parallelizable
     # two steps.
     xtb.extra_args += ["-P", str(nthreads)]
@@ -81,7 +81,7 @@ def rsearch(out_dir, defaults,
     init1 = out_dir + "/init_opt.xyz"
 
 
-    print("Optimizing initial geometry...")        
+    print("Optimizing initial geometry...")
     opt = xtb.optimize(init0, init1,
                        level=params["optim"],
                        xcontrol={"wall":params["wall"],
@@ -96,10 +96,10 @@ def rsearch(out_dir, defaults,
     print("    max E = %15.7f Eₕ  (E₀ + %5.1f kcal/mol)" %
           (Emax,params["ewin"]))
 
-    
+
     # Get bond parameters
     # -------------------
-    atom1, atom2 = params["atoms"]    
+    atom1, atom2 = params["atoms"]
     bond_length0 = np.sqrt(np.sum((positions[atom1-1] -
                                    positions[atom2-1])**2))
     # Constraints for the search
@@ -108,13 +108,14 @@ def rsearch(out_dir, defaults,
     npts = params["stretch_num"]
     low = slow * bond_length0
     high = shigh * bond_length0
+    points = np.linspace(low, high, npts)
 
     print("Stretching bond between atoms %s%i and %s%i"
           %(atoms[atom1-1], atom1, atoms[atom2-1], atom2))
     print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
           % (low, high, slow, shigh))
-    print("    discretized with %i points" % npts)    
-    
+    print("    discretized with %i points" % npts)
+
     if not params['force']:
         # we do so quite simply from a 4 points polynomial fit
         params['force'] = 2.0
@@ -122,7 +123,7 @@ def rsearch(out_dir, defaults,
         structs, y = stretch(
             xtb, init1,
             atom1, atom2,
-            x0[0],x0[-1],len(x0),
+            x0,
             params,
             verbose=True)
 
@@ -134,16 +135,20 @@ def rsearch(out_dir, defaults,
         y = np.array(y)
         p = np.polyfit(x, y, 2)
         k = 2*p[0]
-        params["force"] = float(k * bohr_ang)
-        print("    computed force constant 💪💪 %f" % params["force"])
+        params["force"] = float(k * bohr_ang) * 10.0
+        params["mtd_force"] = float(k * bohr_ang)
+        print("    computed force constant 💪💪 %f" % params["mtd_force"])
+        print("    stretch  force constant 💪💪 %f" % params["force"])
     else:
         print("    with force constant 💪💪 %f" % params["force"])
-    
+        if params["mtd_force"] is None:
+            params["mtd_force"] = params["force"]
+
     # STEP 1: Initial generation of guesses
     # ----------------------------------------------------------------------------
     react.generate_initial_structures(
         xtb, out_dir, init1,
-        atom1, atom2, low, high, npts,
+        atom1, atom2, points,
         params)
 
     # reset threading
@@ -179,12 +184,12 @@ def rsearch(out_dir, defaults,
         if params["mtd_only_reactant"]:
             mtd_indices = [i for i in mtd_indices if init[i] == reactant]
             print("     ... metadynamics performed only for reactants")
-            
+
             if len(mtd_indices) == 0:
                 print("Reactant not found in initial stretch! 😢")
                 print("Optimization probably reacted. Alter geometry and try again.")
                 raise SystemExit(-1)
-            
+
             # Also do the steps just before and just after
             mtd_indices += [max(mtd_indices) + 1,
                             min(mtd_indices) - 1]
@@ -201,7 +206,7 @@ def rsearch(out_dir, defaults,
     react.metadynamics_search(
         xtb, out_dir,
         mtd_indices,
-        atom1, atom2, low, high, npts,
+        atom1, atom2, points,
         params,
         nthreads=nthreads)
 
@@ -209,7 +214,7 @@ def rsearch(out_dir, defaults,
         xtb, out_dir,
         init1,
         mtd_indices,
-        atom1, atom2, low, high, npts,
+        atom1, atom2, points,
         params,
         nthreads=nthreads)
 
@@ -218,10 +223,10 @@ def rsearch(out_dir, defaults,
     react.react(
         xtb, out_dir,
         mtd_indices,
-        atom1, atom2, low, high, npts,        
+        atom1, atom2, points,
         params,
         nthreads=nthreads)
-    
+
     # todo: re-integrate
     # if logfile:
     #     logfile.close()
@@ -283,7 +288,7 @@ if __name__ == "__main__":
     parser.add_argument("--optim", help="Optimization level.", type=str)
 
     parser.add_argument("-s","--stretch-limits", help="Bond stretch limits.", nargs=2,type=float)
-    parser.add_argument("-n","--stretch-num", help="Number of bond stretches.", type=int)    
+    parser.add_argument("-n","--stretch-num", help="Number of bond stretches.", type=int)
     parser.add_argument("-k","--force", help="Force constant of the stretch.", type=float)
 
     parser.add_argument("--gfn", help="gfn version.", type=str)
@@ -321,7 +326,7 @@ if __name__ == "__main__":
             folder = "."
         params_file = folder \
             + "/parameters/default.yaml"
-    
+
     with open(params_file, "r") as f:
         default_params = yaml.load(f, Loader=yaml.Loader)
 
@@ -343,14 +348,8 @@ if __name__ == "__main__":
             # indent properly
             f.write("  " + line.lstrip() + "\n")
         f.write("\n")
-        
+
     if not args.dump:
         rsearch(out_dir, params_file,
                 log_level=args.log_level,
                 nthreads=args.threads)
-    
-
-
-
-
-
