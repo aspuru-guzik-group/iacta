@@ -76,8 +76,9 @@ def stretch(xtb, initial_xyz,
                            level=parameters["optim"],
                            restart=restart,
                            xcontrol=dict(
-                               constrain=stretch_constraint(atom1, atom2,
-                                                            pts[i], parameters["force"]),
+                               constrain=stretch_constraint(
+                                   atom1, atom2,
+                                   pts[i], parameters["force"]),
                                wall=parameters["wall"]))
 
         error = opt()
@@ -85,12 +86,13 @@ def stretch(xtb, initial_xyz,
             # An optimization failed, we get out of this loop.
             break
 
-        news, newe = traj2str(log)
-        structures += [news[np.argmin(newe)]]
-        energies += [np.min(newe)]
+        nsteps = len(traj2str(log)[0])
+        news, newe = traj2str(current, index=0)
+        structures += [news]
+        energies += [newe]
 
         if verbose:
-            print("   step👣=%4i    energy💡= %9.5f Eₕ"%(len(news),
+            print("   step👣=%4i    energy💡= %9.5f Eₕ"%(nsteps,
                                                          energies[-1]))
 
         # if newe[-1] > parameters["emax"] and barrier:
