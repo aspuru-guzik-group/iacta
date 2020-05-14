@@ -48,6 +48,70 @@ def stretch(xtb, initial_xyz,
             parameters,
             failout=None,
             verbose=True):
+    """ TODO
+    """
+    # Make scratch files
+    fdc, current = tempfile.mkstemp(suffix=".xyz", dir=xtb.scratchdir)
+    fdl, log = tempfile.mkstemp(suffix="_log.xyz", dir=xtb.scratchdir)
+    fdr, restart = tempfile.mkstemp(dir=xtb.scratchdir)
+
+    # prepare the current file
+    shutil.copyfile(initial_xyz, current)
+    structures = []
+    energies = []
+
+    if verbose:
+        print("  %i successive optimizations" % npts)
+
+    pts = np.linspace(low, high, npts)
+    for i in range(len(pts)):
+        direction = "->"
+        if verbose:
+            print("      " + direction + "  %3i " % i, end="")
+
+        opt = xtb.optimize(current,
+                           current,
+                           log=log,
+                           failout=failout,
+                           level=parameters["optim"],
+                           restart=restart,
+                           xcontrol=dict(
+                               constrain=stretch_constraint(atom1, atom2,
+                                                            pts[i], parameters["force"]),
+                               wall=parameters["wall"]))
+
+        error = opt()
+        if error != 0:
+            # An optimization failed, we get out of this loop.
+            break
+
+        news, newe = traj2str(log)
+        structures += [news[np.argmin(newe)]]
+        energies += [np.min(newe)]
+
+        if verbose:
+            print("   step👣=%4i    energy💡= %9.5f Eₕ"%(len(news),
+                                                         energies[-1]))
+
+        # if newe[-1] > parameters["emax"] and barrier:
+        #     if verbose:
+        #         print("   ----- energy threshold exceeded -----")
+        #     break
+
+    # Got to make sure that you close the filehandles!
+    os.close(fdc)
+    os.close(fdl)
+    os.close(fdr)
+    os.remove(current)
+    os.remove(log)
+    os.remove(restart)
+    return structures, energies
+
+def stretch_xtbscan(xtb, initial_xyz,
+            atom1, atom2, low, high, npts,
+            parameters,
+            failout=None,
+            verbose=True):
     """Optimize a structure through successive constraints.
 
     TODO FIX
