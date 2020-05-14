@@ -299,16 +299,20 @@ def reaction_job(xtb,
             f.write(initial_xyz)
 
         points = np.linspace(low, high, npts)
-        forw = points[mtd_index:]
+        forw = points[mtd_index+1:]
+        back = points[:mtd_index][::-1]
+        start = points[mtd_index]
         # note: we want back to start at the same point as forward, otherwise
         # we get a lot more stretch on the backward trajectory and weird stuff
-        # happens
-        back = points[:mtd_index+1][::-1]
+        # happens. In this way, we stretch to start on the first optimization,
+        # then move onward from there forward, and backward from there too.
+        # This avoids way overstretching the first step of the backward
+        # propagation, or doing optimizations twice.
 
         # We want to make sure to optimize the initial xyz so that both
         # forward and backward start from optimized structures.
-        opt = xtb.optimize(output_folder + "initial.xyz",
-                           output_folder + "start.xyz",
+        opt = xtb.optimize(output_folder + "/initial.xyz",
+                           output_folder + "/start.xyz",
                            failout=output_folder + "/FAILED_OPT",
                            level=parameters["optim"],
                            xcontrol=dict(
@@ -316,17 +320,21 @@ def reaction_job(xtb,
                                wall=parameters["wall"],
                                constrain=stretch_constraint(
                                    atom1, atom2,
-                                   forw[0], parameters["force"])))
+                                   start, parameters["force"])))
         opt()
-
+        sstructs, se = traj2str(output_folder+"/start.xyz", index=0)
 
         # Forward reaction
-        fstructs, fe = stretch(
-            xtb, output_folder + "/start.xyz",
-            atom1, atom2, forw[0], forw[-1], len(forw),
-            parameters,
-            failout=output_folder + "/FAILED_FORWARD",
-            verbose=False)          # otherwise its way too verbose
+        if len(forw)>1:
+            fstructs, fe = stretch(
+                xtb, output_folder + "/start.xyz",
+                atom1, atom2, forw[0], forw[-1], len(forw),
+                parameters,
+                failout=output_folder + "/FAILED_FORWARD",
+                verbose=False)          # otherwise its way too verbose
+        else:
+            fstructs = []
+            fe = []
 
         # Backward reaction
         if len(back)>1:
@@ -336,19 +344,14 @@ def reaction_job(xtb,
                 parameters,
                 failout=output_folder + "/FAILED_BACKWARD",
                 verbose=False)          # otherwise its way too verbose
-
-            # note, we don't need the first step which is the same as the
-            # first step of forward
-            bstructs = bstructs[1:]
-            be = be[1:]
         else:
             bstructs = []
             be = []
 
         # Dump forward reaction and backward reaction quantities
         dump_succ_opt(output_folder,
-                      bstructs[::-1] + fstructs,
-                      be[::-1] + fe,
+                      bstructs[::-1] + [sstructs] + fstructs,
+                      be[::-1] + [se] + fe,
                       split=False)
 
         # Now read the reaction we dumped
