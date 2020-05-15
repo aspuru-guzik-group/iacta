@@ -47,6 +47,7 @@ def stretch(xtb, initial_xyz,
             atom1, atom2, pts,
             parameters,
             failout=None,
+            intermediate_steps=False,
             verbose=True):
     """ TODO
     """
@@ -85,15 +86,25 @@ def stretch(xtb, initial_xyz,
             # An optimization failed, we get out of this loop.
             break
 
-        nsteps = len(traj2str(log)[0])
-        news, newe = traj2str(current, index=0)
-        structures += [news]
-        energies += [newe]
+        news, newe = traj2str(log)
+        nsteps = len(newe)
+
+        if intermediate_steps:
+            elast = np.inf
+            for s,e in zip(news,newe):
+                if abs(e-elast) < (0.1 * 1.59357020418e-3):
+                    structures +=[s]
+                    energies += [e]
+                elast = e
+        else:
+            structures += [news[-1]]
+            energies += [newe[-1]]
 
         if verbose:
             print("   step👣=%4i    energy💡= %9.5f Eₕ"%(nsteps,
                                                          energies[-1]))
 
+        # todo put back
         # if newe[-1] > parameters["emax"] and barrier:
         #     if verbose:
         #         print("   ----- energy threshold exceeded -----")
@@ -328,6 +339,7 @@ def reaction_job(xtb,
                 atom1, atom2, forw,
                 parameters,
                 failout=output_folder + "/FAILED_FORWARD",
+                intermediate_steps=True,
                 verbose=False)          # otherwise its way too verbose
         else:
             fstructs = []
@@ -340,6 +352,7 @@ def reaction_job(xtb,
                 atom1, atom2, back,
                 parameters,
                 failout=output_folder + "/FAILED_BACKWARD",
+                intermediate_steps=True,
                 verbose=False)          # otherwise its way too verbose
         else:
             bstructs = []

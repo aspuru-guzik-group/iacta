@@ -9,7 +9,7 @@ uhf:
 
 # ---------------------------------------------------------------------------#
 # Optimization of stretched and unstretched structures.
-optim: tight
+optim: vtight
 
 # Potential "wall" keeping molecules together. The following are just the
 # lines of the wall group. This is needed mainly for the metadynamics portion,
@@ -22,7 +22,7 @@ wall:
 # Parameters used by CREGEN to compare structures and decide if they are
 # identical. These are more generous (significantly) than the CREST one
 # because we want to really push diversity and limit similarity.
-ewin: 40.0                      # maximum energy in kcal /mol above the energy
+ewin: 60.0                      # maximum energy in kcal /mol above the energy
                                 # of the initial structure E0.
 rthr: 0.4                       # RMSD threshold (in A)
 ethr: 1.0                       # energy threshold (in kcal/mol)
@@ -43,13 +43,13 @@ mtd_force:                      # the forces are determined from a quick
                                 # calculation at the starting geometry.
 
 # Only one of these two should be set.
-stretch_num: 100                # Number of points for stretch
+stretch_num: 25                 # Number of points for stretch
 
 # ---------------------------------------------------------------------------#
 # The following parameters determine where (in terms of bond stretch)
 # metadynamics is performed.
 mtd_only_reactant: true         # Do metadynamics only for the reactant.
-mtd_step: 4                     # Metadynamics every x points of stretch. If
+mtd_step: 1                     # Metadynamics every x points of stretch. If
                                 # null, do mtd only at TS and minima.
 # We can also set those points explicitly.
 mtdi:
