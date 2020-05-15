@@ -135,10 +135,9 @@ def rsearch(out_dir, defaults,
         y = np.array(y)
         p = np.polyfit(x, y, 2)
         k = 2*p[0]
-        params["force"] = float(k * bohr_ang) * 10.0
+        params["force"] = float(k * bohr_ang)
         params["mtd_force"] = float(k * bohr_ang)
-        print("    computed force constant 💪💪 %f" % params["mtd_force"])
-        print("    stretch  force constant 💪💪 %f" % params["force"])
+        print("    with force constant 💪💪 %f" % params["force"])
     else:
         print("    with force constant 💪💪 %f" % params["force"])
         if params["mtd_force"] is None:
