@@ -88,10 +88,11 @@ def stretch(xtb, initial_xyz,
 
         news, newe = traj2str(log)
         nsteps = len(newe)
+        minsteps = parameters["steps_before_save"]
         if intermediate_steps:
-            if nsteps > 8:
-                structures += news[5:]
-                energies += newe[5:]
+            if nsteps > minsteps:
+                structures += news[minsteps:]
+                energies += newe[minsteps:]
             else:
                 structures += [news[-1]]
                 energies += [newe[-1]]
@@ -99,15 +100,6 @@ def stretch(xtb, initial_xyz,
         else:
             structures += [news[-1]]
             energies += [newe[-1]]
-
-        # if intermediate_steps:
-        #     elast = np.inf
-        #     for s,e in zip(news,newe):
-        #         if abs(e-elast) < (0.01 * 1.59357020418e-3):
-        #             structures +=[s]
-        #             energies += [e]
-        #         elast = e
-
 
         if verbose:
             print("   step👣=%4i    energy💡= %9.5f Eₕ"%(nsteps,

@@ -9,7 +9,8 @@ uhf:
 
 # ---------------------------------------------------------------------------#
 # Optimization of stretched and unstretched structures.
-optim: vtight
+optim: tight
+steps_before_save: 10     #todo:describe
 
 # Potential "wall" keeping molecules together. The following are just the
 # lines of the wall group. This is needed mainly for the metadynamics portion,
@@ -43,13 +44,13 @@ mtd_force:                      # the forces are determined from a quick
                                 # calculation at the starting geometry.
 
 # Only one of these two should be set.
-stretch_num: 25                 # Number of points for stretch
+stretch_num: 100                # Number of points for stretch
 
 # ---------------------------------------------------------------------------#
 # The following parameters determine where (in terms of bond stretch)
 # metadynamics is performed.
 mtd_only_reactant: true         # Do metadynamics only for the reactant.
-mtd_step: 1                     # Metadynamics every x points of stretch. If
+mtd_step: 4                     # Metadynamics every x points of stretch. If
                                 # null, do mtd only at TS and minima.
 # We can also set those points explicitly.
 mtdi:
