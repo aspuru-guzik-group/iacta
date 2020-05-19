@@ -47,7 +47,7 @@ def stretch(xtb, initial_xyz,
             atom1, atom2, pts,
             parameters,
             failout=None,
-            intermediate_steps=False,
+            save_intermediate_steps=False,
             verbose=True):
     """ TODO
     """
@@ -88,15 +88,9 @@ def stretch(xtb, initial_xyz,
 
         news, newe = traj2str(log)
         nsteps = len(newe)
-        minsteps = parameters["steps_before_save"]
-        if intermediate_steps:
-            if nsteps > minsteps:
-                structures += news[minsteps:]
-                energies += newe[minsteps:]
-            else:
-                structures += [news[-1]]
-                energies += [newe[-1]]
-
+        if save_intermediate_steps:
+                structures += news
+                energies += newe
         else:
             structures += [news[-1]]
             energies += [newe[-1]]
@@ -340,7 +334,7 @@ def reaction_job(xtb,
                 atom1, atom2, forw,
                 parameters,
                 failout=output_folder + "/FAILED_FORWARD",
-                intermediate_steps=True,
+                save_intermediate_steps=True,
                 verbose=False)          # otherwise its way too verbose
         else:
             fstructs = []
@@ -353,7 +347,7 @@ def reaction_job(xtb,
                 atom1, atom2, back,
                 parameters,
                 failout=output_folder + "/FAILED_BACKWARD",
-                intermediate_steps=True,
+                save_intermediate_steps=True,
                 verbose=False)          # otherwise its way too verbose
         else:
             bstructs = []

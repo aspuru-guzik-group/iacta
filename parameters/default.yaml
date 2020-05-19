@@ -10,7 +10,6 @@ uhf:
 # ---------------------------------------------------------------------------#
 # Optimization of stretched and unstretched structures.
 optim: tight
-steps_before_save: 10     #todo:describe
 
 # Potential "wall" keeping molecules together. The following are just the
 # lines of the wall group. This is needed mainly for the metadynamics portion,
