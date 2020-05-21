@@ -111,6 +111,9 @@ def postprocess_reaction(xtb, react_folder, metadata={}):
         # type conversions for json-izability
         "stretch_points":[int(i) for i in ipots]}
 
+    for key,val in metadata.items():
+        out[key] = val
+
     with open(react_folder + "/reaction_data.json", "w") as f:
         json.dump(out, f, indent=2, sort_keys=True)
 
