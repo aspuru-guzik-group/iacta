@@ -6,24 +6,27 @@ import glob
 import json
 import os
 
-def read_reaction(react_folder, resolve_chiral=False):
-    """Extract chemical quantities from a reaction.
+def postprocess_reaction(xtb, react_folder, metadata={}):
+    """Extract chemical quantities from a reaction trajectory
 
     Parameters:
     -----------
+    xtb (xtb_utils.xtb_driver instance): xtb driver for optimizing products.
+
     react_folder (str) : folder storing the reaction data, obtained from the
     reaction_job() routine in react.py.
-
-    resolve_chiral (bool) : whether to separate enantiomers.
 
     Returns:
     -------
     A dictionary that describes the trajectory in react_folder
+
     """
     opt = react_folder + "/opt.xyz"
     # Get the smiles
-    smiles, E = io_utils.traj2smiles(opt,
-                                     chiral=resolve_chiral)
+    # TODO: waste of computer time reloading the same file three times...
+    smiles, E = io_utils.traj2smiles(opt,chiral=True)
+    smiles_iso, _ = io_utils.traj2smiles(opt,chiral=False)
+    structs, _ = io_utils.traj2str(opt)
 
     mols = [smiles[0]]
     regions = []
@@ -69,17 +72,43 @@ def read_reaction(react_folder, resolve_chiral=False):
         ipots += [imins[k]]
         stable += [True]
 
-    energies = [float(E[k]) for k in ipots]
-    smiles = [smiles[k] for k in ipots]
+    # Optimize "stable" structures
+    chiral_smiles = []
+    isomeric_smiles = []
+    energies = []
+    for i, sindex in enumerate(ipots):
+        if stable[i]:
+            fn = react_folder + "/struct_%4.4i.xyz" % sindex
+            with open(fn, "w") as f:
+                f.write(structs[sindex])
+
+            # optimize the structure
+            xtb.optimize(fn, fn,
+                         level="vtight")
+
+            # Read back
+            # TODO:again, reloading the same file twice
+            s, eprod = io_utils.traj2smiles(fn, chiral=True, index=0)
+            chiral_smiles += [s]
+            s, _ = io_utils.traj2smiles(fn, chiral=False, index=0)
+            isomeric_smiles += [s]
+            energies += [float(eprod)]
+        else:
+            chiral_smiles += [smiles[sindex]]
+            isomeric_smiles += [smiles_iso[sindex]]
+            energies +=[float(E[sindex])]
+
     out = {
         "E":energies,
-        "SMILES":smiles,
+        "SMILES_c":chiral_smiles,
+        "SMILES_i":isomeric_smiles,
         "is_stable":stable,
         "folder":react_folder,
         # type conversions for json-izability
         "stretch_points":[int(i) for i in ipots]}
-    return out
 
+    with open(react_folder + "/reaction_data.json", "w") as f:
+        json.dump(out, f, indent=2, sort_keys=True)
 
 def read_all_reactions(output_folder,
                        verbose=True,
