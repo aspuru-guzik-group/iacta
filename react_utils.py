@@ -4,9 +4,8 @@ import subprocess
 import numpy as np
 import tempfile
 import re
-from analysis import read_reaction
+from analysis import postprocess_reaction
 from io_utils import traj2str
-import json
 
 # ------------------- utility routines -----------------------------------#
 def dump_succ_opt(output_folder, structures, energies,
@@ -287,18 +286,8 @@ def reaction_job(xtb,
                       be[::-1] + fe,
                       split=False)
 
-        # Now read the reaction we dumped
-        isomeric = read_reaction(output_folder, resolve_chiral=True)
-        nisomeric = read_reaction(output_folder, resolve_chiral=False)
-
-        isomeric['mtdi'] = int(mtd_index)
-        nisomeric['mtdi'] = int(mtd_index)
-
-        # summarized
-        with open(output_folder + "/react.json","w") as f:
-            json.dump(nisomeric, f)
-        with open(output_folder + "/react-iso.json","w") as f:
-            json.dump(isomeric, f)
-
+        # Now read results, optimize products and dump summary json
+        postprocess_reaction(xtb, output_folder,
+                             metadata={"mtdi":int(mtd_index)})
 
     return react_job
