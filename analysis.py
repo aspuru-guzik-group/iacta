@@ -78,7 +78,7 @@ def postprocess_reaction(xtb, react_folder, metadata={}):
     energies = []
     for i, sindex in enumerate(ipots):
         if stable[i]:
-            fn = react_folder + "/struct_%4.4i.xyz" % sindex
+            fn = react_folder + "/stable_%4.4i.xyz" % sindex
             with open(fn, "w") as f:
                 f.write(structs[sindex])
 
@@ -94,6 +94,10 @@ def postprocess_reaction(xtb, react_folder, metadata={}):
             isomeric_smiles += [s]
             energies += [float(eprod)]
         else:
+            fn = react_folder + "/ts_%4.4i.xyz" % sindex
+            with open(fn, "w") as f:
+                f.write(structs[sindex])
+
             chiral_smiles += [smiles[sindex]]
             isomeric_smiles += [smiles_iso[sindex]]
             energies +=[float(E[sindex])]
@@ -109,6 +113,8 @@ def postprocess_reaction(xtb, react_folder, metadata={}):
 
     with open(react_folder + "/reaction_data.json", "w") as f:
         json.dump(out, f, indent=2, sort_keys=True)
+
+    return out
 
 def read_all_reactions(output_folder,
                        verbose=True,
