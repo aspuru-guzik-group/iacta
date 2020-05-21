@@ -60,6 +60,7 @@ def stretch(xtb, initial_xyz,
     shutil.copyfile(initial_xyz, current)
     structures = []
     energies = []
+    step = []
 
     if verbose:
         print("  %i successive optimizations" % len(pts))
@@ -91,6 +92,7 @@ def stretch(xtb, initial_xyz,
         if save_intermediate_steps:
                 structures += news
                 energies += newe
+                step += [i] * len(newe)
         else:
             structures += [news[-1]]
             energies += [newe[-1]]
@@ -112,7 +114,10 @@ def stretch(xtb, initial_xyz,
     os.remove(current)
     os.remove(log)
     os.remove(restart)
-    return structures, energies
+    if save_intermediate_steps:
+        return structures, energies, step
+    else:
+        return structures, energies
 
 def stretch_xtbscan(xtb, initial_xyz,
             atom1, atom2, low, high, npts,
@@ -329,35 +334,43 @@ def reaction_job(xtb,
 
         # Forward reaction
         if len(forw)>1:
-            fstructs, fe = stretch(
+            fstructs, fe, fi = stretch(
                 xtb, output_folder + "/start.xyz",
                 atom1, atom2, forw,
                 parameters,
                 failout=output_folder + "/FAILED_FORWARD",
                 save_intermediate_steps=True,
                 verbose=False)          # otherwise its way too verbose
+
+            fi = list(np.array(fi) + mtd_index + 1)
         else:
             fstructs = []
             fe = []
+            fi = []
 
         # Backward reaction
         if len(back)>1:
-            bstructs, be = stretch(
+            bstructs, be, bi = stretch(
                 xtb, output_folder + "/start.xyz",
                 atom1, atom2, back,
                 parameters,
                 failout=output_folder + "/FAILED_BACKWARD",
                 save_intermediate_steps=True,
                 verbose=False)          # otherwise its way too verbose
+
         else:
             bstructs = []
             be = []
+            bi = []
 
         # Dump forward reaction and backward reaction quantities
         dump_succ_opt(output_folder,
                       bstructs[::-1] + [sstructs] + fstructs,
                       be[::-1] + [se] + fe,
                       split=False)
+
+        indices = bi + [mtd_index] + fi
+        np.savetxt(output_folder + "/indices", indices, fmt="%i")
 
         # Now read the reaction we dumped
         isomeric = read_reaction(output_folder, resolve_chiral=True)

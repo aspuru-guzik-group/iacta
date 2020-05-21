@@ -118,7 +118,7 @@ def rsearch(out_dir, defaults,
 
     if not params['force']:
         # we do so quite simply from a 4 points polynomial fit
-        params['force'] = 2.0
+        params['force'] = 1.0
         x0 = np.linspace(bond_length0-0.05, bond_length0 + 0.05, 5)
         structs, y = stretch(
             xtb, init1,
@@ -135,8 +135,8 @@ def rsearch(out_dir, defaults,
         y = np.array(y)
         p = np.polyfit(x, y, 2)
         k = 2*p[0]
-        params["force"] = float(k * bohr_ang)
-        params["mtd_force"] = float(k * bohr_ang)
+        params["force"] = float(k * bohr_ang)/4
+        params["mtd_force"] = float(k * bohr_ang)/4
         print("    with force constant 💪💪 %f" % params["force"])
     else:
         print("    with force constant 💪💪 %f" % params["force"])
