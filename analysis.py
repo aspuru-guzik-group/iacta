@@ -257,39 +257,51 @@ def reaction_network_layer(pathways, reactant, species,
             for j in range(i+1, len(stable)):
                 if stable[j] and smiles[j] not in exclude:
                     # we have a stable -> stable reaction
+
+                    # Get transition state
+                    tspos = np.argmax(E[i:j]) + i
+                    ts = E[tspos]
+                    # TODO: Major issue. Some trajectories are completely
+                    # messed up and don't have a barrier at all. We get rid of
+                    # these artifically here.
+                    if ts <= E[i] or ts <= E[j]:
+                        continue
+                    ts_E += [ts]
                     product = smiles[j]
                     Eproducts = species.E.loc[product]
                     to_smiles += [product]
                     dE += [Eproducts - Ereactant]
                     local_dE += [E[j] - E[i]]
-                    tspos = np.argmax(E[i:j]) + i
                     ts_i += [rowk.stretch_points[tspos]]
-                    ts_E += [E[tspos]]
+
                     folder += [rowk.folder]
                     mtdi += [rowk.mtdi]
                     barrier += [E[tspos]-E[i]]
 
-            # TODO: Major issue
+            for j in range(i-1, -1, -1):
+                if stable[j] and smiles[j] not in exclude:
+                    # do the same but in the other direction
 
-            # the problem is that some of the trajectories are majorly fucked,
-            # but only on the backwards propagation. We can avoid confronting
-            # the issue by not loading backwards. It's rather unclear to me
-            # what the problem is and I've dug pretty deep.
+                    # Get transition state
+                    tspos = np.argmax(E[j:i]) + j
+                    ts = E[tspos]
+                    # TODO: Major issue. Some trajectories are completely
+                    # messed up and don't have a barrier at all. We get rid of
+                    # these artifically here.
+                    if ts <= E[i] or ts <= E[j]:
+                        continue
 
-            # for j in range(i-1, -1, -1):
-            #     if stable[j] and smiles[j] not in exclude:
-            #         # we have a stable -> stable reaction
-            #         product = smiles[j]
-            #         Eproducts = species.E.loc[product]
-            #         to_smiles += [product]
-            #         local_dE += [E[j] - E[i]]
-            #         dE += [Eproducts - Ereactant]
-            #         tspos = np.argmax(E[j:i]) + j
-            #         ts_i += [rowk.stretch_points[tspos]]
-            #         ts_E += [E[tspos]]
-            #         folder += [rowk.folder]
-            #         mtdi += [rowk.mtdi]
-            #         barrier += [E[tspos]-E[i]]
+                    ts_E += [ts]
+                    product = smiles[j]
+                    Eproducts = species.E.loc[product]
+                    to_smiles += [product]
+                    dE += [Eproducts - Ereactant]
+                    local_dE += [E[j] - E[i]]
+                    ts_i += [rowk.stretch_points[tspos]]
+
+                    folder += [rowk.folder]
+                    mtdi += [rowk.mtdi]
+                    barrier += [E[tspos]-E[i]]
 
     out = pd.DataFrame({
         'from':[reactant] * len(to_smiles),
