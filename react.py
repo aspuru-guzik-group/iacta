@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 import react_utils
-from io_utils import traj2str
+from io_utils import traj2str, read_xtb_hessian
 import numpy as np
 from math import inf
 import os
@@ -44,8 +44,6 @@ def generate_initial_structures(xtb_driver,
     if verbose:
         print("Done!")
         
-
-
 def metadynamics_search(xtb_driver,
                         workdir,
                         mtd_indices,
@@ -211,6 +209,7 @@ def react(xtb_driver,
         print("    with the help of 🧔 × %i threads" % nthreads)
 
     nreact = 0
+    os.makedirs(workdir + "/reactions/")
     with ThreadPoolExecutor(max_workers=nthreads) as pool:
         futures = []
 
@@ -221,7 +220,7 @@ def react(xtb_driver,
                     structure,
                     mtd_index,
                     atom1, atom2, low, high, npts,        
-                    workdir + "/react%5.5i_%3.3i/" % (nreact, mtd_index),
+                    workdir + "/reactions/%5.5i/" % nreact,
                     parameters))]
             nreact = nreact + 1
 

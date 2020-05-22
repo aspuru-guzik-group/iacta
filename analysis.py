@@ -4,25 +4,29 @@ from constants import hartree_ev, ev_kcalmol
 import pandas as pd
 import glob
 import json
+import os
 
-def read_reaction(react_folder, resolve_chiral=False):
-    """Extract chemical quantities from a reaction.
+def postprocess_reaction(xtb, react_folder, metadata={}):
+    """Extract chemical quantities from a reaction trajectory
 
     Parameters:
     -----------
+    xtb (xtb_utils.xtb_driver instance): xtb driver for optimizing products.
+
     react_folder (str) : folder storing the reaction data, obtained from the
     reaction_job() routine in react.py.
-
-    resolve_chiral (bool) : whether to separate enantiomers.
 
     Returns:
     -------
     A dictionary that describes the trajectory in react_folder
+
     """
     opt = react_folder + "/opt.xyz"
     # Get the smiles
-    smiles, E = io_utils.traj2smiles(opt,
-                                     chiral=resolve_chiral)
+    # TODO: waste of computer time reloading the same file three times...
+    smiles, E = io_utils.traj2smiles(opt,chiral=True)
+    smiles_iso, _ = io_utils.traj2smiles(opt,chiral=False)
+    structs, _ = io_utils.traj2str(opt)
 
     mols = [smiles[0]]
     regions = []
@@ -53,9 +57,9 @@ def read_reaction(react_folder, resolve_chiral=False):
 
         if stable:
             imins += [imin]
-                
+
     # Important potential energy surface points
-    ipots = [imins[0]] 
+    ipots = [imins[0]]
     # determine if these are stable, ts or errors
     stable = [True]
     for k in range(1,len(imins)):
@@ -68,32 +72,64 @@ def read_reaction(react_folder, resolve_chiral=False):
         ipots += [imins[k]]
         stable += [True]
 
-    energies = [float(E[k]) for k in ipots]
-    smiles = [smiles[k] for k in ipots]
+    # Optimize "stable" structures
+    chiral_smiles = []
+    isomeric_smiles = []
+    energies = []
+    for i, sindex in enumerate(ipots):
+        if stable[i]:
+            fn = react_folder + "/stable_%4.4i.xyz" % sindex
+            with open(fn, "w") as f:
+                f.write(structs[sindex])
+
+            # optimize the structure
+            xtb.optimize(fn, fn,
+                         level="vtight")
+
+            # Read back
+            # TODO:again, reloading the same file twice
+            s, eprod = io_utils.traj2smiles(fn, chiral=True, index=0)
+            chiral_smiles += [s]
+            s, _ = io_utils.traj2smiles(fn, chiral=False, index=0)
+            isomeric_smiles += [s]
+            energies += [float(eprod)]
+        else:
+            fn = react_folder + "/ts_%4.4i.xyz" % sindex
+            with open(fn, "w") as f:
+                f.write(structs[sindex])
+
+            chiral_smiles += [smiles[sindex]]
+            isomeric_smiles += [smiles_iso[sindex]]
+            energies +=[float(E[sindex])]
+
     out = {
         "E":energies,
-        "SMILES":smiles,
+        "SMILES_c":chiral_smiles,
+        "SMILES_i":isomeric_smiles,
         "is_stable":stable,
         "folder":react_folder,
-        # type conversions for json-izability        
+        # type conversions for json-izability
         "stretch_points":[int(i) for i in ipots]}
-    return out
-        
 
+    for key,val in metadata.items():
+        out[key] = val
+
+    with open(react_folder + "/reaction_data.json", "w") as f:
+        json.dump(out, f, indent=2, sort_keys=True)
+
+    return out
 
 def read_all_reactions(output_folder,
                        verbose=True,
                        restart=True,
-                       save=True,
-                       resolve_chiral=False):
+                       save=True):
     """Read and parse all reactions in a given folder."""
-    folders = glob.glob(output_folder + "/react[0-9]*")
+    folders = glob.glob(output_folder + "/reactions/[0-9]*")
     if verbose:
         print("Parsing folder <%s>, with" % output_folder)
         print("   %6i trajectories..." % len(folders))
 
     failed = []
-    noreact = []
     pathways = []
     if restart:
         try:
@@ -103,6 +139,8 @@ def read_all_reactions(output_folder,
         else:
             if verbose:
                 print(" - %6i trajectories in restart file" % len(old_df))
+    else:
+        old_df = pd.DataFrame()
 
     old_indices = old_df.index
     new_indices = []
@@ -112,14 +150,14 @@ def read_all_reactions(output_folder,
             # already in restart file
             continue
         try:
-            if resolve_chiral:
-                fn = f + "/react-iso.json"
-            else:
-                fn = f + "/react.json"
-                
+            if os.path.exists(f + "/FAILED_FORWARD")\
+               or os.path.exists(f + "/FAILED_BACKWARD"):
+                raise OSError()
+
+            fn = f + "/reaction_data.json"
             with open(fn,"r") as fin:
                 read_out = json.load(fin)
-                
+
         except OSError:
             # Convergence failed
             failed += [f]
@@ -127,7 +165,7 @@ def read_all_reactions(output_folder,
             new_indices += [f]
             pathways += [read_out]
 
-            
+
     if verbose:
         print(" - %6i that did not converge" % len(failed))
         print("--------------")
@@ -141,7 +179,7 @@ def read_all_reactions(output_folder,
             print("   %6i pathways including restart" % len(data))
         else:
             print(" = %6i pathways" % len(pathways))
-            
+
     if save:
         if len(new):
             if verbose:
@@ -150,10 +188,10 @@ def read_all_reactions(output_folder,
 
     if verbose:
         print("                                      done.")
-    
+
     return data
 
-def get_species_table(pathways, verbose=True):
+def get_species_table(pathways, verbose=True, resolve_chiral=False):
     if verbose:
         print("\nBuilding table of chemical species, from")
         print("   %6i reaction pathways" % len(pathways))
@@ -162,19 +200,23 @@ def get_species_table(pathways, verbose=True):
     for irow, row in pathways.iterrows():
         for k in range(len(row.is_stable)):
             if row.is_stable[k]:
-                smi = row.SMILES[k]
+                if resolve_chiral:
+                    smi = row.SMILES_c[k]
+                else:
+                    smi = row.SMILES_i[k]
+
                 if smi in species:
                     if row.E[k] < species[smi]['E']:
                         species[smi] = {
                             'smiles':smi,
                             'E':row.E[k],
-                            'folder':row.folder,
+                            'file':row.folder + "stable_%4.4i.xyz" % row.stretch_points[k],
                             'position':row.stretch_points[k]}
                 else:
                     species[smi] = {
                         'smiles':smi,
                         'E':row.E[k],
-                        'folder':row.folder,
+                        'file':row.folder + "stable_%4.4i.xyz" % row.stretch_points[k],
                         'position':row.stretch_points[k]}
 
     k,v = zip(*species.items())
@@ -188,44 +230,86 @@ def get_species_table(pathways, verbose=True):
 
     return out
 
-def reaction_network_layer(pathways, reactant, exclude=[]):
+def reaction_network_layer(pathways, reactant, species,
+                           exclude=[],
+                           resolve_chiral=False):
     to_smiles = []
     ts_i = []
     ts_E = []
+    barrier = []
     folder = []
     mtdi = []
+    dE = []
+    local_dE = []
+    Ereactant = species.E.loc[reactant]
+
     for k, rowk in pathways.iterrows():
-        if reactant in rowk.SMILES:
-            i = rowk.SMILES.index(reactant)
+        if resolve_chiral:
+            smiles = rowk.SMILES_c
+        else:
+            smiles = rowk.SMILES_i
+        if reactant in smiles:
+            i = smiles.index(reactant)
             E = rowk.E
             stable = rowk.is_stable
 
             # forward
             for j in range(i+1, len(stable)):
-                if stable[j] and rowk.SMILES[j] not in exclude:
+                if stable[j] and smiles[j] not in exclude:
                     # we have a stable -> stable reaction
-                    to_smiles += [rowk.SMILES[j]]
+
+                    # Get transition state
                     tspos = np.argmax(E[i:j]) + i
+                    ts = E[tspos]
+                    # TODO: Major issue. Some trajectories are completely
+                    # messed up and don't have a barrier at all. We get rid of
+                    # these artifically here.
+                    if ts <= E[i] or ts <= E[j]:
+                        continue
+                    ts_E += [ts]
+                    product = smiles[j]
+                    Eproducts = species.E.loc[product]
+                    to_smiles += [product]
+                    dE += [Eproducts - Ereactant]
+                    local_dE += [E[j] - E[i]]
                     ts_i += [rowk.stretch_points[tspos]]
-                    ts_E += [E[tspos]]
+
                     folder += [rowk.folder]
                     mtdi += [rowk.mtdi]
+                    barrier += [E[tspos]-E[i]]
 
-            # backward
             for j in range(i-1, -1, -1):
-                if stable[j] and rowk.SMILES[j] not in exclude:
-                    # we have a stable -> stable reaction
-                    to_smiles += [rowk.SMILES[j]]
+                if stable[j] and smiles[j] not in exclude:
+                    # do the same but in the other direction
+
+                    # Get transition state
                     tspos = np.argmax(E[j:i]) + j
+                    ts = E[tspos]
+                    # TODO: Major issue. Some trajectories are completely
+                    # messed up and don't have a barrier at all. We get rid of
+                    # these artifically here.
+                    if ts <= E[i] or ts <= E[j]:
+                        continue
+
+                    ts_E += [ts]
+                    product = smiles[j]
+                    Eproducts = species.E.loc[product]
+                    to_smiles += [product]
+                    dE += [Eproducts - Ereactant]
+                    local_dE += [E[j] - E[i]]
                     ts_i += [rowk.stretch_points[tspos]]
-                    ts_E += [E[tspos]]
+
                     folder += [rowk.folder]
-                    mtdi += [rowk.mtdi]                    
+                    mtdi += [rowk.mtdi]
+                    barrier += [E[tspos]-E[i]]
 
     out = pd.DataFrame({
         'from':[reactant] * len(to_smiles),
         'to':to_smiles,
         'E_TS':ts_E,
+        'barrier':barrier,
+        'dE':dE,
+        'local_dE':local_dE,
         'i_TS':ts_i,
         'folder':folder,
         'mtdi':mtdi})
@@ -235,9 +319,10 @@ def reaction_network_layer(pathways, reactant, exclude=[]):
 
 
 def analyse_reaction_network(pathways, species, reactants, verbose=True,
-                             sort_by_barrier=False):
+                             sort_by_barrier=False, reaction_local=False,
+                             resolve_chiral=False):
     final_reactions = []
-    
+
     verbose=True
     if verbose:
         print("\nReaction network analysis")
@@ -248,44 +333,63 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
     layerind = 1
     while todo:
         current = todo.pop(0)
-        layer = reaction_network_layer(pathways, current, exclude=done + [current])
+        layer = reaction_network_layer(pathways, current, species,
+                                       exclude=done + [current],
+                                       resolve_chiral=resolve_chiral)
         E0 = species.loc[current].E
         products = list(set(layer.to))
         if sort_by_barrier:
-            products = sorted(products, key=lambda x:layer[layer.to==x].E_TS.min())
+            if reaction_local:
+                products = sorted(products,
+                                  key=lambda x:layer[layer.to==x].barrier.min())
+            else:
+                products = sorted(products,
+                                  key=lambda x:layer[layer.to==x].E_TS.min())
         else:
-            products = sorted(products, key=lambda x:species.loc[x].E)
+            if reaction_local:
+                products = sorted(products,
+                                  key=lambda x:layer[layer.to==x].local_dE.min())
+            else:
+                products = sorted(products,
+                                  key=lambda x:layer[layer.to==x].dE.min())
 
         if len(products) == 0:
             done += [current]
             continue
-        
+
         if verbose:
             print("-"*78)
             print("%i." % layerind)
-            print("  %s" % current)        
+            print("  %s" % current)
 
         for p in products:
             if verbose:
                 print("  → %s" % p)
             reacts = layer[layer.to == p]
-            dE = (species.loc[p].E-E0) * hartree_ev * ev_kcalmol
-            mean_dEd = (reacts.E_TS.mean() - E0) * hartree_ev * ev_kcalmol
 
-            # best ts
-            best = reacts.loc[reacts.E_TS.idxmin()]
-            min_dEd = (reacts.E_TS.min() - E0) * hartree_ev * ev_kcalmol
+            if reaction_local:
+                best = reacts.loc[reacts.barrier.idxmin()]
+                TS = best.barrier * hartree_ev * ev_kcalmol
+                dE = best.local_dE * hartree_ev * ev_kcalmol
+            else:
+                best = reacts.loc[reacts.E_TS.idxmin()]
+                TS = (best.E_TS - E0) * hartree_ev * ev_kcalmol
+                dE = best.dE * hartree_ev * ev_kcalmol
+
+
 
             if verbose:
-                print("           ΔE     = %8.4f kcal/mol" % dE)
-                print("           ΔE(TS) = %8.4f kcal/mol" % min_dEd)
-                print("           %s" % best.folder)            
+                line1 = "       ΔE(R->P)  = %8.4f kcal/mol" % dE
+                line2 = "       ΔE(R->TS) = %8.4f kcal/mol" % TS
+                print(line1)
+                print(line2)
+                print("           %s" % best.folder)
                 print("           + %5i similar pathways\n" % (len(reacts)-1))
 
             final_reactions += [
                 {'from':current, 'to':p,
                  'dE':dE,
-                 'dE_TS':min_dEd,
+                 'dE_TS':TS,
                  'best_TS_pathway':best.folder,
                  'TS_index':best.i_TS,
                  'mtdi':best.mtdi,
@@ -300,4 +404,3 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
 
     final_reactions = pd.DataFrame(final_reactions)
     return final_reactions
-
