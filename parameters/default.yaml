@@ -35,14 +35,19 @@ optcregen: normal
 # ---------------------------------------------------------------------------#
 # Parameters related to the atoms to be stretched. This will then be
 # turned into constraints.
-atoms:
-stretch_limits: [1.0, 3.0]      # Bond stretched between 1x and 3x eq. length
-force:                          # Force of stretch, in Hartree/bohr. If empty,
-                                # the force is determined from a Hessian
-                                # calculation at the starting geometry.
 
-# Only one of these two should be set.
-stretch_num: 100                # Number of points for stretch
+# If there are:
+# 2 atoms -> distance constraint
+# 3 atoms -> angle constraint
+# 4 atoms -> dihedral constraint
+atoms:
+const_limits:
+const_num:
+force:                          # Force of stretch, in Hartree/bohr. If empty,
+                                # the force is determined from four single
+                                # point calculations at the starting geometry.
+
+
 
 # ---------------------------------------------------------------------------#
 # The following parameters determine where (in terms of bond stretch)
