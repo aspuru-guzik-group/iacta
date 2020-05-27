@@ -151,20 +151,19 @@ def metadynamics_jobs(xtb,
     os.makedirs(output_folder, exist_ok=True)
 
     mjobs = []
-    meta = parameters["metadynamics"]
     inp = input_folder + "/opt%4.4i.xyz" % mtd_index
     # Set the time of the propagation based on the number of atoms.
     with open(inp, "r") as f:
         Natoms = int(f.readline())
-    md = meta["md"] + ["time=%f" % (meta["time_per_atom"] * Natoms),
-                       "dump=%f" % (meta["time_per_atom"] * Natoms
-                                    * 1000.0/meta["nmtd"])]
-    S = "save=%i" % meta["save"]
+    md = parameters["mtdmd"] + ["time=%f" % (parameters["time_per_atom"] * Natoms),
+                       "dump=%f" % (parameters["time_per_atom"] * Natoms
+                                    * 1000.0/parameters["nmtd"])]
+    S = "save=%i" % parameters["mtdsave"]
 
     # stretch points
     points = np.linspace(low, high, npts)
 
-    for metadyn_job, metadyn_params in enumerate(meta["jobs"]):
+    for metadyn_job, metadyn_params in enumerate(parameters["mtdjobs"]):
         outp = output_folder + "/mtd%4.4i_%2.2i.xyz" % (mtd_index,metadyn_job)
         mjobs += [
             xtb.metadyn(inp, outp,

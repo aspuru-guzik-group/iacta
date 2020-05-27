@@ -56,23 +56,22 @@ mtdi:
 # ---------------------------------------------------------------------------#
 # The following parameters relate to the metadynamics portion. The defaults
 # balance performance and exploration.
-metadynamics:
-  # This is the number of structure to harvest from each metadynamics job
-  nmtd: 80
-  time_per_atom: 0.5            # total time / Natoms (ps) for each job
+# This is the number of structure to harvest from each metadynamics job
+nmtd: 80
+time_per_atom: 0.5            # total time / Natoms (ps) for each job
 
-  # The remaining parameters are adapted from the CREST paper (the nanoreactor
-  # part). We do four sample at each index, with variying kpush and alpha
-  # parameters (similar to CREST conformer search).
-  save: 80
-  jobs:
-    - ["kpush=0.200", "alp=0.800"]
-    - ["kpush=0.200", "alp=0.200"]
-    - ["kpush=0.050", "alp=0.800"]
-    - ["kpush=0.050", "alp=0.200"]
-  md:
-    - "shake=0"                 # shake off
-    - "step=2"                  # MD timestep, in fs
+# The remaining parameters are adapted from the CREST paper (the nanoreactor
+# part). We do four sample at each index, with variying kpush and alpha
+# parameters (similar to CREST conformer search).
+mtdsave: 80
+mtdjobs:
+  - ["kpush=0.200", "alp=0.800"]
+  - ["kpush=0.200", "alp=0.200"]
+  - ["kpush=0.050", "alp=0.800"]
+  - ["kpush=0.050", "alp=0.200"]
+mtdmd:
+  - "shake=0"                 # shake off
+  - "step=2"                  # MD timestep, in fs
 
 # Finally, the initial structure
 xyz: |
