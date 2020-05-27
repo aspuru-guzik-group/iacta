@@ -155,9 +155,7 @@ def metadynamics_jobs(xtb,
     # Set the time of the propagation based on the number of atoms.
     with open(inp, "r") as f:
         Natoms = int(f.readline())
-    md = parameters["mtdmd"] + ["time=%f" % (parameters["time_per_atom"] * Natoms),
-                       "dump=%f" % (parameters["time_per_atom"] * Natoms
-                                    * 1000.0/parameters["nmtd"])]
+    md = parameters["mtdmd"] + ["time=%f" % (parameters["time_per_atom"] * Natoms)]
     S = "save=%i" % parameters["mtdsave"]
 
     # stretch points
