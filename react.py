@@ -16,22 +16,22 @@ react_utils.
 def generate_initial_structures(xtb_driver,
                                 workdir,
                                 guess_xyz_file,
-                                atom1,atom2,
+                                atoms,
                                 low,high,npts,
                                 parameters,
                                 verbose=True):
-    
-                                
+
+
     if verbose:
         print("-----------------------------------------------------------------")
-        print("Performing initial stretching 💪😎💪...")
+        print("Performing initial driving 💪😎💪...")
 
     outputdir = workdir + "/init"
     os.makedirs(outputdir)
-    
+
     structures, energies = react_utils.stretch(
         xtb_driver, guess_xyz_file,
-        atom1, atom2,
+        atoms,
         low, high, npts,
         parameters,
         failout=outputdir + "/FAILED",
@@ -43,11 +43,11 @@ def generate_initial_structures(xtb_driver,
                               split=True)
     if verbose:
         print("Done!")
-        
+
 def metadynamics_search(xtb_driver,
                         workdir,
                         mtd_indices,
-                        atom1, atom2, low, high, npts,                        
+                        atoms, low, high, npts,
                         parameters,
                         verbose=True,
                         nthreads=1):
@@ -58,26 +58,26 @@ def metadynamics_search(xtb_driver,
         print(mtd_indices)
         print("with %i threads. Working..." % nthreads)
 
-        
+
     with ThreadPoolExecutor(max_workers=nthreads) as pool:
         futures = []
 
         for mtd_index in mtd_indices:
             mtd_jobs = react_utils.metadynamics_jobs(
                 xtb_driver, mtd_index,
-                atom1, atom2, low, high, npts,        
+                atoms, low, high, npts,
                 workdir +"/init", workdir + "/metadyn", parameters)
 
             for ji,j in enumerate(mtd_jobs):
                 futures += [pool.submit(j)]
-                
+
                 if verbose:
                     futures[-1].add_done_callback(
                         lambda _: print("🔨",end="",flush=True))
 
         for f in futures:
             f.result()
-                    
+
     if verbose:
         print("\nDone!\n")
 
@@ -85,7 +85,7 @@ def metadynamics_refine(xtb_driver,
                         workdir,
                         reference,
                         mtd_indices,
-                        atom1, atom2, low, high, npts,                        
+                        atoms, low, high, npts,
                         parameters,
                         verbose=True,
                         nthreads=1):
@@ -95,7 +95,7 @@ def metadynamics_refine(xtb_driver,
 
     # points
     points = np.linspace(low, high, npts)
-    
+
     for mtd_index in mtd_indices:
         structures = []
         Es = []
@@ -103,7 +103,7 @@ def metadynamics_refine(xtb_driver,
             structs, E = traj2str(file)
             structures += structs
             Es += E
-            
+
         # Loosely optimize the structures in parallel
         if verbose:
             print("MTD%i>\tloaded %i structures, optimizing 📐..."
@@ -116,13 +116,13 @@ def metadynamics_refine(xtb_driver,
                     xtb_driver, s, parameters["optcregen"],
                     dict(wall=parameters["wall"],
                          cma="",
-                         constrain = react_utils.stretch_constraint(
-                             atom1, atom2,
+                         constrain = react_utils.make_constraint(
+                             atoms,
                              points[mtd_index], parameters["force"])
                          )
                     )
                 futures += [future]
-                
+
         converged = []
         errors = []
         for f in futures:
@@ -160,7 +160,7 @@ def metadynamics_refine(xtb_driver,
 def react(xtb_driver,
           workdir,
           mtd_indices,
-          atom1, atom2, low, high, npts,        
+          atoms, low, high, npts,
           parameters,
           verbose=True,
           nthreads=1):
@@ -170,7 +170,7 @@ def react(xtb_driver,
         print("  miniGabe 🧔,")
         print("           a reaction search ⏣ → 🔥 algorithm")
         print("-----------------------------------------------------------------")
-    
+
     # load all the structures
     meta = workdir+"/CRE"
 
@@ -184,11 +184,11 @@ def react(xtb_driver,
             meta + "/mtd%4.4i.xyz" % mtd_index)
         # CREGEN has sorted these too so the first element is the lowest
         # energy one.
-        
+
         if verbose:
             print("   MTD%i> N(⏣ 🡒 🔥) = %i"
                   %(mtd_index, len(structures)))
-            
+
         all_structures += [[mtd_index,structures]]
     if verbose:
         print("building round-robin worklist...")
@@ -200,10 +200,10 @@ def react(xtb_driver,
                 worklist += [(mtd_index,ls_structs.pop(0))]
             else:
                 all_structures.remove([mtd_index,ls_structs])
-                
+
         if len(all_structures) == 0:
             break
-        
+
     if verbose:
         print("📜 = %i reactions to compute"% len(worklist))
         print("    with the help of 🧔 × %i threads" % nthreads)
@@ -219,7 +219,7 @@ def react(xtb_driver,
                     xtb_driver,
                     structure,
                     mtd_index,
-                    atom1, atom2, low, high, npts,        
+                    atoms, low, high, npts,
                     workdir + "/reactions/%5.5i/" % nreact,
                     parameters))]
             nreact = nreact + 1

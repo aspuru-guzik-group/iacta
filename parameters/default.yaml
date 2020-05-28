@@ -33,7 +33,7 @@ bthr: 2.0                       # rotational const threshold
 optcregen: normal
 
 # ---------------------------------------------------------------------------#
-# Parameters related to the atoms to be stretched. This will then be
+# Parameters related to the coordinate driving. This will then be
 # turned into constraints.
 
 # If there are:
@@ -42,8 +42,8 @@ optcregen: normal
 # 4 atoms -> dihedral constraint
 atoms:
 const_limits:
-const_num:
-force:                          # Force of stretch, in Hartree/bohr. If empty,
+const_num: 100
+force:                          # Force of driving, in Hartree/bohr. If empty,
                                 # the force is determined from four single
                                 # point calculations at the starting geometry.
 
