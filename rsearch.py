@@ -162,24 +162,29 @@ def rsearch(out_dir, defaults,
     # -------------------------
     if not params['force']:
         # we do so quite simply from a 4 points polynomial fit
-        params['force'] = 2.0
-        x0 = np.linspace(current * 0.98, current * 1.02, 5)
-        structs, y = stretch(
-            xtb, init1,
-            atoms,
-            x0[0], x0[-1], len(x0),
-            params,
-            verbose=True)
+        params['force'] = 5.0
+        if len(atoms) == 2:
+            x0 = np.linspace(current - 0.05, current + 0.05, 5)
+            structs, y = stretch(
+                xtb, init1,
+                atoms,
+                x0[0], x0[-1], len(x0),
+                params,
+                verbose=True)
 
-        mols = [pybel.readstring("xyz", s.lower()).OBMol for s in structs]
-        x = [cval(mol, atoms) for mol in mols]
-        x = np.array(x)
+            mols = [pybel.readstring("xyz", s.lower()).OBMol for s in structs]
+            x = [abs(cval(mol, atoms)) for mol in mols]
+            print(x)
+            x = np.array(x)
 
-        y = np.array(y)
-        p = np.polyfit(x, y, 2)
-        k = 2*p[0]
-        params["force"] = float(k * bohr_ang)
-        print("    computed force constant 💪💪 %f" % params["force"])
+            y = np.array(y)
+            p = np.polyfit(x, y, 2)
+            k = 2*p[0]
+            params["force"] = float(k * bohr_ang)
+            print("    computed force constant 💪💪 %f" % params["force"])
+        else:
+            params["force"] = 1.0
+            print("     default force constant 💪💪 %f" % params["force"])
     else:
         print("    with force constant 💪💪 %f" % params["force"])
 
