@@ -75,9 +75,9 @@ mtdjobs:
   - ["kpush=0.050", "alp=0.800"]
   - ["kpush=0.050", "alp=0.200"]
 mtdmd:
-  - "shake=2"                 # shake off
-  - "step=10"                  # MD timestep, in fs
-  - "dump=100"                 # snapshot time (fs)
+  - "shake=0"                 # shake off
+  - "step=2"                  # MD timestep, in fs
+  - "dump=100"                # snapshot time (fs)
 
 # Finally, the initial structure
 xyz: |
