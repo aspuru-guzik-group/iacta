@@ -8,10 +8,6 @@ solvent: methanol
 ewin: 110.0
 mtd_step: 12
 mtd_only_reactant: false
-mtdmd:
-  - "shake=0"                 # shake off
-  - "step=2"                  # MD timestep, in fs
-  - "dump=100"                 # snapshot time (fs)
 xyz: |
   19
 
