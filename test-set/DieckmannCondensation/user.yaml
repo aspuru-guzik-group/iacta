@@ -4,9 +4,7 @@ atoms:
 chrg: '-1'
 solvent: 'methanol'
 mtd_step: 2
-stretch_limits:
-- 1.0
-- 3.0
+const_limits: 3.5
 xyz: |
   52
 
