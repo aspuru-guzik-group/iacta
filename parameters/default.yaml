@@ -9,7 +9,7 @@ uhf:
 
 # ---------------------------------------------------------------------------#
 # Optimization of stretched and unstretched structures.
-optim: vtight
+optim: normal
 
 # Potential "wall" keeping molecules together. The following are just the
 # lines of the wall group. This is needed mainly for the metadynamics portion,
@@ -30,7 +30,7 @@ bthr: 2.0                       # rotational const threshold
 
 # Before we start CREGEN, we first optimize the structures obtained in
 # metadynamics at the following optimization level,
-optcregen: normal
+optcregen: tight
 
 # ---------------------------------------------------------------------------#
 # Parameters related to the coordinate driving. This will then be

@@ -5,8 +5,8 @@ atoms:
 - 6
 solvent: water
 const_limits: [180.0, 110.0]
-mtd_only_reactant: false
-mtd_step: 12
+const_num: 200
+mtdi: [40, 80, 120]
 xyz: |
   36
 
