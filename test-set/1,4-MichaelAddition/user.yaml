@@ -1,12 +1,16 @@
+solvent: water
 atoms:
-- 5
 - 1
 - 2
-- 6
-solvent: water
-const_limits: [180.0, 110.0]
-const_num: 200
-mtdi: [40, 80, 120]
+const_limits: 2.00
+mtd_step: 10
+# atoms:
+# - 5
+# - 1
+# - 2
+# - 6
+# const_limits: [180.0, 110.0]
+# const_num: 200
 xyz: |
   36
 

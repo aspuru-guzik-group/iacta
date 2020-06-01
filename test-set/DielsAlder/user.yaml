@@ -1,12 +1,9 @@
 atoms:
-  - 7
-  - 2
-  - 1
-  - 5
-const_limits: 110.0
+- 1
+- 2
+const_limits: 1.80
 solvent: methanol
-ewin: 110.0
-mtd_step: 12
+mtd_step: 10
 mtd_only_reactant: false
 xyz: |
   19
