@@ -174,7 +174,6 @@ def rsearch(out_dir, defaults,
 
             mols = [pybel.readstring("xyz", s.lower()).OBMol for s in structs]
             x = [abs(cval(mol, atoms)) for mol in mols]
-            print(x)
             x = np.array(x)
 
             y = np.array(y)
