@@ -4,12 +4,22 @@ from react_utils import stretch
 from analysis import postprocess_reaction
 import xtb_utils
 import io_utils
+from io_utils import pybel
 import os
 import shutil
 import argparse
 from constants import hartree_ev, ev_kcalmol, bohr_ang
 import yaml
 from datetime import datetime
+
+def cval(mol, atoms_i):
+    atoms = [mol.GetAtom(i) for i in atoms_i]
+    if len(atoms)==2:
+        return mol.GetBond(*atoms).GetLength()
+    if len(atoms)==3:
+        return mol.GetAngle(*atoms)
+    if len(atoms)==4:
+        return mol.GetTorsion(*atoms)
 
 def init_xtb_driver(params, log_level=0):
     # todo : move this stuff to xtb_driver
@@ -90,60 +100,100 @@ def rsearch(out_dir, defaults,
     opt()
 
     # Read result of optimization
-    atoms, positions, E = io_utils.traj2npy(init1, index=0)
+    mol, E = io_utils.traj2mols(init1, index=0)
     print("    E₀    = %15.7f Eₕ" % E)
     Emax = E + params["ewin"] / (hartree_ev * ev_kcalmol)
     print("    max E = %15.7f Eₕ  (E₀ + %5.1f kcal/mol)" %
           (Emax,params["ewin"]))
 
 
-    # Get bond parameters
-    # -------------------
-    atom1, atom2 = params["atoms"]
-    bond_length0 = np.sqrt(np.sum((positions[atom1-1] -
-                                   positions[atom2-1])**2))
+    # Get constraints parameters
+    # --------------------------
+    atoms = params["atoms"]
+    ob_at = [mol.GetAtom(at) for at in atoms]
+    current = cval(mol, atoms)
+
+    try:
+        low, high = params["const_limits"]
+    except TypeError:
+        high = params["const_limits"]
+        low = current
+    npts = params["const_num"]
+    print("\n")
+    print("+--------------------------+")
+    print("|   *Coordinate Driving*   |")
+
+    if len(atoms)==2:
+        print("|   Interatomic distance   |")
+        print("+--------------------------+")
+        print("Atoms: %s#%i --- %s#%i" % (ob_at[0].GetType(), atoms[0],
+                                        ob_at[1].GetType(), atoms[1]) )
+        print("\n            from: %6.2f Å" % low)
+        print("              to: %6.2f Å" % high)
+        print("             opt: %6.2f Å" % current)
+        print("          nsteps: %i" % npts)
+    if len(atoms)==3:
+        print("|      Bending angle       |")
+        print("+--------------------------+")
+        print("Atoms: %s#%i      %s#%i" % (ob_at[0].GetType(), atoms[0],
+                                         ob_at[2].GetType(), atoms[2]) )
+        print("          \     /")
+        print("            %s#%i" % (ob_at[1].GetType(), atoms[1]) )
+        print("\n            from: %6.2f°" % low)
+        print("              to: %6.2f°" % high)
+        print("             opt: %6.2f°" % current)
+        print("          nsteps: %i" % npts)
+    if len(atoms)==4:
+        print("|      Torsion angle       |")
+        print("+--------------------------+")
+        print("Atoms: %s#%i     " % (ob_at[0].GetType(), atoms[0]))
+        print("          \     ")
+        print("           %s#%i -- %s#%i" % (ob_at[1].GetType(), atoms[1],
+                                           ob_at[2].GetType(), atoms[2]) )
+        print("                     \    ")
+        print("                       %s#%i" % (ob_at[3].GetType(), atoms[3]))
+        print("\n            from: %6.2f°" % low)
+        print("              to: %6.2f°" % high)
+        print("             opt: %6.2f°" % current)
+        print("          nsteps: %i" % npts)
+
+
     # Constraints for the search
     # -------------------------
-    slow, shigh = params["stretch_limits"]
-    npts = params["stretch_num"]
-    low = slow * bond_length0
-    high = shigh * bond_length0
-
-    print("Stretching bond between atoms %s%i and %s%i"
-          %(atoms[atom1-1], atom1, atoms[atom2-1], atom2))
-    print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
-          % (low, high, slow, shigh))
-    print("    discretized with %i points" % npts)
-
     if not params['force']:
         # we do so quite simply from a 4 points polynomial fit
-        params['force'] = 2.0
-        x0 = np.linspace(bond_length0-0.05, bond_length0 + 0.05, 5)
-        structs, y = stretch(
-            xtb, init1,
-            atom1, atom2,
-            x0[0],x0[-1],len(x0),
-            params,
-            verbose=True)
+        params['force'] = 5.0
+        if len(atoms) == 2:
+            x0 = np.linspace(current - 0.05, current + 0.05, 5)
+            structs, y = stretch(
+                xtb, init1,
+                atoms,
+                x0[0], x0[-1], len(x0),
+                params,
+                verbose=True)
 
-        x = []
-        for s in structs:
-            at,pos = io_utils.xyz2numpy(s)
-            x += [np.sqrt(np.sum((pos[atom1-1] - pos[atom2-1])**2))]
-        x = np.array(x)
-        y = np.array(y)
-        p = np.polyfit(x, y, 2)
-        k = 2*p[0]
-        params["force"] = float(k * bohr_ang)
-        print("    computed force constant 💪💪 %f" % params["force"])
+            mols = [pybel.readstring("xyz", s.lower()).OBMol for s in structs]
+            x = [abs(cval(mol, atoms)) for mol in mols]
+            print(x)
+            x = np.array(x)
+
+            y = np.array(y)
+            p = np.polyfit(x, y, 2)
+            k = 2*p[0]
+            params["force"] = float(k * bohr_ang)
+            print("    computed force constant 💪💪 %f" % params["force"])
+        else:
+            params["force"] = 1.0
+            print("     default force constant 💪💪 %f" % params["force"])
     else:
         print("    with force constant 💪💪 %f" % params["force"])
+
 
     # STEP 1: Initial generation of guesses
     # ----------------------------------------------------------------------------
     react.generate_initial_structures(
         xtb, out_dir, init1,
-        atom1, atom2, low, high, npts,
+        atoms, low, high, npts,
         params)
 
     # post process result of initial stretch
@@ -203,7 +253,7 @@ def rsearch(out_dir, defaults,
     react.metadynamics_search(
         xtb, out_dir,
         mtd_indices,
-        atom1, atom2, low, high, npts,
+        atoms, low, high, npts,
         params,
         nthreads=nthreads)
 
@@ -211,7 +261,7 @@ def rsearch(out_dir, defaults,
         xtb, out_dir,
         init1,
         mtd_indices,
-        atom1, atom2, low, high, npts,
+        atoms, low, high, npts,
         params,
         nthreads=nthreads)
 
@@ -220,7 +270,7 @@ def rsearch(out_dir, defaults,
     react.react(
         xtb, out_dir,
         mtd_indices,
-        atom1, atom2, low, high, npts,
+        atoms, low, high, npts,
         params,
         nthreads=nthreads)
 

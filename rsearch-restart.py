@@ -35,7 +35,7 @@ if __name__ == "__main__":
     # Load user parameters (or try at least)
     with open(args.user_params, "r") as f:
         user_params = yaml.load(f, Loader=yaml.Loader)
-        
+
     # Prepare output files
     # --------------------
     # TODO: add restart capabs
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     else:
         # TODO: This and the -w flag is bad, we should fix it
         out_dir = os.path.dirname(args.user_params)
-        
+
     try:
         os.makedirs(out_dir)
     except FileExistsError:
@@ -72,17 +72,11 @@ if __name__ == "__main__":
         params_file = folder \
             + "/parameters/default.yaml"
 
-    
+
     with open(params_file, "r") as f:
         default_params = yaml.load(f, Loader=yaml.Loader)
-        
-
-    rsearch(out_dir, params_file,
-            log_level=args.log_level,
-            nthreads=args.threads)
-    
 
 
-
-
-
+    out = rsearch(out_dir, params_file,
+                  log_level=args.log_level,
+                  nthreads=args.threads)
