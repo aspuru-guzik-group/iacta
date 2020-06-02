@@ -5,7 +5,7 @@ gfn: '2'                       # gfn version
 etemp:
 solvent:
 chrg:
-uhf:
+uhf: '0'
 
 # ---------------------------------------------------------------------------#
 # Optimization of stretched and unstretched structures.
@@ -53,7 +53,7 @@ force:                          # Force of driving, in Hartree/bohr. If empty,
 # The following parameters determine where (in terms of bond stretch)
 # metadynamics is performed.
 mtd_only_reactant: true         # Do metadynamics only for the reactant.
-mtd_step: 4                     # Metadynamics every x points of stretch. If
+mtd_step: 1                     # Metadynamics every x points of stretch. If
                                 # null, do mtd only at TS and minima.
 # We can also set those points explicitly.
 mtdi:
@@ -62,8 +62,7 @@ mtdi:
 # The following parameters relate to the metadynamics portion. The defaults
 # balance performance and exploration.
 # This is the number of structure to harvest from each metadynamics job
-time_per_atom: 0.5            # total time / Natoms (ps) for each job
-snapshot: 0.05                 # How often to take a snapshot (ps)
+time_per_atom: 0.1            # total time / Natoms (ps) for each job
 
 # The remaining parameters are adapted from the CREST paper (the nanoreactor
 # part). We do four sample at each index, with variying kpush and alpha

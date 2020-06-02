@@ -1,10 +1,13 @@
 atoms:
+- 5
 - 1
 - 2
-const_limits: 1.80
-solvent: methanol
-mtd_step: 10
+- 6
+const_limits: 120.0
+# Do metadynamics at many points but for a shorter time
 mtd_only_reactant: false
+mtd_step: 2
+time_per_atom: 0.1
 xyz: |
   19
 
