@@ -8,6 +8,16 @@ chrg:
 uhf: '0'
 
 # ---------------------------------------------------------------------------#
+# Initial conformer seeding
+# To get a realistic initial diversity of structure, we start the calculation
+# either from multiple conformers, or from an initial MTD run to generate
+# multiple conformers. The problem of course is that then we have WAY too many
+# structures. What we do then is take only a fraction of those for further
+# calculation.
+mtd_init: true
+init_time_per_atom: 0.6            # total time / Natoms (ps) for each job
+
+# ---------------------------------------------------------------------------#
 # Optimization of stretched and unstretched structures.
 optim: normal
 
@@ -52,11 +62,11 @@ force:                          # Force of driving, in Hartree/bohr. If empty,
 # ---------------------------------------------------------------------------#
 # The following parameters determine where (in terms of bond stretch)
 # metadynamics is performed.
-mtd_only_reactant: true         # Do metadynamics only for the reactant.
-mtd_step: 1                     # Metadynamics every x points of stretch. If
-                                # null, do mtd only at TS and minima.
-# We can also set those points explicitly.
-mtdi:
+mtd_step: 2                     # Do metadynamics every two steps of stretch.
+mtd_lims: [0,50]                # For indices from points 0 to 50
+
+mtdi:                           # Alternatively, we can set the indices
+                                # explicitly
 
 # ---------------------------------------------------------------------------#
 # The following parameters relate to the metadynamics portion. The defaults
