@@ -204,6 +204,7 @@ def react(xtb_driver,
         if len(all_structures) == 0:
             break
 
+    np.random.shuffle(worklist)
     if verbose:
         print("📜 = %i reactions to compute"% len(worklist))
         print("    with the help of 🧔 × %i threads" % nthreads)
