@@ -2,7 +2,7 @@
 atoms: [2,1,3]
 driving_limits: 180.0
 mtd_lims: [0.2, 0.8]
-solvent: thf
+mtd_step: 4
 
 xyz: |
   51
