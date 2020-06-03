@@ -59,8 +59,9 @@ def generate_initial_structures(xtb_driver,
         istep = parameters["mtd_step"]
         mtd_indices = list(np.arange(istart,iend,istep))
 
-    print("Metadynamics will be performed at %i points." % len(mtd_indices))
-    print("Loading and optimizing initial structures...")
+    print("\n")
+    print("Metadynamics seed structures (N=%i)" % len(mtd_indices))
+    print(" i   |    E(0)   |    E(i)   |  ΔE (kcal/mol)")
     pts = np.linspace(low,high,npts)
     curr = 0
     for ind in mtd_indices:
@@ -90,10 +91,8 @@ def generate_initial_structures(xtb_driver,
             news = [s1]
             newe = [E1]
 
-        print("MTD%3.3i -- E(  0) = %f Eₕ" % (ind,newe[0]))
-        print("          E(%3i) = %f Eₕ" % (ind,newe[-1]))
-        print("          gap    = %f kcal/mol"
-              % (hartree_ev * ev_kcalmol * (newe[-1] - newe[0])))
+        print(" %3.3i |  %7.3f  |  %7.3f  |  %7.3f "
+              % (ind, newe[0], newe[-1], hartree_ev * ev_kcalmol * (newe[-1] - newe[0])))
 
         with open(outputdir + "/opt%4.4i.xyz" % ind, "w") as f:
             f.write(news[-1])
