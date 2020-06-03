@@ -32,15 +32,14 @@ def generate_initial_structures(xtb_driver,
     # Set the time of the propagation based on the number of atoms.
     with open(guess_xyz_file, "r") as f:
         Natoms = int(f.readline())
-    md = parameters["mtdmd"] + ["time=%f" % (parameters["init_time_per_atom"] * Natoms)]
-    S = "save=%i" % parameters["mtdsave"]
+    md = parameters["imtd_md"] + ["time=%f" % (parameters["imtd_time_per_atom"] * Natoms)]
     mtd_job = xtb_driver.metadyn(
         guess_xyz_file,
         outputdir + "/init_mtd.xyz",
         failout=outputdir + "/FAIL_init_mtd",
         xcontrol=dict(
             wall=parameters["wall"],
-            metadyn=parameters["init_mtdjob"] + [S],
+            metadyn=parameters["imtd_metadyn"],
             md=md,
             cma="",
             constrain=react_utils.make_constraint(
@@ -51,10 +50,14 @@ def generate_initial_structures(xtb_driver,
     np.random.shuffle(structures)
 
     # load structures
-    if parameters["mtdi"]:
-        mtd_indices = parameters["mtdi"]
+    if parameters["mtd_indices"]:
+        mtd_indices = parameters["mtd_indices"]
     else:
-        mtd_indices = list(np.arange(*parameters['mtd_lims'], parameters['mtd_step']))
+        flow,fhigh = parameters["mtd_lims"]
+        istart = int(np.floor(flow * npts))
+        iend = int(np.floor(fhigh * npts))
+        istep = parameters["mtd_step"]
+        mtd_indices = list(np.arange(istart,iend,istep))
 
     print("Metadynamics will be performed at %i points." % len(mtd_indices))
     print("Loading and optimizing initial structures...")

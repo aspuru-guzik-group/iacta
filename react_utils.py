@@ -160,13 +160,12 @@ def metadynamics_jobs(xtb,
     # Set the time of the propagation based on the number of atoms.
     with open(inp, "r") as f:
         Natoms = int(f.readline())
-    md = parameters["mtdmd"] + ["time=%f" % (parameters["time_per_atom"] * Natoms)]
-    S = "save=%i" % parameters["mtdsave"]
+    md = parameters["tsmtd_md"] + ["time=%f" % (parameters["tsmtd_time_per_atom"] * Natoms)]
 
     # stretch points
     points = np.linspace(low, high, npts)
 
-    for metadyn_job, metadyn_params in enumerate(parameters["mtdjobs"]):
+    for metadyn_job, metadyn_params in enumerate(parameters["tsmtd_params"]):
         outp = output_folder + "/mtd%4.4i_%2.2i.xyz" % (mtd_index,metadyn_job)
         mjobs += [
             xtb.metadyn(inp, outp,
@@ -174,7 +173,7 @@ def metadynamics_jobs(xtb,
                         "/FAIL%4.4i_%2.2i.xyz" % (mtd_index, metadyn_job),
                         xcontrol=dict(
                             wall=parameters["wall"],
-                            metadyn=metadyn_params + [S],
+                            metadyn=metadyn_params,
                             md=md,
                             cma="",
                             constrain=make_constraint(atoms,

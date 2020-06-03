@@ -52,11 +52,12 @@ imtd: true
 # Time per atom of the initial mtd run.
 imtd_time_per_atom: 0.5
 
-# Metadynamics potential parameters (adapted from CREST mquick).
-imtd_mtdparams: ["kpush=0.200", "alp=0.200"]
+# Metadynamics potential parameters (adapted from CREST mquick) for the
+# $metadyn block in xtb.
+imtd_metadyn: ["kpush=0.200", "alp=0.200"]
 
-# The initial metadynamics is performed with shake=2, a 5fs step and
-# structures dumped every 100 fs.
+# MD parameters for the $md block in xtb. The initial metadynamics is
+# performed with shake=2, a 5fs step and structures dumped every 100 fs.
 imtd_md: ["shake=2","step=5","dump=100"]
 
 # ---------------------------------------------------------------------------#
@@ -75,8 +76,8 @@ mtd_lims: [0.0, 0.5]            # Start and end values of the driven
 # be set explicitly.
 mtd_indices:
 
-# The following parameters relate to the metadynamics. The defaults balance
-# performance and exploration.
+# The following parameters relate to the metadynamics propagations themselves.
+# The defaults balance performance and exploration.
 
 # Time per atom of metadynamics propagation, in ps.
 tsmtd_time_per_atom: 0.1

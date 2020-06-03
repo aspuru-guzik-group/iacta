@@ -114,11 +114,11 @@ def rsearch(out_dir, defaults,
     current = cval(mol, atoms)
 
     try:
-        low, high = params["const_limits"]
+        low, high = params["driving_limits"]
     except TypeError:
-        high = params["const_limits"]
+        high = params["driving_limits"]
         low = current
-    npts = params["const_num"]
+    npts = params["driving_num"]
     print("\n")
     print("+--------------------------+")
     print("|   *Coordinate Driving*   |")
