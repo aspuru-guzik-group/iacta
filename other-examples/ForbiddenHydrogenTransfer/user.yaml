@@ -1,8 +1,8 @@
 atoms:
 - 28
 - 40
-mtd_step: 8
-const_limits: 3.0
+mtd_step: 2
+driving_limits: 3.0
 xyz: |
   48
   energy: -77.825013781139 gnorm: 0.000034469795 xtb: 6.2.3 (830e466)

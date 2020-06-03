@@ -2,8 +2,8 @@ atoms:
 - 4
 - 8
 chrg: '-1'
-mtd_step: 3
-const_limits: 5.00
+mtd_step: 1
+driving_limits: 5.00
 xyz: |
   48
   energy: -75.854452608565 gnorm: 0.000431047396 xtb: 6.2.3 (830e466)
