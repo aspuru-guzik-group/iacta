@@ -1,16 +1,20 @@
 solvent: water
+
+# Distance driving
 # atoms:
 # - 1
 # - 2
 # const_limits: 2.00
-etemp: '2000.0'
-mtd_step: 2
+
+# Angle driving
 atoms:
 - 5
 - 1
 - 2
 - 6
-const_limits: [180.0, 110.0]
+driving_limits: [180.0, 110.0]
+mtd_lims: [0.3, 0.8]
+
 xyz: |
   36
 

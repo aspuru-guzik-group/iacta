@@ -1,7 +1,7 @@
 atoms:
 - 2
 - 4
-const_limits: 5.0
+driving_limits: 4.0
 xyz: |
   30
 
