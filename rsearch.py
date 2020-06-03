@@ -190,107 +190,57 @@ def rsearch(out_dir, defaults,
 
     # STEP 1: Initial generation of guesses
     # ----------------------------------------------------------------------------
-
-    # react.generate_initial_structures(
-    #     xtb, out_dir, init1,
-    #     atoms, low, high, npts,
-    #     params)
-
-    # post process result of initial stretch
-    # reaction = postprocess_reaction(xtb, out_dir + "/init")
+    mtd_indices = react.generate_initial_structures(
+        xtb, out_dir, init1,
+        atoms, low, high, npts,
+        params)
 
     # reset threading
-    # xtb.extra_args = xtb.extra_args[:-2]
+    xtb.extra_args = xtb.extra_args[:-2]
 
-    # Read the successive optimization, then set mtd points to ground and TS
-    # geometries.
-    # reactant, E0 = io_utils.traj2smiles(init1, index=0)
-    # init, E = io_utils.traj2smiles(out_dir + "/init/opt.xyz")
-    # E = np.array(E)
-    # print("Reactant 👉", reactant)
-    # print("Molecules 👇")
-    # for i in range(len(reaction["E"])):
-    #     if reaction["is_stable"][i]:
-    #         print("%3i  %+7.3f -> %s" % (reaction["stretch_points"][i],
-    #                                       reaction["E"][i],
-    #                                       reaction["SMILES_i"][i]))
-    #     else:
-    #         print("%3i  %+7.3f     ...  ⛰  ..." %
-    #               (reaction["stretch_points"][i], reaction["E"][i]))
+    # STEP 2: Metadynamics
+    # ----------------------------------------------------------------------------
+    react.metadynamics_search(
+        xtb, out_dir,
+        mtd_indices,
+        atoms, low, high, npts,
+        params,
+        nthreads=nthreads)
 
-    # if params["mtdi"]:
-    #     mtd_indices = params["mtdi"]
-    # else:
-    #     mtd_indices = [k for k in reaction["stretch_points"]]
+    react.metadynamics_refine(
+        xtb, out_dir,
+        init1,
+        mtd_indices,
+        atoms, low, high, npts,
+        params,
+        nthreads=nthreads)
 
-    #     # additional indices at repeated intervals
-    #     step = params["mtd_step"]
-    #     if step:
-    #         mtd_indices += list(np.arange(0,len(E), step))
+    # STEP 3: Reactions
+    # ----------------------------------------------------------------------------
+    react.react(
+        xtb, out_dir,
+        mtd_indices,
+        atoms, low, high, npts,
+        params,
+        nthreads=nthreads)
 
-    #     if params["mtd_only_reactant"]:
-    #         mtd_indices = [i for i in mtd_indices if init[i] == reactant]
-    #         print("     ... metadynamics performed only for reactants")
-
-    #         if len(mtd_indices) == 0:
-    #             print("Reactant not found in initial stretch! 😢")
-    #             print("Optimization probably reacted. Alter geometry and try again.")
-    #             raise SystemExit(-1)
-
-    #         # Also do the steps just before and just after
-    #         mtd_indices += [max(mtd_indices) + 1,
-    #                         min(mtd_indices) - 1]
-
-    #     # Sort the indices, do not do the same point twice, make sure the points
-    #     # are in bound
-    #     mtd_indices = sorted(list(set([i for i in mtd_indices
-    #                                    if (i >= 0 and i < len(E))])))
+    # todo: re-integrate
+    # if logfile:
+    #     logfile.close()
 
 
-
-    # # STEP 2: Metadynamics
-    # # ----------------------------------------------------------------------------
-    # react.metadynamics_search(
-    #     xtb, out_dir,
-    #     mtd_indices,
-    #     atoms, low, high, npts,
-    #     params,
-    #     nthreads=nthreads)
-
-    # react.metadynamics_refine(
-    #     xtb, out_dir,
-    #     init1,
-    #     mtd_indices,
-    #     atoms, low, high, npts,
-    #     params,
-    #     nthreads=nthreads)
-
-    # # STEP 3: Reactions
-    # # ----------------------------------------------------------------------------
-    # react.react(
-    #     xtb, out_dir,
-    #     mtd_indices,
-    #     atoms, low, high, npts,
-    #     params,
-    #     nthreads=nthreads)
-
-    # # todo: re-integrate
-    # # if logfile:
-    # #     logfile.close()
-
-
-    # time_end = datetime.today().ctime()
-    # with open(out_dir + "/run.yaml", "w") as f:
-    #     # begin with some metadata
-    #     meta = io_utils.metadata()
-    #     meta["start"] = time_start
-    #     meta["end"] =time_end
-    #     yaml.dump(io_utils.metadata(),f)
-    #     # Every parameter and then some
-    #     yaml.dump(params,f)
-    #     # dump extra stuff
-    #     yaml.dump({"nthreads":nthreads,
-    #                "done_metadynamics_pts":list(mtd_indices)})
+    time_end = datetime.today().ctime()
+    with open(out_dir + "/run.yaml", "w") as f:
+        # begin with some metadata
+        meta = io_utils.metadata()
+        meta["start"] = time_start
+        meta["end"] =time_end
+        yaml.dump(io_utils.metadata(),f)
+        # Every parameter and then some
+        yaml.dump(params,f)
+        # dump extra stuff
+        yaml.dump({"nthreads":nthreads,
+                   "done_metadynamics_pts":list(mtd_indices)})
 
 
 

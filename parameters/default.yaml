@@ -1,4 +1,6 @@
 # ---------------------------------------------------------------------------#
+# TODO:random seed for all randomization routines in the python code
+seed:
 # Parameters passed to xtb
 gfn: '2'                       # gfn version
 # Not setting the following = taking the xtb default
@@ -15,7 +17,8 @@ uhf: '0'
 # structures. What we do then is take only a fraction of those for further
 # calculation.
 mtd_init: true
-init_time_per_atom: 0.6            # total time / Natoms (ps) for each job
+init_time_per_atom: 0.5            # total time / Natoms (ps) for each job
+init_mtdjob: ["kpush=0.200", "alp=0.200"]
 
 # ---------------------------------------------------------------------------#
 # Optimization of stretched and unstretched structures.
@@ -64,7 +67,6 @@ force:                          # Force of driving, in Hartree/bohr. If empty,
 # metadynamics is performed.
 mtd_step: 2                     # Do metadynamics every two steps of stretch.
 mtd_lims: [0,50]                # For indices from points 0 to 50
-
 mtdi:                           # Alternatively, we can set the indices
                                 # explicitly
 
