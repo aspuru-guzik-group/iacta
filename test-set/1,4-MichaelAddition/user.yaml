@@ -1,20 +1,17 @@
 solvent: water
-
 # Distance driving
-# atoms:
-# - 1
-# - 2
-# const_limits: 2.00
-
-# Angle driving
 atoms:
-- 5
 - 1
 - 2
-- 6
-driving_limits: [180.0, 110.0]
-mtd_lims: [0.3, 0.8]
-
+driving_limits: 2.00
+# Angle driving
+# atoms:
+# - 5
+# - 1
+# - 2
+# - 6
+# driving_limits: [180.0, 110.0]
+# mtd_lims: [0.3, 0.8]
 xyz: |
   36
 
