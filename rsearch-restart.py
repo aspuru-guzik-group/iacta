@@ -11,7 +11,8 @@ if __name__ == "__main__":
 
     # These parameters do not have defaults
     parser.add_argument("user_params",
-                        help="Path to user.yaml file.",
+                        help="Path to user.yaml file or path to run directory "+
+                        "containing the parameter file.",
                         type=str)
 
     # These are run specific parameters
@@ -27,24 +28,33 @@ if __name__ == "__main__":
     parser.add_argument("--log-level",
                         help="Level of debug printout (see react.py for details).",
                         default=0, type=int)
-    parser.add_argument("-p", "--params", help="File containing default parameters, i.e. those not set in user.yaml. Defaults to parameters/default.yaml.",
+    parser.add_argument("-p", "--params", help="File containing default parameters, i.e. those not set in user.yaml. Defaults to parameters/default.yaml in the minigabe directory.",
                         type=str, default=None)
 
     args = parser.parse_args()
 
     # Load user parameters (or try at least)
-    with open(args.user_params, "r") as f:
-        user_params = yaml.load(f, Loader=yaml.Loader)
-        
+    try:
+        pfile = args.user_params
+        with open(pfile, "r") as f:
+            user_params = yaml.load(f, Loader=yaml.Loader)
+    except IsADirectoryError:
+        pfile = args.user_params + "/user.yaml"
+        with open(pfile, "r") as f:
+            user_params = yaml.load(f, Loader=yaml.Loader)
+
+    # save user parameters
+    with open(pfile, "r") as f:
+        upfile = f.read()
+
     # Prepare output files
     # --------------------
-    # TODO: add restart capabs
     if args.o:
         out_dir = args.o
     else:
         # TODO: This and the -w flag is bad, we should fix it
-        out_dir = os.path.dirname(args.user_params)
-        
+        out_dir = os.path.dirname(pfile)
+
     try:
         os.makedirs(out_dir)
     except FileExistsError:
@@ -60,7 +70,8 @@ if __name__ == "__main__":
             raise SystemExit(-1)
 
     # copy user params
-    shutil.copy(args.user_params, out_dir + "/user.yaml")
+    with open(out_dir +"/user.yaml", "w") as f:
+        f.write(upfile)
 
     # Get default parameters
     params_file = args.params
@@ -72,17 +83,9 @@ if __name__ == "__main__":
         params_file = folder \
             + "/parameters/default.yaml"
 
-    
     with open(params_file, "r") as f:
         default_params = yaml.load(f, Loader=yaml.Loader)
-        
 
-    rsearch(out_dir, params_file,
-            log_level=args.log_level,
-            nthreads=args.threads)
-    
-
-
-
-
-
+    out = rsearch(out_dir, params_file,
+                  log_level=args.log_level,
+                  nthreads=args.threads)

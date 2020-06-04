@@ -1,11 +1,12 @@
 atoms:
+- 5
 - 1
 - 2
-solvent: methanol
-mtd_step: 10
-stretch_limits:
-- 0.95
-- 1.4
+- 6
+driving_limits: 120.0
+mtd_lims: [0.3, 0.8]
+imtd_md: ["shake=0","step=2","dump=100"]
+
 xyz: |
   19
 

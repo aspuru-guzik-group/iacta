@@ -1,15 +1,12 @@
 # ---------------------------------------------------------------------------#
-# Parameters passed to xtb
-gfn: '2'                       # gfn version
-# Not setting the following = taking the xtb default
+seed:                     # TODO: random seed for reproducibility
+
+# xtb parameters
+gfn: '2'
 etemp:
 solvent:
 chrg:
-uhf:
-
-# ---------------------------------------------------------------------------#
-# Optimization of stretched and unstretched structures.
-optim: vtight
+uhf: '0.0'
 
 # Potential "wall" keeping molecules together. The following are just the
 # lines of the wall group. This is needed mainly for the metadynamics portion,
@@ -19,9 +16,91 @@ wall:
   - 'sphere: auto, all'
 
 # ---------------------------------------------------------------------------#
-# Parameters used by CREGEN to compare structures and decide if they are
-# identical. These are more generous (significantly) than the CREST one
-# because we want to really push diversity and limit similarity.
+# Parameters related to the coordinate driving
+
+# Atoms of driven coordinate. The number of atoms given defines the driving
+# type:
+# - 2 atoms -> distance driving
+# - 3 atoms -> bend driving
+# - 4 atoms -> torsional driving
+atoms:
+
+# Lower and upper limits applied to the driven coordinate. If a single number
+# is given, the lower limit defaults to the value of the coordinate in the
+# equilibrium geometry. driving_num sets the number of discretized values the
+# driven coordinate takes.
+driving_limits:
+driving_num: 50
+
+# Force of coordinate driving, in Hartree/bohr or Hartree/angle (?
+# TODO:CHECK). If empty and a distance driving is applied, the force is
+# determined the bond strength computed at starting geometry. For angles, the
+# default value is 1.0.
+force:
+
+# Optimization level used during coordinate driving relaxed scans.
+optim: normal
+
+# ---------------------------------------------------------------------------#
+# Metadynamics initial conformer seeding
+
+# To get a good coverage of conformers, we initially perform (if imtd = true)
+# a metadynamics run to generate a set of starting structures at the initial
+# value of the driven coordinate.
+imtd: true
+
+# Time per atom of the initial mtd run.
+imtd_time_per_atom: 0.5
+
+# Metadynamics potential parameters (adapted from CREST mquick) for the
+# $metadyn block in xtb.
+imtd_metadyn: ["kpush=0.200", "alp=0.200"]
+
+# MD parameters for the $md block in xtb. The initial metadynamics is
+# performed with shake=2, a 5fs step and structures dumped every 100 fs.
+imtd_md: ["shake=2","step=5","dump=100"]
+
+# ---------------------------------------------------------------------------#
+# Metadynamics transition structure search
+
+# The following parameters set the points along the driven coordinate at which
+# metadynamics searches are performed. By default, that is at every point
+# (mtd_step=1) over the first half of the values of the driven coordinate
+# (mtd_lims = [0.0, 0.5]).
+mtd_step: 1
+mtd_lims: [0.0, 0.5]            # Start and end values of the driven
+                                # coordinate where driving is performed, as
+                                # fractions of total coordinate range.
+
+# Alternatively, the indices at which the coordinate driving is performed can
+# be set explicitly.
+mtd_indices:
+
+# The following parameters relate to the metadynamics propagations themselves.
+# The defaults balance performance and exploration.
+
+# Time per atom of metadynamics propagation, in ps.
+tsmtd_time_per_atom: 0.1
+
+# The remaining parameters are adapted from the CREST paper. We do four sample
+# at each index, with variying kpush and alpha parameters (similar to CREST
+# -mquick).
+tsmtd_params:
+  - ["save=30", "kpush=0.200", "alp=0.800"]
+  - ["save=30", "kpush=0.200", "alp=0.200"]
+  - ["save=30", "kpush=0.050", "alp=0.800"]
+  - ["save=30", "kpush=0.050", "alp=0.200"]
+
+# For the TS search, we turn SHAKE off
+tsmtd_md: ["shake=0","step=2","dump=100"]
+
+# ---------------------------------------------------------------------------#
+# Reaction search parameters
+# These parameters are related to the selection of metadynamics-derived
+# transition structures for further coordinate driving. For this, we use the
+# CREGEN routine from CREST. However, the parameters are significantly less
+# strict than the CREST ones because we want to really push diversity and
+# limit similarity.
 ewin: 60.0                      # maximum energy in kcal /mol above the energy
                                 # of the initial structure E0.
 rthr: 0.4                       # RMSD threshold (in A)
@@ -29,52 +108,12 @@ ethr: 1.0                       # energy threshold (in kcal/mol)
 bthr: 2.0                       # rotational const threshold
 
 # Before we start CREGEN, we first optimize the structures obtained in
-# metadynamics at the following optimization level,
-optcregen: normal
+# metadynamics at the following optimization level.
+optcregen: tight
+
 
 # ---------------------------------------------------------------------------#
-# Parameters related to the atoms to be stretched. This will then be
-# turned into constraints.
-atoms:
-stretch_limits: [1.0, 3.0]      # Bond stretched between 1x and 3x eq. length
-force:                          # Force of stretch, in Hartree/bohr. If empty,
-                                # the force is determined from a Hessian
-                                # calculation at the starting geometry.
-
-# Only one of these two should be set.
-stretch_num: 100                # Number of points for stretch
-
-# ---------------------------------------------------------------------------#
-# The following parameters determine where (in terms of bond stretch)
-# metadynamics is performed.
-mtd_only_reactant: true         # Do metadynamics only for the reactant.
-mtd_step: 4                     # Metadynamics every x points of stretch. If
-                                # null, do mtd only at TS and minima.
-# We can also set those points explicitly.
-mtdi:
-
-# ---------------------------------------------------------------------------#
-# The following parameters relate to the metadynamics portion. The defaults
-# balance performance and exploration.
-metadynamics:
-  # This is the number of structure to harvest from each metadynamics job
-  nmtd: 80
-  time_per_atom: 0.5            # total time / Natoms (ps) for each job
-
-  # The remaining parameters are adapted from the CREST paper (the nanoreactor
-  # part). We do four sample at each index, with variying kpush and alpha
-  # parameters (similar to CREST conformer search).
-  save: 80
-  jobs:
-    - ["kpush=0.200", "alp=0.800"]
-    - ["kpush=0.200", "alp=0.200"]
-    - ["kpush=0.050", "alp=0.800"]
-    - ["kpush=0.050", "alp=0.200"]
-  md:
-    - "shake=0"                 # shake off
-    - "step=2"                  # MD timestep, in fs
-
-# Finally, the initial structure
+# Finally, the initial molecular structure is given here.
 xyz: |
   3
 

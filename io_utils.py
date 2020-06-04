@@ -153,6 +153,21 @@ def traj2smiles(filepath, index=None, chiral=False):
     else:
         return output[0], E[0]
 
+def traj2mols(filepath, index=None):
+    """Read an xyz file and convert to a list of OBMol objects."""
+    # Read the trajectory
+    strs, E = traj2str(filepath, index=index, as_list=True)
+    output = []
+
+    for s in strs:
+        # put string in lowercase to fix stupid openbabel bug
+        output+= [pybel.readstring("xyz", s.lower()).OBMol]
+
+    if index is None:
+        return output, E
+    else:
+        return output[0], E[0]
+
 def traj2npy(filepath, index=None):
     """Read an xyz file and convert to numpy arrays."""
     # Read the trajectory

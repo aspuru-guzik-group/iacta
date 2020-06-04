@@ -4,12 +4,22 @@ from react_utils import stretch
 from analysis import postprocess_reaction
 import xtb_utils
 import io_utils
+from io_utils import pybel
 import os
 import shutil
 import argparse
 from constants import hartree_ev, ev_kcalmol, bohr_ang
 import yaml
 from datetime import datetime
+
+def cval(mol, atoms_i):
+    atoms = [mol.GetAtom(i) for i in atoms_i]
+    if len(atoms)==2:
+        return mol.GetBond(*atoms).GetLength()
+    if len(atoms)==3:
+        return mol.GetAngle(*atoms)
+    if len(atoms)==4:
+        return mol.GetTorsion(*atoms)
 
 def init_xtb_driver(params, log_level=0):
     # todo : move this stuff to xtb_driver
@@ -90,120 +100,110 @@ def rsearch(out_dir, defaults,
     opt()
 
     # Read result of optimization
-    atoms, positions, E = io_utils.traj2npy(init1, index=0)
+    mol, E = io_utils.traj2mols(init1, index=0)
     print("    E₀    = %15.7f Eₕ" % E)
     Emax = E + params["ewin"] / (hartree_ev * ev_kcalmol)
     print("    max E = %15.7f Eₕ  (E₀ + %5.1f kcal/mol)" %
           (Emax,params["ewin"]))
 
 
-    # Get bond parameters
-    # -------------------
-    atom1, atom2 = params["atoms"]
-    bond_length0 = np.sqrt(np.sum((positions[atom1-1] -
-                                   positions[atom2-1])**2))
+    # Get constraints parameters
+    # --------------------------
+    atoms = params["atoms"]
+    ob_at = [mol.GetAtom(at) for at in atoms]
+    current = cval(mol, atoms)
+
+    try:
+        low, high = params["driving_limits"]
+    except TypeError:
+        high = params["driving_limits"]
+        low = current
+    npts = params["driving_num"]
+    print("\n")
+    print("+--------------------------+")
+    print("|   *Coordinate Driving*   |")
+
+    if len(atoms)==2:
+        print("|   Interatomic distance   |")
+        print("+--------------------------+")
+        print("Atoms: %s#%i --- %s#%i" % (ob_at[0].GetType(), atoms[0],
+                                        ob_at[1].GetType(), atoms[1]) )
+        print("\n            from: %6.2f Å" % low)
+        print("              to: %6.2f Å" % high)
+        print("             opt: %6.2f Å" % current)
+        print("          nsteps: %i" % npts)
+    if len(atoms)==3:
+        print("|      Bending angle       |")
+        print("+--------------------------+")
+        print("Atoms: %s#%i      %s#%i" % (ob_at[0].GetType(), atoms[0],
+                                         ob_at[2].GetType(), atoms[2]) )
+        print("          \     /")
+        print("            %s#%i" % (ob_at[1].GetType(), atoms[1]) )
+        print("\n            from: %6.2f°" % low)
+        print("              to: %6.2f°" % high)
+        print("             opt: %6.2f°" % current)
+        print("          nsteps: %i" % npts)
+    if len(atoms)==4:
+        print("|      Torsion angle       |")
+        print("+--------------------------+")
+        print("Atoms: %s#%i     " % (ob_at[0].GetType(), atoms[0]))
+        print("          \     ")
+        print("           %s#%i -- %s#%i" % (ob_at[1].GetType(), atoms[1],
+                                           ob_at[2].GetType(), atoms[2]) )
+        print("                     \    ")
+        print("                       %s#%i" % (ob_at[3].GetType(), atoms[3]))
+        print("\n            from: %6.2f°" % low)
+        print("              to: %6.2f°" % high)
+        print("             opt: %6.2f°" % current)
+        print("          nsteps: %i" % npts)
+
+
     # Constraints for the search
     # -------------------------
-    slow, shigh = params["stretch_limits"]
-    npts = params["stretch_num"]
-    low = slow * bond_length0
-    high = shigh * bond_length0
-
-    print("Stretching bond between atoms %s%i and %s%i"
-          %(atoms[atom1-1], atom1, atoms[atom2-1], atom2))
-    print("    between 📏 %7.2f and %7.2f A (%4.2f to %4.2f x bond length)"
-          % (low, high, slow, shigh))
-    print("    discretized with %i points" % npts)
-
     if not params['force']:
         # we do so quite simply from a 4 points polynomial fit
-        params['force'] = 2.0
-        x0 = np.linspace(bond_length0-0.05, bond_length0 + 0.05, 5)
-        structs, y = stretch(
-            xtb, init1,
-            atom1, atom2,
-            x0[0],x0[-1],len(x0),
-            params,
-            verbose=True)
+        params['force'] = 5.0
+        if len(atoms) == 2:
+            x0 = np.linspace(current - 0.05, current + 0.05, 5)
+            structs, y = stretch(
+                xtb, init1,
+                atoms,
+                x0[0], x0[-1], len(x0),
+                params,
+                verbose=True)
 
-        x = []
-        for s in structs:
-            at,pos = io_utils.xyz2numpy(s)
-            x += [np.sqrt(np.sum((pos[atom1-1] - pos[atom2-1])**2))]
-        x = np.array(x)
-        y = np.array(y)
-        p = np.polyfit(x, y, 2)
-        k = 2*p[0]
-        params["force"] = float(k * bohr_ang)
-        print("    computed force constant 💪💪 %f" % params["force"])
+            mols = [pybel.readstring("xyz", s.lower()).OBMol for s in structs]
+            x = [abs(cval(mol, atoms)) for mol in mols]
+            x = np.array(x)
+
+            y = np.array(y)
+            p = np.polyfit(x, y, 2)
+            k = 2*p[0]
+            params["force"] = float(k * bohr_ang)
+            print("    computed force constant 💪💪 %f" % params["force"])
+        else:
+            params["force"] = 1.0
+            print("     default force constant 💪💪 %f" % params["force"])
     else:
         print("    with force constant 💪💪 %f" % params["force"])
 
+
     # STEP 1: Initial generation of guesses
     # ----------------------------------------------------------------------------
-    react.generate_initial_structures(
+    mtd_indices = react.generate_initial_structures(
         xtb, out_dir, init1,
-        atom1, atom2, low, high, npts,
+        atoms, low, high, npts,
         params)
-
-    # post process result of initial stretch
-    reaction = postprocess_reaction(xtb, out_dir + "/init")
 
     # reset threading
     xtb.extra_args = xtb.extra_args[:-2]
-
-    # Read the successive optimization, then set mtd points to ground and TS
-    # geometries.
-    reactant, E0 = io_utils.traj2smiles(init1, index=0)
-    init, E = io_utils.traj2smiles(out_dir + "/init/opt.xyz")
-    E = np.array(E)
-    print("Reactant 👉", reactant)
-    print("Molecules 👇")
-    for i in range(len(reaction["E"])):
-        if reaction["is_stable"][i]:
-            print("%3i  %+7.3f -> %s" % (reaction["stretch_points"][i],
-                                          reaction["E"][i],
-                                          reaction["SMILES_i"][i]))
-        else:
-            print("%3i  %+7.3f     ...  ⛰  ..." %
-                  (reaction["stretch_points"][i], reaction["E"][i]))
-
-    if params["mtdi"]:
-        mtd_indices = params["mtdi"]
-    else:
-        mtd_indices = [k for k in reaction["stretch_points"]]
-
-        # additional indices at repeated intervals
-        step = params["mtd_step"]
-        if step:
-            mtd_indices += list(np.arange(0,len(E), step))
-
-        if params["mtd_only_reactant"]:
-            mtd_indices = [i for i in mtd_indices if init[i] == reactant]
-            print("     ... metadynamics performed only for reactants")
-
-            if len(mtd_indices) == 0:
-                print("Reactant not found in initial stretch! 😢")
-                print("Optimization probably reacted. Alter geometry and try again.")
-                raise SystemExit(-1)
-
-            # Also do the steps just before and just after
-            mtd_indices += [max(mtd_indices) + 1,
-                            min(mtd_indices) - 1]
-
-        # Sort the indices, do not do the same point twice, make sure the points
-        # are in bound
-        mtd_indices = sorted(list(set([i for i in mtd_indices
-                                       if (i >= 0 and i < len(E))])))
-
-
 
     # STEP 2: Metadynamics
     # ----------------------------------------------------------------------------
     react.metadynamics_search(
         xtb, out_dir,
         mtd_indices,
-        atom1, atom2, low, high, npts,
+        atoms, low, high, npts,
         params,
         nthreads=nthreads)
 
@@ -211,7 +211,7 @@ def rsearch(out_dir, defaults,
         xtb, out_dir,
         init1,
         mtd_indices,
-        atom1, atom2, low, high, npts,
+        atoms, low, high, npts,
         params,
         nthreads=nthreads)
 
@@ -220,7 +220,7 @@ def rsearch(out_dir, defaults,
     react.react(
         xtb, out_dir,
         mtd_indices,
-        atom1, atom2, low, high, npts,
+        atoms, low, high, npts,
         params,
         nthreads=nthreads)
 
@@ -256,10 +256,19 @@ if __name__ == "__main__":
     parser.add_argument("init_xyz",
                         help="Path to file containing the starting geometry.",
                         type=str)
-    parser.add_argument("atoms",
-                        help="Atoms that define the bond to be stretched, numbered according"
-                        +" to init_xyz. (NOTE THIS IS 1-INDEXED)",
+    parser.add_argument("atom1_atom2",
+                        help="Atoms that define the coordinate to be driven. Two"
+                        +" atoms define a stretch, three atoms define a bend and 4"
+                        +" atoms define a torsion. NOTE: Atoms are numbered"
+                        +" starting from 1, as is standard in chemistry.",
                         type=int, nargs=2)
+    parser.add_argument("atom3",
+                        type=int, nargs="?")
+    parser.add_argument("atom4",
+                        type=int, nargs="?")
+    parser.add_argument("driving_to",
+                        type=float,
+                        help="driving-to should be the bond length in angstrom or the angle in degrees of the driving coordinate at the end of driving. The start of driving is the corresponding value at equilibrium for init_xyz (if --driving-from is not given).")
 
     # These are run specific parameters
     parser.add_argument("-o",
@@ -274,7 +283,7 @@ if __name__ == "__main__":
     parser.add_argument("--log-level",
                         help="Level of debug printout (see react.py for details).",
                         default=0, type=int)
-    parser.add_argument("-p", "--params", help="File containing numerical parameters.",
+    parser.add_argument("-p", "--params", help="File containing default numerical parameters. Defaults to parameters/default.yaml in the minigabe directory.",
                         type=str, default=None)
     parser.add_argument("-d", "--dump",
                         help="Make output directory and save user parameters, but do not"
@@ -282,17 +291,29 @@ if __name__ == "__main__":
                         action="store_true")
 
     # These parameters (and some more!) have defaults in parameters/default.yaml.
-    parser.add_argument("--optim", help="Optimization level.", type=str)
-
-    parser.add_argument("-s","--stretch-limits", help="Bond stretch limits.", nargs=2,type=float)
-    parser.add_argument("-n","--stretch-num", help="Number of bond stretches.", type=int)
-    parser.add_argument("-k","--force", help="Force constant of the stretch.", type=float)
-
+    parser.add_argument("--driving-from",
+                        help="Minimum value of the coordinate to be driven.", type=float)
+    parser.add_argument("--optim",
+                        help="Optimization level used during coordinate driving.", type=str)
+    parser.add_argument("--initial-mtd-tight",
+                        help="Use tighter convergence parameters for the initial MTD "
+                        +" generation of structures. Useful if no or few structures are "
+                        +" generated.",
+                        action="store_true")
+    parser.add_argument("--no-initial-mtd",
+                        help="Do not initialize from a metadynamics-derived set of structures.",
+                        action="store_true")
+    parser.add_argument("-n","--driving-num", help="Number of points for coordinate driving.", type=int)
+    parser.add_argument("-k","--force",
+                        help="Force constant of the driving (Hartree/bohr or Hartree/rad)."
+                        +" Defaults to 1.0 for bends and torsion, and to the bond strength as"
+                        +" calculated from a five point relaxed scan for stretches.",
+                        type=float)
     parser.add_argument("--gfn", help="gfn version.", type=str)
-    parser.add_argument("--etemp", help="Electronic temperature.", type=str)
     parser.add_argument("--solvent", help="GBSA solvent.", type=str)
     parser.add_argument("-c", "--chrg", help="Charge.", type=str)
     parser.add_argument("-u", "--uhf", help="Spin state", type=str)
+    parser.add_argument("--etemp", help="Electronic temperature.", type=str)
 
     args = parser.parse_args()
 
@@ -327,13 +348,35 @@ if __name__ == "__main__":
     with open(params_file, "r") as f:
         default_params = yaml.load(f, Loader=yaml.Loader)
 
-    # Save user-set parameters for reproducibility.
+    # Save user-set command line parameters for reproducibility.
     user_params = {}
     args_as_dict = vars(args)
     for p in default_params.keys():
+        # arguments named the same as in the file
         argvalue = args_as_dict.get(p, None)
         if argvalue:
             user_params[p] = argvalue
+
+    # other arguments that do not have the same structure has in the
+    # default.yaml file
+    if args.no_initial_mtd:
+        user_params['imtd'] = False
+
+    if args.initial_mtd_tight:
+        user_params['imtd_md'] = ["shake=0","step=2","dump=100"]
+
+    # atoms defining the driving coordinate
+    user_params["atoms"] = args.atom1_atom2
+    if not args.atom3 is None:
+        user_params["atoms"] += [args.atom3]
+    if not args.atom4 is None:
+        user_params["atoms"] += [args.atom4]
+
+    # driving limits
+    if args.driving_from is None:
+        user_params["driving_limits"] = args.driving_to
+    else:
+        user_params["driving_limits"] = [args.driving_from, args.driving_to]
 
     # Load the xyz file
     xyz,E = io_utils.traj2str(args.init_xyz, index=0)

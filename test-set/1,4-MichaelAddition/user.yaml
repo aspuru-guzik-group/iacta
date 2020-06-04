@@ -1,14 +1,20 @@
+solvent: water
+# Distance driving
 atoms:
 - 1
 - 2
-solvent: water
-stretch_limits:
-- 0.98
-- 1.50
-mtd_step: 10
+driving_limits: 2.00
+# Angle driving
+# atoms:
+# - 5
+# - 1
+# - 2
+# - 6
+# driving_limits: [180.0, 110.0]
+# mtd_lims: [0.3, 0.8]
 xyz: |
   36
-  
+
   C          5.32582        0.69810        0.54792
   C          6.65668        0.59640        0.53022
   C          7.38492       -0.08961        1.61021
@@ -45,5 +51,3 @@ xyz: |
   H          1.10287        1.16242       -5.13782
   O          0.37146        0.54889       -5.40090
   H         -0.43724        0.92973       -4.97479
-  
-
