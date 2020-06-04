@@ -295,6 +295,11 @@ if __name__ == "__main__":
                         help="Minimum value of the coordinate to be driven.", type=float)
     parser.add_argument("--optim",
                         help="Optimization level used during coordinate driving.", type=str)
+    parser.add_argument("--initial-mtd-tight",
+                        help="Use tighter convergence parameters for the initial MTD "
+                        +" generation of structures. Useful if no or few structures are "
+                        +" generated.",
+                        action="store_true")
     parser.add_argument("--no-initial-mtd",
                         help="Do not initialize from a metadynamics-derived set of structures.",
                         action="store_true")
@@ -356,6 +361,9 @@ if __name__ == "__main__":
     # default.yaml file
     if args.no_initial_mtd:
         user_params['imtd'] = False
+
+    if args.initial_mtd_tight:
+        user_params['imtd_md'] = ["shake=0","step=2","dump=100"]
 
     # atoms defining the driving coordinate
     user_params["atoms"] = args.atom1_atom2
