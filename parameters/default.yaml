@@ -50,7 +50,7 @@ optim: normal
 imtd: true
 
 # Time per atom of the initial mtd run.
-imtd_time_per_atom: 0.5
+imtd_time_per_atom: 1.0
 
 # Metadynamics potential parameters (adapted from CREST mquick) for the
 # $metadyn block in xtb.
