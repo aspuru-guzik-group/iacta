@@ -167,11 +167,12 @@ def metadynamics_refine(xtb_driver,
             print("MTD%i>\tloaded %i structures, optimizing 📐..."
                   %(mtd_index, len(structures)))
 
-        refined, Eref = react_utils.refine_structures(
+        refined, Eref = refine_structures(
             xtb_driver, mtd_index,
             atoms, low, high, npts,
             structures, reference,
-            parameters, verbose=verbose)
+            parameters, verbose=verbose,
+            nthreads=nthreads)
 
         fn = refined_dir + "/mtd%4.4i.xyz" % mtd_index
         f = open(fn, "w")
@@ -181,6 +182,62 @@ def metadynamics_refine(xtb_driver,
 
         if verbose:
             print("  → %i structures selected for reactions 🔥" % len(refined))
+
+def refine_structures(xtb, imtd,
+                      atoms, low, high, npts,
+                      structures, reference,
+                      parameters,
+                      verbose=True, nthreads=1):
+
+    # make the constraints
+    points = np.linspace(low,high,npts)
+
+    with ThreadPoolExecutor(max_workers=nthreads) as pool:
+        futures = []
+        for s in structures:
+            future = pool.submit(
+                react_utils.quick_opt_job,
+                xtb, s, parameters["optcregen"],
+                dict(wall=parameters["wall"],
+                     cma="",
+                     constrain = react_utils.make_constraint(
+                         atoms, points[imtd], parameters["force"])
+                ))
+            futures += [future]
+
+        converged = []
+        errors = []
+        for f in futures:
+            exc = f.exception()
+            if exc:
+                errors += [f]
+            else:
+                converged += [f.result()]
+
+        if verbose:
+            print("        converged 👍: %i"% len(converged))
+            print("        errors 👎: %i"%len(errors))
+
+        if verbose:
+            print("        carefully selecting conformers 🔎...")
+
+
+        with tempfile.NamedTemporaryFile(suffix=".xyz", dir=xtb.scratchdir) as T:
+            for s,E in converged:
+                T.write(bytes(s, 'ascii'))
+            T.flush()
+
+            # Run CREGEN on temp file
+            cre = xtb.cregen(reference,
+                                    T.name, T.name,
+                                    ewin=parameters["ewin"],
+                                    rthr=parameters["rthr"],
+                                    ethr=parameters["ethr"],
+                                    bthr=parameters["bthr"])
+            error = cre()
+            s, E = traj2str(T.name)
+        return s,E
+
 
 def react(xtb_driver,
           workdir,

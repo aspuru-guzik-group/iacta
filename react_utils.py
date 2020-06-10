@@ -181,66 +181,6 @@ def metadynamics_jobs(xtb,
                                                       parameters["force"])))]
     return mjobs
 
-
-def refine_structures(xtb, imtd,
-                      atoms, low, high, npts,
-                      structures, reference,
-                      parameters,
-                      verbose=True):
-
-    # make the constraints
-    points = np.linspace(low,high,npts)
-
-    with ThreadPoolExecutor(max_workers=nthreads) as pool:
-        futures = []
-        for s in structures:
-            future = pool.submit(
-                quick_opt_job,
-                xtb, s, parameters["optcregen"],
-                dict(wall=parameters["wall"],
-                     cma="",
-                     constrain = react_utils.make_constraint(
-                         atoms, points[imtd], parameters["force"])
-                ))
-            futures += [future]
-
-        converged = []
-        errors = []
-        for f in futures:
-            exc = f.exception()
-            if exc:
-                errors += [f]
-            else:
-                converged += [f.result()]
-
-        if verbose:
-            print("        converged 👍: %i"% len(converged))
-            print("        errors 👎: %i"%len(errors))
-
-        if verbose:
-            print("        carefully selecting conformers 🔎...")
-
-
-        with tempfile.NamedTemporaryFile(suffix=".xyz", dir=xtb.scratchdir) as T:
-            for s,E in converged:
-                T.write(bytes(s, 'ascii'))
-            T.flush()
-
-            # Run CREGEN on temp file
-            cre = xtb.cregen(reference,
-                                    T.name, T.name,
-                                    ewin=parameters["ewin"],
-                                    rthr=parameters["rthr"],
-                                    ethr=parameters["ethr"],
-                                    bthr=parameters["bthr"])
-            error = cre()
-            s, E = traj2str(T.name)
-
-        if verbose:
-            print("  → %i structures selected for reactions 🔥" % len(s))
-
-        return s,E
-
 def reaction_job(xtb,
                  initial_xyz,
                  mtd_index,
