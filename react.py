@@ -14,7 +14,7 @@ react_utils.
 """
 
 
-def generate_initial_conformers(xtb_driver,
+def generate_initial_structures(xtb_driver,
                                 workdir,
                                 guess_xyz_file,
                                 atoms, low, high, npts,
@@ -72,41 +72,24 @@ def generate_initial_conformers(xtb_driver,
     print("   done! %i starting structures" % len(structures))
 
 
-def generate_initial_structures(xtb_driver,
-                                workdir,
-                                guess_xyz_file,
-                                atoms,
-                                low,high,npts,
-                                parameters,
-                                verbose=True):
-
-
-    if verbose:
-        print("-----------------------------------------------------------------")
-        print("Generating diverse initial structures...")
+def select_initial_structures(xtb_driver,
+                              workdir, guess_xyz,
+                              atoms, low,high,npts,
+                              parameters,
+                              nthreads=1,
+                              verbose=True):
 
     outputdir = workdir + "/init"
-    os.makedirs(outputdir)
-
-    # Set the time of the propagation based on the number of atoms.
-    with open(guess_xyz_file, "r") as f:
-        Natoms = int(f.readline())
-    md = parameters["imtd_md"] + ["time=%f" % (parameters["imtd_time_per_atom"] * Natoms)]
-    mtd_job = xtb_driver.metadyn(
-        guess_xyz_file,
-        outputdir + "/init_mtd.xyz",
-        failout=outputdir + "/FAIL_init_mtd",
-        xcontrol=dict(
-            wall=parameters["wall"],
-            metadyn=parameters["imtd_metadyn"],
-            md=md,
-            cma="",
-            constrain=react_utils.make_constraint(
-                atoms, low, parameters["force"])))
-    mtd_job()
     structures, E= traj2str(outputdir + "/init_mtd.xyz")
-    print("   done! %i starting structures" % len(structures))
-    np.random.shuffle(structures)
+    if verbose:
+        print("Refining initial structures...")
+
+    refined, Eref = refine_structures(
+        xtb_driver, 0,
+        atoms, low, high, npts,
+        structures, guess_xyz,
+        parameters, verbose=verbose,
+        nthreads=nthreads)
 
     # load structures
     if parameters["mtd_indices"]:
@@ -118,20 +101,21 @@ def generate_initial_structures(xtb_driver,
         istep = parameters["mtd_step"]
         mtd_indices = list(np.arange(istart,iend,istep))
 
+    # Note: the refined structures are energy sorted. We pick the bottom n
+    # (where n is the number we will use as starting points) and shuffle them.
+    structures = [(s,E) for s,E in zip(refined, Eref)]
+    structures = structures[:max(len(mtd_indices), len(refined))]
+    np.random.shuffle(structures)
+
     print("\n")
     print("Metadynamics seed structures (N=%i)" % len(mtd_indices))
     print(" i   |    E(0)   |    E(i)   |  ΔE (kcal/mol)")
     pts = np.linspace(low,high,npts)
     curr = 0
+
+    # todo: parallelize here
     for ind in mtd_indices:
-        s0 = structures[curr]
-        s1, E1 = react_utils.quick_opt_job(
-            xtb_driver, s0, parameters["optcregen"],
-            dict(wall=parameters["wall"],
-                 cma="",
-                 constrain = react_utils.make_constraint(
-                     atoms,
-                     pts[0], parameters["force"])))
+        s1, E1 = structures[curr]
 
         # Now stretch to the metadynamics index
         s1file = outputdir + "/mtdi_%3.3i.xyz" % ind

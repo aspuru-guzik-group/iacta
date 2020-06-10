@@ -188,15 +188,21 @@ def rsearch(out_dir, defaults,
         print("    with force constant 💪💪 %f" % params["force"])
 
 
-    # STEP 1: Initial generation of guesses
+    # STEP 1: Initial generation of guess conformers
     # ----------------------------------------------------------------------------
-    mtd_indices = react.generate_initial_structures(
+    react.generate_initial_structures(
         xtb, out_dir, init1,
         atoms, low, high, npts,
         params)
 
     # reset threading
     xtb.extra_args = xtb.extra_args[:-2]
+
+    # Refinement and selection
+    mtd_indices = react.select_initial_structures(
+        xtb, out_dir, init1,
+        atoms, low, high, npts,
+        params, nthreads=nthreads)
 
     # STEP 2: Metadynamics
     # ----------------------------------------------------------------------------
