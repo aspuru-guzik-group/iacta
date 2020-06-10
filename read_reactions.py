@@ -26,9 +26,9 @@ if __name__ == "__main__":
     species = get_species_table(pathways, resolve_chiral=args.resolve_chiral)
 
 
-    reactant, E = io_utils.traj2smiles(folder + "/init_opt.xyz", index=0)
+    reactant, E = io_utils.traj2smiles(folder + "/init_opt.xyz", index=0,chiral=args.resolve_chiral)
     if args.all:
-        final = analyse_reaction_network(pathways,species,list(species.index),
+        final = analyse_reaction_network(pathways,species,list(species.index)[::-1],
                                          sort_by_barrier=args.ts,
                                          reaction_local=args.local,
                                          resolve_chiral=args.resolve_chiral)
