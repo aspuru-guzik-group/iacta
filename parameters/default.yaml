@@ -57,8 +57,10 @@ imtd_time_per_atom: 1.0
 imtd_metadyn: ["kpush=0.200", "alp=0.200"]
 
 # MD parameters for the $md block in xtb. The initial metadynamics is
-# performed with shake=2, a 5fs step and structures dumped every 100 fs.
+# performed with shake=2, a 5fs step and structures dumped every 100 fs. If it
+# fails, it's restarted with the tighter parameters of shake=0, step=2.
 imtd_md: ["shake=2","step=5","dump=100"]
+imtd_md_tight: ["shake=0","step=2","dump=100"]
 
 # ---------------------------------------------------------------------------#
 # Metadynamics transition structure search

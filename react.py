@@ -13,6 +13,65 @@ This file contains a bunch of user-friendly, multithreaded drivers for
 react_utils.
 """
 
+
+def generate_initial_conformers(xtb_driver,
+                                workdir,
+                                guess_xyz_file,
+                                atoms, low, high, npts,
+                                parameters,
+                                verbose=True):
+
+
+    if verbose:
+        print("-----------------------------------------------------------------")
+        print("Generating diverse initial conformers...")
+
+    outputdir = workdir + "/init"
+    os.makedirs(outputdir)
+
+    # Set the time of the propagation based on the number of atoms.
+    with open(guess_xyz_file, "r") as f:
+        Natoms = int(f.readline())
+    md = parameters["imtd_md"] + ["time=%f" % (parameters["imtd_time_per_atom"] * Natoms)]
+
+    # run the metadynamics
+    mtd_job = xtb_driver.metadyn(
+        guess_xyz_file,
+        outputdir + "/init_mtd.xyz",
+        failout=outputdir + "/FAIL_init_mtd",
+        xcontrol=dict(
+            wall=parameters["wall"],
+            metadyn=parameters["imtd_metadyn"],
+            md=md,
+            cma="",
+            constrain=react_utils.make_constraint(
+                atoms, low, parameters["force"])))
+    mtd_job()
+    structures, E= traj2str(outputdir + "/init_mtd.xyz")
+
+    if len(structures) == 1:
+        print("   convergence issues, restarting with tighter parameters...")
+        md = parameters["imtd_md_tight"] \
+            + ["time=%f" % (parameters["imtd_time_per_atom"] * Natoms)]
+
+        # run the metadynamics
+        mtd_job = xtb_driver.metadyn(
+            guess_xyz_file,
+            outputdir + "/init_mtd.xyz",
+            failout=outputdir + "/FAIL_init_mtd",
+            xcontrol=dict(
+                wall=parameters["wall"],
+                metadyn=parameters["imtd_metadyn"],
+                md=md,
+                cma="",
+                constrain=react_utils.make_constraint(
+                    atoms, low, parameters["force"])))
+        mtd_job()
+        structures, E= traj2str(outputdir + "/init_mtd.xyz")
+
+    print("   done! %i starting structures" % len(structures))
+
+
 def generate_initial_structures(xtb_driver,
                                 workdir,
                                 guess_xyz_file,
