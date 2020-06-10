@@ -155,9 +155,6 @@ def metadynamics_refine(xtb_driver,
     mtd_dir = workdir + "/metadyn"
     os.makedirs(refined_dir, exist_ok=True)
 
-    # points
-    points = np.linspace(low, high, npts)
-
     for mtd_index in mtd_indices:
         structures = []
         Es = []
@@ -166,58 +163,24 @@ def metadynamics_refine(xtb_driver,
             structures += structs
             Es += E
 
-        # Loosely optimize the structures in parallel
         if verbose:
             print("MTD%i>\tloaded %i structures, optimizing 📐..."
                   %(mtd_index, len(structures)))
-        with ThreadPoolExecutor(max_workers=nthreads) as pool:
-            futures = []
-            for s in structures:
-                future = pool.submit(
-                    react_utils.quick_opt_job,
-                    xtb_driver, s, parameters["optcregen"],
-                    dict(wall=parameters["wall"],
-                         cma="",
-                         constrain = react_utils.make_constraint(
-                             atoms,
-                             points[mtd_index], parameters["force"])
-                         )
-                    )
-                futures += [future]
 
-        converged = []
-        errors = []
-        for f in futures:
-            exc = f.exception()
-            if exc:
-                errors += [f]
-            else:
-                converged += [f.result()]
-
-        if verbose:
-            print("        converged 👍: %i"% len(converged))
-            print("        errors 👎: %i"%len(errors))
-
-        if verbose:
-            print("        carefully selecting conformers 🔎...")
+        refined, Eref = react_utils.refine_structures(
+            xtb_driver, mtd_index,
+            atoms, low, high, npts,
+            structures, reference,
+            parameters, verbose=verbose)
 
         fn = refined_dir + "/mtd%4.4i.xyz" % mtd_index
         f = open(fn, "w")
-        for s, E in converged:
+        for s in refined:
             f.write(s)
         f.close()
 
-        cre = xtb_driver.cregen(reference,
-                                fn, fn,
-                                ewin=parameters["ewin"],
-                                rthr=parameters["rthr"],
-                                ethr=parameters["ethr"],
-                                bthr=parameters["bthr"])
-
-        error = cre()
-        s, E = traj2str(fn)
         if verbose:
-            print("  → %i structures selected for reactions 🔥" % len(s))
+            print("  → %i structures selected for reactions 🔥" % len(refined))
 
 def react(xtb_driver,
           workdir,
