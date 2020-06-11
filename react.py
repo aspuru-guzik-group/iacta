@@ -101,10 +101,8 @@ def select_initial_structures(xtb_driver,
         istep = parameters["mtd_step"]
         mtd_indices = list(np.arange(istart,iend,istep))
 
-    # Note: the refined structures are energy sorted. We pick the bottom n
-    # (where n is the number we will use as starting points) and shuffle them.
-    structures = [(s,E) for s,E in zip(refined, Eref)]
-    structures = structures[:max(len(mtd_indices), len(refined))]
+    # We take the lower energy fraction of the generated initial structures.
+    structures = [(s,E) for s,E in zip(refined,Eref)]
     np.random.shuffle(structures)
 
     print("\n")
@@ -213,7 +211,7 @@ def metadynamics_refine(xtb_driver,
         refined, Eref = refine_structures(
             xtb_driver, mtd_index,
             atoms, low, high, npts,
-            structures, reference,
+            structures, None,
             parameters, verbose=verbose,
             nthreads=nthreads)
 
@@ -270,8 +268,13 @@ def refine_structures(xtb, imtd,
                 T.write(bytes(s, 'ascii'))
             T.flush()
 
+            if reference is None:
+                ref = T.name
+            else:
+                ref = reference
+
             # Run CREGEN on temp file
-            cre = xtb.cregen(reference,
+            cre = xtb.cregen(ref,
                                     T.name, T.name,
                                     ewin=parameters["ewin"],
                                     rthr=parameters["rthr"],
