@@ -160,7 +160,7 @@ def read_all_reactions(output_folder,
             with open(fn,"r") as fin:
                 read_out = json.load(fin)
 
-        except OSError:
+        except:
             # Convergence failed
             failed += [f]
         else:
