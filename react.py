@@ -94,7 +94,11 @@ def select_initial_structures(xtb_driver,
     if parameters["mtd_indices"]:
         mtd_indices = parameters["mtd_indices"]
     else:
-        flow,fhigh = parameters["mtd_lims"]
+        if parameters["mtd_lims"]:
+            print("warning: mtd_lims deprecated for mtd_limits")
+            flow,fhigh = parameters["mtd_lims"]
+        else:
+            flow,fhigh = parameters["mtd_limits"]
         istart = int(np.floor(flow * npts))
         iend = int(np.floor(fhigh * npts))
         istep = parameters["mtd_step"]

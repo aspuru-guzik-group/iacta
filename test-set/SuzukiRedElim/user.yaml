@@ -1,7 +1,7 @@
 # Bending the two molecules into each other
 atoms: [20,1,30]
 driving_limits: [82.0, 20.0]
-mtd_lims: [0.0, 0.3]
+mtd_limits: [0.0, 0.3]
 mtd_step: 2
 solvent: thf
 xyz: |
