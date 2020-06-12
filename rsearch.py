@@ -100,7 +100,9 @@ def rsearch(out_dir, defaults,
                 distances += [np.sqrt(np.sum((pos[i] - pos[j])**2))]
 
         # Cavity is 1.5 x maximum distance in diameter
-        radius_bohr = 0.5 * max(distances) * params["cavity_scale"] / bohr_ang
+        radius_bohr = 0.5 * max(distances) * params["cavity_scale"] \
+            + 0.5 * params["cavity_offset"]
+        radius_bohr /= bohr_ang
 
         print("Diameter of constraining cavity: %f A" % (2 * radius_bohr * bohr_ang))
         params["wall"] = ["potential=logfermi", "sphere:%f, all" % radius_bohr]
