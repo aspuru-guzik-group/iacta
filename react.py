@@ -261,36 +261,51 @@ def refine_structures(xtb, imtd,
             print("        converged 👍: %i"% len(converged))
             print("        errors 👎: %i"%len(errors))
 
-        if verbose:
-            print("        carefully selecting conformers 🔎...")
-
-
-        with tempfile.NamedTemporaryFile(suffix=".xyz", dir=xtb.scratchdir) as T:
-            for s,E in converged:
-                T.write(bytes(s, 'ascii'))
-            T.flush()
-
-            if reference is None:
-                ref = T.name
+        # Split the molecules: those with E < E0 - local and otherwise. We do
+        # this to avoid having a few reacted molecules with tiny energy
+        # leading to the removal of many feasible pathways.
+        set_newstable = []
+        set_unstable = []
+        for s,E in converged:
+            if (E < parameters['E0']  - parameters['emax_local'] / 627.521773046):
+                set_newstable += [(s,E)]
             else:
-                ref = reference
+                set_unstable += [(s,E)]
 
-            # Run CREGEN on temp file
-            cre = xtb.cregen(ref,
-                                    T.name, T.name,
-                                    ewin=parameters["emax_local"],
-                                    rthr=parameters["rthr"],
-                                    ethr=parameters["ethr"],
-                                    bthr=parameters["bthr"])
-            error = cre()
-            s, E = traj2str(T.name)
+        if verbose and len(set_newstable):
+            print("        new molecules with E << E0: %i"%len(set_newstable))
+
+        structures = []
+        energies = []
+        for mols in [set_newstable, set_unstable]:
+            with tempfile.NamedTemporaryFile(suffix=".xyz", dir=xtb.scratchdir) as T:
+                for s,E in mols:
+                    T.write(bytes(s, 'ascii'))
+                T.flush()
+
+                if reference is None:
+                    ref = T.name
+                else:
+                    ref = reference
+
+                # Run CREGEN on temp file
+                cre = xtb.cregen(ref,
+                                        T.name, T.name,
+                                        ewin=parameters["emax_local"],
+                                        rthr=parameters["rthr"],
+                                        ethr=parameters["ethr"],
+                                        bthr=parameters["bthr"])
+                error = cre()
+                s, E = traj2str(T.name)
+                structures += s
+                energies += E
 
         out_structures = []
         out_energies = []
-        for i in range(len(E)):
-            if E[i] - parameters["E0"] < parameters["emax_global"]:
-                out_structures += [s[i]]
-                out_energies += [E[i]]
+        for i in range(len(energies)):
+            if energies[i] - parameters["E0"] < parameters["emax_global"] / 627.521773046:
+                out_structures += [structures[i]]
+                out_energies += [energies[i]]
         return out_structures, out_energies
 
 
