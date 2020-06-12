@@ -175,7 +175,6 @@ def metadynamics_jobs(xtb,
                             wall=parameters["wall"],
                             metadyn=metadyn_params,
                             md=md,
-                            cma="",
                             constrain=make_constraint(atoms,
                                                       points[mtd_index],
                                                       parameters["force"])))]
@@ -247,7 +246,6 @@ def reaction_job(xtb,
                            failout=output_folder + "/FAILED_OPT",
                            level=parameters["optim"],
                            xcontrol=dict(
-                               cma="",
                                wall=parameters["wall"],
                                constrain=make_constraint(
                                    atoms,
@@ -288,6 +286,7 @@ def reaction_job(xtb,
 
         # Now read results, optimize products and dump summary json
         postprocess_reaction(xtb, output_folder,
+                             parameters,
                              metadata={"mtdi":int(mtd_index)})
 
     return react_job

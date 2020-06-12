@@ -91,6 +91,27 @@ def rsearch(out_dir, defaults,
     init1 = out_dir + "/init_opt.xyz"
 
 
+    if params["cavity_radius"]:
+        radius_bohr = params["cavity_radius"] / bohr_ang
+    else:
+        # Load the molecule and compute its radius for the wall size
+        at, pos = io_utils.xyz2numpy(params["xyz"])
+        # Compute all interatomic distances
+        distances = []
+        for i in range(len(at)):
+            for j in range(i):
+                distances += [np.sqrt(np.sum((pos[i] - pos[j])**2))]
+
+        # Cavity is 1.5 x maximum distance
+        radius_bohr = max(distances) * 1.5 / bohr_ang
+
+    print("Size of constraining cavity: %f A" % (radius_bohr * bohr_ang))
+
+    params["wall"] = ["potential=logfermi",
+                        "sphere=%f, all" % radius_bohr]
+
+
+
     print("Optimizing initial geometry...")
     opt = xtb.optimize(init0, init1,
                        level=params["optim"],
@@ -99,7 +120,7 @@ def rsearch(out_dir, defaults,
                                  "cma":""})
     opt()
 
-    # Read result of optimization
+    # Read result of optimization and set the maximum energy.
     mol, E = io_utils.traj2mols(init1, index=0)
     print("    E₀    = %15.7f Eₕ" % E)
     params["E0"] = E

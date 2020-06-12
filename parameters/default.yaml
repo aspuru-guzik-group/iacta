@@ -8,12 +8,12 @@ solvent:
 chrg:
 uhf: '0.0'
 
-# Potential "wall" keeping molecules together. The following are just the
-# lines of the wall group. This is needed mainly for the metadynamics portion,
-# otherwise the molecules just fly away from eachother.
-wall:
-  - 'potential=logfermi'
-  - 'sphere: auto, all'
+# Wall keeping molecules together. By default, it is a logfermi cavity with a
+# radius of 1.5 times the radius of the initial configuration.
+cavity_radius:
+# wall:
+#   - 'potential=logfermi'
+#   - 'sphere: auto, all'
 
 # ---------------------------------------------------------------------------#
 # Parameters related to the coordinate driving
@@ -82,7 +82,7 @@ mtd_indices:
 # The defaults balance performance and exploration.
 
 # Time per atom of metadynamics propagation, in ps.
-tsmtd_time_per_atom: 0.1
+tsmtd_time_per_atom: 0.2
 
 # The remaining parameters are adapted from the CREST paper. We do four sample
 # at each index, with variying kpush and alpha parameters (similar to CREST
@@ -109,12 +109,12 @@ bthr: 2.0                       # rotational const threshold
 
 # Before we start CREGEN, we first optimize the structures obtained in
 # metadynamics at the following optimization level.
-optcregen: tight
+optcregen: normal
 
 # Energy windows
-emax_local: 10.0                # Max E in kcal/mol for stretched molecules
-emax_global: 60.0 # maximum energy in kcal /mol above the energy
-                                # of the initial structure E0.
+emax_local: 12.0                # Max E in kcal/mol for stretched molecules
+emax_global: 60.0               # Maximum energy in kcal /mol above the energy
+                                # of the initial (optimized) structure E0.
 
 # ---------------------------------------------------------------------------#
 # Finally, the initial molecular structure is given here.

@@ -43,7 +43,6 @@ def generate_initial_structures(xtb_driver,
             wall=parameters["wall"],
             metadyn=parameters["imtd_metadyn"],
             md=md,
-            cma="",
             constrain=react_utils.make_constraint(
                 atoms, low, parameters["force"])))
     mtd_job()
@@ -63,7 +62,6 @@ def generate_initial_structures(xtb_driver,
                 wall=parameters["wall"],
                 metadyn=parameters["imtd_metadyn"],
                 md=md,
-                cma="",
                 constrain=react_utils.make_constraint(
                     atoms, low, parameters["force"])))
         mtd_job()
@@ -240,7 +238,6 @@ def refine_structures(xtb, imtd,
                 react_utils.quick_opt_job,
                 xtb, s, parameters["optcregen"],
                 dict(wall=parameters["wall"],
-                     cma="",
                      constrain = react_utils.make_constraint(
                          atoms, points[imtd], parameters["force"])
                 ))
@@ -289,7 +286,7 @@ def refine_structures(xtb, imtd,
             if E[i] - parameters["E0"] < parameters["emax_global"]:
                 out_structures += [s[i]]
                 out_energies += [E[i]]
-        return out_energies, out_structures
+        return out_structures, out_energies
 
 
 def react(xtb_driver,
