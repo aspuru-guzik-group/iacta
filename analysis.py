@@ -6,7 +6,7 @@ import glob
 import json
 import os
 
-def postprocess_reaction(xtb, react_folder, parameters, metadata={}):
+def postprocess_reaction(xtb, react_folder, metadata={}):
     """Extract chemical quantities from a reaction trajectory
 
     Parameters:
@@ -82,10 +82,8 @@ def postprocess_reaction(xtb, react_folder, parameters, metadata={}):
             with open(fn, "w") as f:
                 f.write(structs[sindex])
 
-            # optimize the structure
+            # optimize the structure without constraints
             xtb.optimize(fn, fn,
-                         xcontrol=dict(
-                             wall=parameters["wall"]),
                          level="vtight")
 
             # Read back

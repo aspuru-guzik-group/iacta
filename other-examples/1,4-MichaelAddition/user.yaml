@@ -3,15 +3,10 @@ solvent: water
 atoms:
 - 1
 - 2
-driving_limits: 2.00
-# Angle driving
-# atoms:
-# - 5
-# - 1
-# - 2
-# - 6
-# driving_limits: [180.0, 110.0]
-# mtd_lims: [0.3, 0.8]
+driving_num: 100
+mtd_step: 2
+driving_limits: 1.61
+mtd_limits: [0.3,0.6]
 xyz: |
   36
 
