@@ -104,8 +104,10 @@ def select_initial_structures(xtb_driver,
         istep = parameters["mtd_step"]
         mtd_indices = list(np.arange(istart,iend,istep))
 
-    # We take the lower energy fraction of the generated initial structures.
+    # We take a lower energy fraction of the generated initial structures.
+    m = len(structures) // 10   # todo parametrize
     structures = [(s,E) for s,E in zip(refined,Eref)]
+    structures = structures[:m]
     np.random.shuffle(structures)
 
     print("\n")

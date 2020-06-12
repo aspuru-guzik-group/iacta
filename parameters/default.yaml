@@ -87,7 +87,7 @@ mtd_indices:
 # The defaults balance performance and exploration.
 
 # Time per atom of metadynamics propagation, in ps.
-tsmtd_time_per_atom: 0.2
+tsmtd_time_per_atom: 0.1
 
 # The remaining parameters are adapted from the CREST paper. We do four sample
 # at each index, with variying kpush and alpha parameters (similar to CREST
