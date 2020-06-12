@@ -276,13 +276,20 @@ def refine_structures(xtb, imtd,
             # Run CREGEN on temp file
             cre = xtb.cregen(ref,
                                     T.name, T.name,
-                                    ewin=parameters["ewin"],
+                                    ewin=parameters["emax_local"],
                                     rthr=parameters["rthr"],
                                     ethr=parameters["ethr"],
                                     bthr=parameters["bthr"])
             error = cre()
             s, E = traj2str(T.name)
-        return s,E
+
+        out_structures = []
+        out_energies = []
+        for i in range(len(E)):
+            if E[i] - parameters["E0"] < parameters["emax_global"]:
+                out_structures += [s[i]]
+                out_energies += [E[i]]
+        return out_energies, out_structures
 
 
 def react(xtb_driver,

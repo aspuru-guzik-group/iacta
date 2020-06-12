@@ -103,8 +103,6 @@ tsmtd_md: ["shake=0","step=2","dump=100"]
 # CREGEN routine from CREST. However, the parameters are significantly less
 # strict than the CREST ones because we want to really push diversity and
 # limit similarity.
-ewin: 60.0                      # maximum energy in kcal /mol above the energy
-                                # of the initial structure E0.
 rthr: 0.4                       # RMSD threshold (in A)
 ethr: 1.0                       # energy threshold (in kcal/mol)
 bthr: 2.0                       # rotational const threshold
@@ -113,6 +111,10 @@ bthr: 2.0                       # rotational const threshold
 # metadynamics at the following optimization level.
 optcregen: tight
 
+# Energy windows
+emax_local: 10.0                # Max E in kcal/mol for stretched molecules
+emax_global: 60.0 # maximum energy in kcal /mol above the energy
+                                # of the initial structure E0.
 
 # ---------------------------------------------------------------------------#
 # Finally, the initial molecular structure is given here.

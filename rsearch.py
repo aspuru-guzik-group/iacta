@@ -102,9 +102,10 @@ def rsearch(out_dir, defaults,
     # Read result of optimization
     mol, E = io_utils.traj2mols(init1, index=0)
     print("    E₀    = %15.7f Eₕ" % E)
-    Emax = E + params["ewin"] / (hartree_ev * ev_kcalmol)
+    params["E0"] = E
+    Emax = E + params["emax_global"] / (hartree_ev * ev_kcalmol)
     print("    max E = %15.7f Eₕ  (E₀ + %5.1f kcal/mol)" %
-          (Emax,params["ewin"]))
+          (Emax,params["emax_global"]))
 
 
     # Get constraints parameters
