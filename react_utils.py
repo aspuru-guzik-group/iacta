@@ -286,7 +286,6 @@ def reaction_job(xtb,
 
         # Now read results, optimize products and dump summary json
         postprocess_reaction(xtb, output_folder,
-                             parameters,
                              metadata={"mtdi":int(mtd_index)})
 
     return react_job
