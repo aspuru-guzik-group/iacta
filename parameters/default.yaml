@@ -6,7 +6,7 @@ gfn: '2'
 etemp:
 solvent:
 chrg:
-uhf: '0.0'
+uhf:
 
 # Wall keeping molecules together. By default, it is a logfermi cavity with a
 # diameter of cavity_scale times the largest distance of the initial
@@ -113,7 +113,7 @@ bthr: 2.0                       # rotational const threshold
 
 # Before we start CREGEN, we first optimize the structures obtained in
 # metadynamics at the following optimization level.
-optcregen: normal
+optcregen: vtight
 
 # Energy windows
 emax_local: 12.0                # Max E in kcal/mol for stretched molecules
