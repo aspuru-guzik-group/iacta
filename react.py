@@ -94,7 +94,7 @@ def select_initial_structures(xtb_driver,
     if parameters["mtd_indices"]:
         mtd_indices = parameters["mtd_indices"]
     else:
-        if parameters["mtd_lims"]:
+        if "mtd_lims" in parameters:
             print("warning: mtd_lims deprecated for mtd_limits")
             flow,fhigh = parameters["mtd_lims"]
         else:
