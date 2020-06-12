@@ -62,6 +62,7 @@ def generate_initial_structures(xtb_driver,
                 wall=parameters["wall"],
                 metadyn=parameters["imtd_metadyn"],
                 md=md,
+                cma="",
                 constrain=react_utils.make_constraint(
                     atoms, low, parameters["force"])))
         mtd_job()

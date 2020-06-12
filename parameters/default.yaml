@@ -9,8 +9,10 @@ chrg:
 uhf: '0.0'
 
 # Wall keeping molecules together. By default, it is a logfermi cavity with a
-# radius of 1.5 times the radius of the initial configuration.
-cavity_radius:
+# diameter of cavity_scale times the largest distance of the initial
+# configuration.
+cavity_diameter:
+cavity_scale: 2
 # wall:
 #   - 'potential=logfermi'
 #   - 'sphere: auto, all'
