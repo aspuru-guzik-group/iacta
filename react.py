@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 import react_utils
 from io_utils import traj2str, read_xtb_hessian
+import shutil
 import numpy as np
 from math import inf
 import os
@@ -21,13 +22,20 @@ def generate_initial_structures(xtb_driver,
                                 parameters,
                                 verbose=True):
 
+    outputdir = workdir + "/init"
+    os.makedirs(outputdir)
+
+    if not parameters["imtd"]:
+        if verbose:
+            print("-----------------------------------------------------------------")
+            print("Skipping initial conformer generation")
+        shutil.copyfile(guess_xyz_file, outputdir + "/init_mtd.xyz")
+        return
 
     if verbose:
         print("-----------------------------------------------------------------")
         print("Generating diverse initial conformers...")
 
-    outputdir = workdir + "/init"
-    os.makedirs(outputdir)
 
     # Set the time of the propagation based on the number of atoms.
     with open(guess_xyz_file, "r") as f:
@@ -105,7 +113,7 @@ def select_initial_structures(xtb_driver,
         mtd_indices = list(np.arange(istart,iend,istep))
 
     # We take a lower energy fraction of the generated initial structures.
-    m = len(structures) // 10   # todo parametrize
+    m = int(max(len(structures) * parameters["imtd_proportion"], 1))
     structures = [(s,E) for s,E in zip(refined,Eref)]
     structures = structures[:m]
     np.random.shuffle(structures)

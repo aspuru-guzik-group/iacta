@@ -67,6 +67,11 @@ imtd_metadyn: ["kpush=0.200", "alp=0.200"]
 imtd_md: ["shake=2","step=5","dump=100"]
 imtd_md_tight: ["shake=0","step=2","dump=100"]
 
+# Of the initial structures that are generated, the lowest 10% (in energy,
+# after removing collisions) are kept for seeding the next bit in the program.
+# The next parameter adjusts this value.
+imtd_proportion: 0.10
+
 # ---------------------------------------------------------------------------#
 # Metadynamics transition structure search
 
