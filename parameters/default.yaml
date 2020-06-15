@@ -114,7 +114,7 @@ bthr: 2.0                       # rotational const threshold
 
 # Before we start CREGEN, we first optimize the structures obtained in
 # metadynamics at the following optimization level.
-optcregen: vtight
+optcregen: tight
 
 # Energy windows
 emax_local: 12.0                # Max E in kcal/mol for stretched molecules

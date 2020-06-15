@@ -1,12 +1,12 @@
-solvent: water
 # Distance driving
 atoms:
 - 1
 - 2
 driving_num: 100
-mtd_step: 2
+mtd_step: 1
+tsmtd_time_per_atom: 0.5
 driving_limits: 1.6
-mtd_limits: [0.3,0.8]
+mtd_limits: [0.0,0.3]
 xyz: |
   42
 
