@@ -82,7 +82,7 @@ def postprocess_reaction(xtb, react_folder, metadata={}):
             with open(fn, "w") as f:
                 f.write(structs[sindex])
 
-            # optimize the structure
+            # optimize the structure without constraints
             xtb.optimize(fn, fn,
                          level="vtight")
 
@@ -158,7 +158,7 @@ def read_all_reactions(output_folder,
             with open(fn,"r") as fin:
                 read_out = json.load(fin)
 
-        except OSError:
+        except:
             # Convergence failed
             failed += [f]
         else:

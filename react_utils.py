@@ -175,12 +175,10 @@ def metadynamics_jobs(xtb,
                             wall=parameters["wall"],
                             metadyn=metadyn_params,
                             md=md,
-                            cma="",
                             constrain=make_constraint(atoms,
                                                       points[mtd_index],
                                                       parameters["force"])))]
     return mjobs
-
 
 def reaction_job(xtb,
                  initial_xyz,
@@ -248,7 +246,6 @@ def reaction_job(xtb,
                            failout=output_folder + "/FAILED_OPT",
                            level=parameters["optim"],
                            xcontrol=dict(
-                               cma="",
                                wall=parameters["wall"],
                                constrain=make_constraint(
                                    atoms,

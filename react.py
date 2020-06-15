@@ -13,18 +13,18 @@ This file contains a bunch of user-friendly, multithreaded drivers for
 react_utils.
 """
 
+
 def generate_initial_structures(xtb_driver,
                                 workdir,
                                 guess_xyz_file,
-                                atoms,
-                                low,high,npts,
+                                atoms, low, high, npts,
                                 parameters,
                                 verbose=True):
 
 
     if verbose:
         print("-----------------------------------------------------------------")
-        print("Generating diverse initial structures...")
+        print("Generating diverse initial conformers...")
 
     outputdir = workdir + "/init"
     os.makedirs(outputdir)
@@ -33,6 +33,8 @@ def generate_initial_structures(xtb_driver,
     with open(guess_xyz_file, "r") as f:
         Natoms = int(f.readline())
     md = parameters["imtd_md"] + ["time=%f" % (parameters["imtd_time_per_atom"] * Natoms)]
+
+    # run the metadynamics
     mtd_job = xtb_driver.metadyn(
         guess_xyz_file,
         outputdir + "/init_mtd.xyz",
@@ -41,38 +43,82 @@ def generate_initial_structures(xtb_driver,
             wall=parameters["wall"],
             metadyn=parameters["imtd_metadyn"],
             md=md,
-            cma="",
             constrain=react_utils.make_constraint(
                 atoms, low, parameters["force"])))
     mtd_job()
     structures, E= traj2str(outputdir + "/init_mtd.xyz")
+
+    if len(structures) == 1:
+        print("   convergence issues, restarting with tighter parameters...")
+        md = parameters["imtd_md_tight"] \
+            + ["time=%f" % (parameters["imtd_time_per_atom"] * Natoms)]
+
+        # run the metadynamics
+        mtd_job = xtb_driver.metadyn(
+            guess_xyz_file,
+            outputdir + "/init_mtd.xyz",
+            failout=outputdir + "/FAIL_init_mtd",
+            xcontrol=dict(
+                wall=parameters["wall"],
+                metadyn=parameters["imtd_metadyn"],
+                md=md,
+                cma="",
+                constrain=react_utils.make_constraint(
+                    atoms, low, parameters["force"])))
+        mtd_job()
+        structures, E= traj2str(outputdir + "/init_mtd.xyz")
+
     print("   done! %i starting structures" % len(structures))
-    np.random.shuffle(structures)
+
+
+def select_initial_structures(xtb_driver,
+                              workdir, guess_xyz,
+                              atoms, low,high,npts,
+                              parameters,
+                              nthreads=1,
+                              verbose=True):
+
+    outputdir = workdir + "/init"
+    structures, E= traj2str(outputdir + "/init_mtd.xyz")
+    if verbose:
+        print("Refining initial structures...")
+
+    refined, Eref = refine_structures(
+        xtb_driver, 0,
+        atoms, low, high, npts,
+        structures, guess_xyz,
+        parameters, verbose=verbose,
+        nthreads=nthreads)
 
     # load structures
     if parameters["mtd_indices"]:
         mtd_indices = parameters["mtd_indices"]
     else:
-        flow,fhigh = parameters["mtd_lims"]
+        if "mtd_lims" in parameters:
+            print("warning: mtd_lims deprecated for mtd_limits")
+            flow,fhigh = parameters["mtd_lims"]
+        else:
+            flow,fhigh = parameters["mtd_limits"]
         istart = int(np.floor(flow * npts))
         iend = int(np.floor(fhigh * npts))
         istep = parameters["mtd_step"]
         mtd_indices = list(np.arange(istart,iend,istep))
+
+    # We take a lower energy fraction of the generated initial structures.
+    m = len(structures) // 10   # todo parametrize
+    structures = [(s,E) for s,E in zip(refined,Eref)]
+    structures = structures[:m]
+    np.random.shuffle(structures)
 
     print("\n")
     print("Metadynamics seed structures (N=%i)" % len(mtd_indices))
     print(" i   |    E(0)   |    E(i)   |  ΔE (kcal/mol)")
     pts = np.linspace(low,high,npts)
     curr = 0
+
+    # todo: parallelize here
     for ind in mtd_indices:
-        s0 = structures[curr]
-        s1, E1 = react_utils.quick_opt_job(
-            xtb_driver, s0, parameters["optcregen"],
-            dict(wall=parameters["wall"],
-                 cma="",
-                 constrain = react_utils.make_constraint(
-                     atoms,
-                     pts[0], parameters["force"])))
+        s1, E1 = structures[curr]
 
         # Now stretch to the metadynamics index
         s1file = outputdir + "/mtdi_%3.3i.xyz" % ind
@@ -155,9 +201,6 @@ def metadynamics_refine(xtb_driver,
     mtd_dir = workdir + "/metadyn"
     os.makedirs(refined_dir, exist_ok=True)
 
-    # points
-    points = np.linspace(low, high, npts)
-
     for mtd_index in mtd_indices:
         structures = []
         Es = []
@@ -166,24 +209,46 @@ def metadynamics_refine(xtb_driver,
             structures += structs
             Es += E
 
-        # Loosely optimize the structures in parallel
         if verbose:
             print("MTD%i>\tloaded %i structures, optimizing 📐..."
                   %(mtd_index, len(structures)))
-        with ThreadPoolExecutor(max_workers=nthreads) as pool:
-            futures = []
-            for s in structures:
-                future = pool.submit(
-                    react_utils.quick_opt_job,
-                    xtb_driver, s, parameters["optcregen"],
-                    dict(wall=parameters["wall"],
-                         cma="",
-                         constrain = react_utils.make_constraint(
-                             atoms,
-                             points[mtd_index], parameters["force"])
-                         )
-                    )
-                futures += [future]
+
+        refined, Eref = refine_structures(
+            xtb_driver, mtd_index,
+            atoms, low, high, npts,
+            structures, None,
+            parameters, verbose=verbose,
+            nthreads=nthreads)
+
+        fn = refined_dir + "/mtd%4.4i.xyz" % mtd_index
+        f = open(fn, "w")
+        for s in refined:
+            f.write(s)
+        f.close()
+
+        if verbose:
+            print("  → %i structures selected for reactions 🔥" % len(refined))
+
+def refine_structures(xtb, imtd,
+                      atoms, low, high, npts,
+                      structures, reference,
+                      parameters,
+                      verbose=True, nthreads=1):
+
+    # make the constraints
+    points = np.linspace(low,high,npts)
+
+    with ThreadPoolExecutor(max_workers=nthreads) as pool:
+        futures = []
+        for s in structures:
+            future = pool.submit(
+                react_utils.quick_opt_job,
+                xtb, s, parameters["optcregen"],
+                dict(wall=parameters["wall"],
+                     constrain = react_utils.make_constraint(
+                         atoms, points[imtd], parameters["force"])
+                ))
+            futures += [future]
 
         converged = []
         errors = []
@@ -198,26 +263,53 @@ def metadynamics_refine(xtb_driver,
             print("        converged 👍: %i"% len(converged))
             print("        errors 👎: %i"%len(errors))
 
-        if verbose:
-            print("        carefully selecting conformers 🔎...")
+        # Split the molecules: those with E < E0 - local and otherwise. We do
+        # this to avoid having a few reacted molecules with tiny energy
+        # leading to the removal of many feasible pathways.
+        set_newstable = []
+        set_unstable = []
+        for s,E in converged:
+            if (E < parameters['E0']  - parameters['emax_local'] / 627.521773046):
+                set_newstable += [(s,E)]
+            else:
+                set_unstable += [(s,E)]
 
-        fn = refined_dir + "/mtd%4.4i.xyz" % mtd_index
-        f = open(fn, "w")
-        for s, E in converged:
-            f.write(s)
-        f.close()
+        if verbose and len(set_newstable):
+            print("        new molecules with E << E0: %i"%len(set_newstable))
 
-        cre = xtb_driver.cregen(reference,
-                                fn, fn,
-                                ewin=parameters["ewin"],
-                                rthr=parameters["rthr"],
-                                ethr=parameters["ethr"],
-                                bthr=parameters["bthr"])
+        structures = []
+        energies = []
+        for mols in [set_newstable, set_unstable]:
+            with tempfile.NamedTemporaryFile(suffix=".xyz", dir=xtb.scratchdir) as T:
+                for s,E in mols:
+                    T.write(bytes(s, 'ascii'))
+                T.flush()
 
-        error = cre()
-        s, E = traj2str(fn)
-        if verbose:
-            print("  → %i structures selected for reactions 🔥" % len(s))
+                if reference is None:
+                    ref = T.name
+                else:
+                    ref = reference
+
+                # Run CREGEN on temp file
+                cre = xtb.cregen(ref,
+                                        T.name, T.name,
+                                        ewin=parameters["emax_local"],
+                                        rthr=parameters["rthr"],
+                                        ethr=parameters["ethr"],
+                                        bthr=parameters["bthr"])
+                error = cre()
+                s, E = traj2str(T.name)
+                structures += s
+                energies += E
+
+        out_structures = []
+        out_energies = []
+        for i in range(len(energies)):
+            if energies[i] - parameters["E0"] < parameters["emax_global"] / 627.521773046:
+                out_structures += [structures[i]]
+                out_energies += [energies[i]]
+        return out_structures, out_energies
+
 
 def react(xtb_driver,
           workdir,

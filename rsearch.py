@@ -90,6 +90,22 @@ def rsearch(out_dir, defaults,
         f.write(params["xyz"])
     init1 = out_dir + "/init_opt.xyz"
 
+    if not params["wall"]:
+        # Load the molecule and compute its radius for the wall size
+        at, pos = io_utils.xyz2numpy(params["xyz"])
+        # Compute all interatomic distances
+        distances = []
+        for i in range(len(at)):
+            for j in range(i):
+                distances += [np.sqrt(np.sum((pos[i] - pos[j])**2))]
+
+        # Cavity is 1.5 x maximum distance in diameter
+        radius_bohr = 0.5 * max(distances) * params["cavity_scale"] \
+            + 0.5 * params["cavity_offset"]
+        radius_bohr /= bohr_ang
+
+        print("Diameter of constraining cavity: %f A" % (2 * radius_bohr * bohr_ang))
+        params["wall"] = ["potential=logfermi", "sphere:%f, all" % radius_bohr]
 
     print("Optimizing initial geometry...")
     opt = xtb.optimize(init0, init1,
@@ -99,12 +115,13 @@ def rsearch(out_dir, defaults,
                                  "cma":""})
     opt()
 
-    # Read result of optimization
+    # Read result of optimization and set the maximum energy.
     mol, E = io_utils.traj2mols(init1, index=0)
     print("    E₀    = %15.7f Eₕ" % E)
-    Emax = E + params["ewin"] / (hartree_ev * ev_kcalmol)
+    params["E0"] = E
+    Emax = E + params["emax_global"] / (hartree_ev * ev_kcalmol)
     print("    max E = %15.7f Eₕ  (E₀ + %5.1f kcal/mol)" %
-          (Emax,params["ewin"]))
+          (Emax,params["emax_global"]))
 
 
     # Get constraints parameters
@@ -180,23 +197,29 @@ def rsearch(out_dir, defaults,
             p = np.polyfit(x, y, 2)
             k = 2*p[0]
             params["force"] = float(k * bohr_ang)
-            print("    computed force constant 💪💪 %f" % params["force"])
+            print("         compt. force constant 💪💪 %f" % params["force"])
         else:
             params["force"] = 1.0
-            print("     default force constant 💪💪 %f" % params["force"])
+            print("         force constant 💪💪 %f" % params["force"])
     else:
         print("    with force constant 💪💪 %f" % params["force"])
 
 
-    # STEP 1: Initial generation of guesses
+    # STEP 1: Initial generation of guess conformers
     # ----------------------------------------------------------------------------
-    mtd_indices = react.generate_initial_structures(
+    react.generate_initial_structures(
         xtb, out_dir, init1,
         atoms, low, high, npts,
         params)
 
     # reset threading
     xtb.extra_args = xtb.extra_args[:-2]
+
+    # Refinement and selection
+    mtd_indices = react.select_initial_structures(
+        xtb, out_dir, init1,
+        atoms, low, high, npts,
+        params, nthreads=nthreads)
 
     # STEP 2: Metadynamics
     # ----------------------------------------------------------------------------
@@ -295,11 +318,6 @@ if __name__ == "__main__":
                         help="Minimum value of the coordinate to be driven.", type=float)
     parser.add_argument("--optim",
                         help="Optimization level used during coordinate driving.", type=str)
-    parser.add_argument("--initial-mtd-tight",
-                        help="Use tighter convergence parameters for the initial MTD "
-                        +" generation of structures. Useful if no or few structures are "
-                        +" generated.",
-                        action="store_true")
     parser.add_argument("--no-initial-mtd",
                         help="Do not initialize from a metadynamics-derived set of structures.",
                         action="store_true")
@@ -361,9 +379,6 @@ if __name__ == "__main__":
     # default.yaml file
     if args.no_initial_mtd:
         user_params['imtd'] = False
-
-    if args.initial_mtd_tight:
-        user_params['imtd_md'] = ["shake=0","step=2","dump=100"]
 
     # atoms defining the driving coordinate
     user_params["atoms"] = args.atom1_atom2

@@ -6,14 +6,19 @@ gfn: '2'
 etemp:
 solvent:
 chrg:
-uhf: '0.0'
+uhf:
 
-# Potential "wall" keeping molecules together. The following are just the
-# lines of the wall group. This is needed mainly for the metadynamics portion,
-# otherwise the molecules just fly away from eachother.
+# Wall keeping molecules together. By default, it is a logfermi cavity with a
+# diameter of cavity_scale times the largest distance of the initial
+# configuration + cavity_offset in angstrom.
+cavity_scale: 1.0
+cavity_offset: 4.0
+
+# Wall can also be passed explicitly, which is useful in situations with explicit solvent so that the explicit solvent molecules hang out in the right spot.
+# wall:
+#   - 'potential=logfermi'
+#   - 'sphere: 5.0, all'
 wall:
-  - 'potential=logfermi'
-  - 'sphere: auto, all'
 
 # ---------------------------------------------------------------------------#
 # Parameters related to the coordinate driving
@@ -57,8 +62,10 @@ imtd_time_per_atom: 0.5
 imtd_metadyn: ["kpush=0.200", "alp=0.200"]
 
 # MD parameters for the $md block in xtb. The initial metadynamics is
-# performed with shake=2, a 5fs step and structures dumped every 100 fs.
+# performed with shake=2, a 5fs step and structures dumped every 100 fs. If it
+# fails, it's restarted with the tighter parameters of shake=0, step=2.
 imtd_md: ["shake=2","step=5","dump=100"]
+imtd_md_tight: ["shake=0","step=2","dump=100"]
 
 # ---------------------------------------------------------------------------#
 # Metadynamics transition structure search
@@ -66,9 +73,9 @@ imtd_md: ["shake=2","step=5","dump=100"]
 # The following parameters set the points along the driven coordinate at which
 # metadynamics searches are performed. By default, that is at every point
 # (mtd_step=1) over the first half of the values of the driven coordinate
-# (mtd_lims = [0.0, 0.5]).
+# (mtd_limits = [0.0, 0.5]).
 mtd_step: 1
-mtd_lims: [0.0, 0.5]            # Start and end values of the driven
+mtd_limits: [0.0, 0.5]          # Start and end values of the driven
                                 # coordinate where driving is performed, as
                                 # fractions of total coordinate range.
 
@@ -101,8 +108,6 @@ tsmtd_md: ["shake=0","step=2","dump=100"]
 # CREGEN routine from CREST. However, the parameters are significantly less
 # strict than the CREST ones because we want to really push diversity and
 # limit similarity.
-ewin: 60.0                      # maximum energy in kcal /mol above the energy
-                                # of the initial structure E0.
 rthr: 0.4                       # RMSD threshold (in A)
 ethr: 1.0                       # energy threshold (in kcal/mol)
 bthr: 2.0                       # rotational const threshold
@@ -111,6 +116,10 @@ bthr: 2.0                       # rotational const threshold
 # metadynamics at the following optimization level.
 optcregen: tight
 
+# Energy windows
+emax_local: 12.0                # Max E in kcal/mol for stretched molecules
+emax_global: 60.0               # Maximum energy in kcal /mol above the energy
+                                # of the initial (optimized) structure E0.
 
 # ---------------------------------------------------------------------------#
 # Finally, the initial molecular structure is given here.
