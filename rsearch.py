@@ -15,7 +15,7 @@ from datetime import datetime
 def cval(mol, atoms_i):
     atoms = [mol.GetAtom(i) for i in atoms_i]
     if len(atoms)==2:
-        return mol.GetBond(*atoms).GetLength()
+        return atoms[0].GetDistance(atoms[1])
     if len(atoms)==3:
         return mol.GetAngle(*atoms)
     if len(atoms)==4:
