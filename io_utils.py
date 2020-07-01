@@ -99,7 +99,7 @@ def read_xtb_hessian(file):
 
 
 # =================== xyz trajectory files reading/writing routines =============================
-def traj2str(filepath, index=None, as_list=False):
+def traj2str(filepath, index=None, as_list=False, exclude=[]):
     """Read an xyz file containing a trajectory."""
     structures = []
     energies = []
@@ -111,15 +111,21 @@ def traj2str(filepath, index=None, as_list=False):
             if not first_line:
                 break
 
-            this_mol = first_line
             natoms = int(first_line.rstrip())
+            if len(exclude):
+                this_mol = "%i\n" % (natoms - len(exclude))
+            else:
+                this_mol = first_line
 
             comment_line = f.readline()
             this_mol += comment_line
             E = comment_line_energy(comment_line)
 
             for i in range(natoms):
-                this_mol += f.readline()
+                if (i+1) in exclude: # we don't include this atom
+                    _ = f.readline()
+                else:
+                    this_mol += f.readline()
 
             if index is None:
                 structures += [this_mol]
@@ -134,24 +140,29 @@ def traj2str(filepath, index=None, as_list=False):
             k+=1
     return structures,energies
 
-def traj2smiles(filepath, index=None, chiral=False):
-    """Read an xyz file and convert to a list of SMILES ."""
-    # Read the trajectory
-    strs, E = traj2str(filepath, index=index, as_list=True)
-    output = []
 
+def xyz2smiles(string, chiral=False):
+    """Convert an xyz as a string to SMILES."""
     if chiral:
         flags = {"c":1,"n":1}
     else:
         flags = {"c":1,"n":1, "i":1}
-    for s in strs:
-        # put string in lowercase to fix stupid openbabel bug
-        output+= [pybel.readstring("xyz", s.lower()).write(format="smi", opt=flags).rstrip()]
+
+    # put string in lowercase to fix stupid openbabel bug
+    return pybel.readstring("xyz", string.lower()).write(format="smi", opt=flags).rstrip()
+
+def traj2smiles(filepath, index=None, chiral=False, exclude=[]):
+    """Read an xyz file and convert to a list of SMILES ."""
+    # Read the trajectory
+    strs, E = traj2str(filepath, index=index, as_list=True, exclude=exclude)
 
     if index is None:
-        return output, E
+        output = []
+        for s in strs:
+            output+= [xyz2smiles(s, chiral=chiral)]
     else:
-        return output[0], E[0]
+        output = xyz2smiles(strs[index], chiral=chiral)
+        return output, E[index]
 
 def traj2mols(filepath, index=None):
     """Read an xyz file and convert to a list of OBMol objects."""

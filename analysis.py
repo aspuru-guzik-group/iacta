@@ -158,28 +158,29 @@ def read_all_reactions(output_folder,
             fn = f + "/reaction_data.json"
             with open(fn,"r") as fin:
                 read_out = json.load(fin)
-
-            if reparser is None:
-                # Do not reparse structure
-                pass
-            else:
-                new_ids = []
-                for k,index in enumerate(read_out['stretch_points']):
-                    if is_stable[k]:
-                        pref = "stable"
-                    else:
-                        pref = "ts"
-
-                    with open(pref +  "_%4.4i.xyz" % index, "r") as structuref:
-                        new_ids += [reparser(structuref.read())]
-
-                read_out['reparsed'] = new_ids
         except:
             # Convergence failed
             failed += [f]
         else:
             new_indices += [f]
             pathways += [read_out]
+
+            if reparser is None:
+                # Do not reparse structure
+                pass
+            else:
+                # Do reparse based on the xyz files.
+                new_ids = []
+                for k,index in enumerate(read_out['stretch_points']):
+                    if read_out["is_stable"][k]:
+                        pref = "stable"
+                    else:
+                        pref = "ts"
+
+                    # Reparse the xyz files for stable states and TSs
+                    new_ids += [reparser(f + "/" + pref +  "_%4.4i.xyz" % index)]
+
+                read_out['reparsed'] = new_ids
 
 
     if verbose:
@@ -232,6 +233,9 @@ def get_species_table(pathways, verbose=True, chemical_id="SMILES_i"):
                         'file':row.folder + "stable_%4.4i.xyz" % row.stretch_points[k],
                         'position':row.stretch_points[k]}
 
+    if len(species) == 0:
+        print("\nNo chemical species identified!")
+        raise SystemExit(0)
     k,v = zip(*species.items())
     out = pd.DataFrame(v).sort_values('E').set_index('smiles')
     if verbose:

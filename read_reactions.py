@@ -20,21 +20,45 @@ if __name__ == "__main__":
                         action="store_true")
     parser.add_argument("--local", help="Use reaction-local barrier instead of TS energy.",
                         action="store_true")
+    parser.add_argument("-r", "--redo", help="Re-read the reaction data without using the"
+                        + " cache. This is useful when changing parser.",
+                        action="store_true")
+    parser.add_argument("-e", "--exclude", help="Parse reaction data excluding certain atoms. Arguments should be the excluded atom indices.", type=int, nargs='+')
     args = parser.parse_args()
     folder =args.folder
+    if isinstance(args.exclude, list):
+        exclude = set(args.exclude)
+        print("Excluding atoms: ", exclude)
+    else:
+        exclude = []
 
-    if args.resolve_chiral:
+    if len(exclude):
+        chemical_id = "reparsed"
+        reactant, E = io_utils.traj2smiles(folder + "/init_opt.xyz",
+                                           index=0, chiral=args.resolve_chiral,
+                                           exclude=exclude)
+
+        # make a parser that exclude certain atoms
+        def reparser(filepath):
+            smiles, energy = io_utils.traj2smiles(filepath,
+                                                  index=0, chiral=args.resolve_chiral,
+                                                  exclude=exclude)
+            return smiles
+
+    elif args.resolve_chiral:
         chemical_id = "SMILES_c"
         reactant, E = io_utils.traj2smiles(folder + "/init_opt.xyz",
                                            index=0,chiral=True)
+        reparser = None
     else:
         chemical_id = "SMILES_i"
         reactant, E = io_utils.traj2smiles(folder + "/init_opt.xyz",
                                            index=0,chiral=False)
+        reparser = None
 
-    pathways = read_all_reactions(folder)
+    pathways = read_all_reactions(folder, restart=(not args.redo), reparser=reparser)
     species = get_species_table(pathways, chemical_id=chemical_id)
-
+    species.to_csv(folder + "/parsed_species.csv")
 
     if args.all:
         final = analyse_reaction_network(pathways,species,list(species.index)[::-1],
@@ -54,4 +78,3 @@ if __name__ == "__main__":
 
     # Finally, save parsed reaction network
     final.to_csv(folder + "/parsed_reactions.csv")
-    species.to_csv(folder + "/parsed_species.csv")
