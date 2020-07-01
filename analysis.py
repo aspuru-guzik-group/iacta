@@ -24,8 +24,8 @@ def postprocess_reaction(xtb, react_folder, metadata={}):
     opt = react_folder + "/opt.xyz"
     # Get the smiles
     # TODO: waste of computer time reloading the same file three times...
-    smiles, E = io_utils.traj2smiles(opt,chiral=True)
-    smiles_iso, _ = io_utils.traj2smiles(opt,chiral=False)
+    smiles, E = io_utils.traj2smiles(opt, chiral=True)
+    smiles_iso, _ = io_utils.traj2smiles(opt, chiral=False)
     structs, _ = io_utils.traj2str(opt)
 
     mols = [smiles[0]]

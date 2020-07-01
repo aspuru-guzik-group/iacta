@@ -160,6 +160,7 @@ def traj2smiles(filepath, index=None, chiral=False, exclude=[]):
         output = []
         for s in strs:
             output+= [xyz2smiles(s, chiral=chiral)]
+        return output, E
     else:
         output = xyz2smiles(strs[index], chiral=chiral)
         return output, E[index]

@@ -23,11 +23,11 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--redo", help="Re-read the reaction data without using the"
                         + " cache. This is useful when changing parser.",
                         action="store_true")
-    parser.add_argument("-e", "--exclude", help="Parse reaction data excluding certain atoms. Arguments should be the excluded atom indices.", type=int, nargs='+')
+    parser.add_argument("-xi", "--exclude-ind", help="Parse reaction data excluding certain atoms. Arguments should be the excluded atom indices.", type=int, nargs='+')
     args = parser.parse_args()
     folder =args.folder
-    if isinstance(args.exclude, list):
-        exclude = set(args.exclude)
+    if isinstance(args.exclude_ind, list):
+        exclude = set(args.exclude_ind)
         print("Excluding atoms: ", exclude)
     else:
         exclude = []
