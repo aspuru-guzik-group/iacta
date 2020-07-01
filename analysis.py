@@ -122,6 +122,7 @@ def postprocess_reaction(xtb, react_folder, metadata={}):
 def read_all_reactions(output_folder,
                        verbose=True,
                        restart=True,
+                       reparser=None,
                        save=True):
     """Read and parse all reactions in a given folder."""
     folders = glob.glob(output_folder + "/reactions/[0-9]*")
@@ -158,6 +159,21 @@ def read_all_reactions(output_folder,
             with open(fn,"r") as fin:
                 read_out = json.load(fin)
 
+            if reparser is None:
+                # Do not reparse structure
+                pass
+            else:
+                new_ids = []
+                for k,index in enumerate(read_out['stretch_points']):
+                    if is_stable[k]:
+                        pref = "stable"
+                    else:
+                        pref = "ts"
+
+                    with open(pref +  "_%4.4i.xyz" % index, "r") as structuref:
+                        new_ids += [reparser(structuref.read())]
+
+                read_out['reparsed'] = new_ids
         except:
             # Convergence failed
             failed += [f]
@@ -191,20 +207,17 @@ def read_all_reactions(output_folder,
 
     return data
 
-def get_species_table(pathways, verbose=True, resolve_chiral=False):
+def get_species_table(pathways, verbose=True, chemical_id="SMILES_i"):
     if verbose:
         print("\nBuilding table of chemical species, from")
         print("   %6i reaction pathways" % len(pathways))
 
     species = {}
+
     for irow, row in pathways.iterrows():
         for k in range(len(row.is_stable)):
             if row.is_stable[k]:
-                if resolve_chiral:
-                    smi = row.SMILES_c[k]
-                else:
-                    smi = row.SMILES_i[k]
-
+                smi = row[chemical_id][k]
                 if smi in species:
                     if row.E[k] < species[smi]['E']:
                         species[smi] = {
@@ -231,8 +244,7 @@ def get_species_table(pathways, verbose=True, resolve_chiral=False):
     return out
 
 def reaction_network_layer(pathways, reactant, species,
-                           exclude=[],
-                           resolve_chiral=False):
+                           exclude=[], chemical_id="SMILES_i"):
     to_smiles = []
     ts_i = []
     ts_E = []
@@ -244,10 +256,7 @@ def reaction_network_layer(pathways, reactant, species,
     Ereactant = species.E.loc[reactant]
 
     for k, rowk in pathways.iterrows():
-        if resolve_chiral:
-            smiles = rowk.SMILES_c
-        else:
-            smiles = rowk.SMILES_i
+        smiles = rowk[chemical_id]
         if reactant in smiles:
             i = smiles.index(reactant)
             E = rowk.E
@@ -320,7 +329,7 @@ def reaction_network_layer(pathways, reactant, species,
 
 def analyse_reaction_network(pathways, species, reactants, verbose=True,
                              sort_by_barrier=False, reaction_local=False,
-                             resolve_chiral=False):
+                             chemical_id="SMILES_i"):
     final_reactions = []
 
     verbose=True
@@ -335,7 +344,7 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
         current = todo.pop(0)
         layer = reaction_network_layer(pathways, current, species,
                                        exclude=done + [current],
-                                       resolve_chiral=resolve_chiral)
+                                       chemical_id=chemical_id)
         E0 = species.loc[current].E
         products = list(set(layer.to))
         if sort_by_barrier:

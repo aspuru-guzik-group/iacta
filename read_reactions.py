@@ -22,23 +22,32 @@ if __name__ == "__main__":
                         action="store_true")
     args = parser.parse_args()
     folder =args.folder
+
+    if args.resolve_chiral:
+        chemical_id = "SMILES_c"
+        reactant, E = io_utils.traj2smiles(folder + "/init_opt.xyz",
+                                           index=0,chiral=True)
+    else:
+        chemical_id = "SMILES_i"
+        reactant, E = io_utils.traj2smiles(folder + "/init_opt.xyz",
+                                           index=0,chiral=False)
+
     pathways = read_all_reactions(folder)
-    species = get_species_table(pathways, resolve_chiral=args.resolve_chiral)
+    species = get_species_table(pathways, chemical_id=chemical_id)
 
 
-    reactant, E = io_utils.traj2smiles(folder + "/init_opt.xyz", index=0,chiral=args.resolve_chiral)
     if args.all:
         final = analyse_reaction_network(pathways,species,list(species.index)[::-1],
                                          sort_by_barrier=args.ts,
                                          reaction_local=args.local,
-                                         resolve_chiral=args.resolve_chiral)
+                                         chemical_id=chemical_id)
     else:
         print("Reactant: %s" % reactant)
         if reactant in species.index:
             final = analyse_reaction_network(pathways,species,[reactant],
                                              sort_by_barrier=args.ts,
                                              reaction_local=args.local,
-                                             resolve_chiral=args.resolve_chiral)
+                                             chemical_id=chemical_id)
         else:
             print("Error! Reactant not in found species")
             raise SystemExit(-1)
