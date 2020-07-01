@@ -23,14 +23,29 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--redo", help="Re-read the reaction data without using the"
                         + " cache. This is useful when changing parser.",
                         action="store_true")
-    parser.add_argument("-xi", "--exclude-ind", help="Parse reaction data excluding certain atoms. Arguments should be the excluded atom indices.", type=int, nargs='+')
+    parser.add_argument("-xi", "--exclude-inds", help="Parse reaction data excluding"
+                        +" certain atoms. Arguments should be the excluded atom indices.",
+                        type=int, nargs='+')
+    parser.add_argument("-xa", "--exclude-atoms", help="Parse reaction data excluding"
+                        +" certain atom types. Arguments should be the excluded"
+                        +" atomic symbols.",
+                        type=str, nargs='+')
     args = parser.parse_args()
     folder =args.folder
-    if isinstance(args.exclude_ind, list):
-        exclude = set(args.exclude_ind)
-        print("Excluding atoms: ", exclude)
-    else:
-        exclude = []
+
+    exclude = []
+    if isinstance(args.exclude_inds, list):
+        exclude += args.exclude_inds
+
+    if isinstance(args.exclude_atoms, list):
+        exclude_atoms = [s.lower() for s in args.exclude_atoms]
+        atoms, positions, E = io_utils.traj2npy(folder + "/init_opt.xyz", index=0)
+        for index, at in enumerate(atoms):
+            if at.lower() in exclude_atoms:
+                exclude += [index+1]
+
+    exclude = set(exclude)
+    print("Excluding atom indices: ", exclude)
 
     if len(exclude):
         chemical_id = "reparsed"
