@@ -45,7 +45,8 @@ if __name__ == "__main__":
                 exclude += [index+1]
 
     exclude = set(exclude)
-    print("Excluding atom indices: ", exclude)
+    if len(exclude):
+        print("Excluding atom indices: ", exclude)
 
     if len(exclude):
         chemical_id = "reparsed"

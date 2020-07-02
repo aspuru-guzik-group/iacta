@@ -125,6 +125,10 @@ def read_all_reactions(output_folder,
                        reparser=None,
                        save=True):
     """Read and parse all reactions in a given folder."""
+    # strip last / for nicer output
+    if output_folder[-1] == '/':
+        output_folder = output_folder[:-1]
+
     folders = glob.glob(output_folder + "/reactions/[0-9]*")
     if verbose:
         print("Parsing folder <%s>, with" % output_folder)
@@ -158,6 +162,10 @@ def read_all_reactions(output_folder,
             fn = f + "/reaction_data.json"
             with open(fn,"r") as fin:
                 read_out = json.load(fin)
+
+            # Overwrite whatever folder is in the json file for the current
+            # one. This is useful if the folder has changed name.
+            read_out['folder'] = f
         except:
             # Convergence failed
             failed += [f]
