@@ -237,7 +237,7 @@ def get_species_table(pathways, verbose=True, chemical_id="SMILES_i"):
         print("\nNo chemical species identified!")
         raise SystemExit(0)
     k,v = zip(*species.items())
-    out = pd.DataFrame(v).sort_values('E').set_index('smiles')
+    out = pd.DataFrame(v).sort_values('E').reset_index(drop=True).set_index('smiles')
     if verbose:
         print("   %6i stable-ish species found" % len(out))
         evspan = (out.E.max() - out.E.min()) * hartree_ev
@@ -251,6 +251,8 @@ def reaction_network_layer(pathways, reactant, species,
                            exclude=[], chemical_id="SMILES_i"):
     to_smiles = []
     ts_i = []
+    prod_i = []
+    react_i = []
     ts_E = []
     barrier = []
     folder = []
@@ -274,11 +276,13 @@ def reaction_network_layer(pathways, reactant, species,
                     # Get transition state
                     tspos = np.argmax(E[i:j]) + i
                     ts = E[tspos]
+
                     # TODO: Major issue. Some trajectories are completely
                     # messed up and don't have a barrier at all. We get rid of
                     # these artifically here.
                     if ts <= E[i] or ts <= E[j]:
                         continue
+
                     ts_E += [ts]
                     product = smiles[j]
                     Eproducts = species.E.loc[product]
@@ -286,6 +290,8 @@ def reaction_network_layer(pathways, reactant, species,
                     dE += [Eproducts - Ereactant]
                     local_dE += [E[j] - E[i]]
                     ts_i += [rowk.stretch_points[tspos]]
+                    react_i += [rowk.stretch_points[i]]
+                    prod_i += [rowk.stretch_points[j]]
 
                     folder += [rowk.folder]
                     mtdi += [rowk.mtdi]
@@ -298,6 +304,7 @@ def reaction_network_layer(pathways, reactant, species,
                     # Get transition state
                     tspos = np.argmax(E[j:i]) + j
                     ts = E[tspos]
+
                     # TODO: Major issue. Some trajectories are completely
                     # messed up and don't have a barrier at all. We get rid of
                     # these artifically here.
@@ -311,6 +318,8 @@ def reaction_network_layer(pathways, reactant, species,
                     dE += [Eproducts - Ereactant]
                     local_dE += [E[j] - E[i]]
                     ts_i += [rowk.stretch_points[tspos]]
+                    react_i += [rowk.stretch_points[i]]
+                    prod_i += [rowk.stretch_points[j]]
 
                     folder += [rowk.folder]
                     mtdi += [rowk.mtdi]
@@ -324,6 +333,8 @@ def reaction_network_layer(pathways, reactant, species,
         'dE':dE,
         'local_dE':local_dE,
         'i_TS':ts_i,
+        'i_P':prod_i,
+        'i_R':react_i,
         'folder':folder,
         'mtdi':mtdi})
 
@@ -334,7 +345,8 @@ def reaction_network_layer(pathways, reactant, species,
 def analyse_reaction_network(pathways, species, reactants, verbose=True,
                              sort_by_barrier=False, reaction_local=False,
                              chemical_id="SMILES_i"):
-    final_reactions = []
+    final_reactions = []             # container for reduced quantities
+    reactions_table = pd.DataFrame() # all reactions
 
     verbose=True
     if verbose:
@@ -344,6 +356,7 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
     done = []
 
     layerind = 1
+    iden = 1
     while todo:
         current = todo.pop(0)
         layer = reaction_network_layer(pathways, current, species,
@@ -389,18 +402,24 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
                 TS = (best.E_TS - E0) * hartree_ev * ev_kcalmol
                 dE = best.dE * hartree_ev * ev_kcalmol
 
+            new_reacts = reacts.drop(
+                columns=['from', 'to', 'dE', 'local_dE']
+            ).sort_values('E_TS').reset_index(drop=True)
+            new_reacts['reaction_id'] = iden
+            new_reacts['traj_id'] = new_reacts.index + 1
+            reactions_table = reactions_table.append(new_reacts)
 
 
             if verbose:
-                line1 = "       ΔE(R->P)  = %8.4f kcal/mol" % dE
-                line2 = "       ΔE(R->TS) = %8.4f kcal/mol" % TS
-                print(line1)
-                print(line2)
+                print("       ΔReaction #%i" % iden)
+                print("       ΔE(R->P)  = %8.4f kcal/mol" % dE)
+                print("       ΔE(R->TS) = %8.4f kcal/mol" % TS)
                 print("           %s" % best.folder)
                 print("           + %5i similar pathways\n" % (len(reacts)-1))
 
             final_reactions += [
                 {'from':current, 'to':p,
+                 'reaction_id':iden,
                  'dE':dE,
                  'dE_TS':TS,
                  'best_TS_pathway':best.folder,
@@ -408,6 +427,7 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
                  'mtdi':best.mtdi,
                 }
             ]
+            iden += 1
 
             if (not p in done) and (not p in todo):
                 todo += [p]
@@ -415,5 +435,6 @@ def analyse_reaction_network(pathways, species, reactants, verbose=True,
         done += [current]
         layerind += 1
 
-    final_reactions = pd.DataFrame(final_reactions)
-    return final_reactions
+    reactions_table = reactions_table.set_index(['reaction_id', 'traj_id'])
+    final_reactions = pd.DataFrame(final_reactions).set_index('reaction_id')
+    return final_reactions, reactions_table

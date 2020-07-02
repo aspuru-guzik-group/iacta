@@ -73,23 +73,24 @@ if __name__ == "__main__":
 
     pathways = read_all_reactions(folder, restart=(not args.redo), reparser=reparser)
     species = get_species_table(pathways, chemical_id=chemical_id)
-    species.to_csv(folder + "/parsed_species.csv")
+    species.to_csv(folder + "/species.csv")
 
     if args.all:
-        final = analyse_reaction_network(pathways,species,list(species.index)[::-1],
-                                         sort_by_barrier=args.ts,
-                                         reaction_local=args.local,
-                                         chemical_id=chemical_id)
+        final, full = analyse_reaction_network(pathways,species,list(species.index)[::-1],
+                                               sort_by_barrier=args.ts,
+                                               reaction_local=args.local,
+                                               chemical_id=chemical_id)
     else:
         print("Reactant: %s" % reactant)
         if reactant in species.index:
-            final = analyse_reaction_network(pathways,species,[reactant],
-                                             sort_by_barrier=args.ts,
-                                             reaction_local=args.local,
-                                             chemical_id=chemical_id)
+            final, full = analyse_reaction_network(pathways,species,[reactant],
+                                                   sort_by_barrier=args.ts,
+                                                   reaction_local=args.local,
+                                                   chemical_id=chemical_id)
         else:
             print("Error! Reactant not in found species")
             raise SystemExit(-1)
 
     # Finally, save parsed reaction network
-    final.to_csv(folder + "/parsed_reactions.csv")
+    final.to_csv(folder + "/reactions.csv")
+    full.to_csv(folder + "/trajectories.csv")
