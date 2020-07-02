@@ -1,6 +1,7 @@
 import io_utils
 import analysis
 from analysis import *
+import sys
 import pandas as pd
 import shutil, os
 from constants import hartree_ev, ev_kcalmol
@@ -49,6 +50,12 @@ if __name__ == "__main__":
     product = species.loc[reaction['to']]
     trajs = trajectories[trajectories.reaction_id == args.reaction_id]
     trajs = trajs.drop(columns='reaction_id').set_index('traj_id')
+
+    logf = open(out_dir + "/summary", "w")
+    def print(s):
+        sys.stdout.write(s + "\n")
+        logf.write(s + "\n")
+
 
     TS = (trajs.E_TS.min() - reactant.E) * hartree_ev * ev_kcalmol
     dE = (product.E - reactant.E) * hartree_ev * ev_kcalmol
@@ -140,3 +147,4 @@ if __name__ == "__main__":
     print("     | P* = Activated products on the trajectory            |              ")
     print("     | P  = Products                                        |              ")
     print("     +------------------------------------------------------+              ")
+    logf.close()
