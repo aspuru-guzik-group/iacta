@@ -85,8 +85,13 @@ if __name__ == "__main__":
         with open(fn,"r") as fin:
             react = json.load(fin)
 
-        path_data = [(ind,p) for ind,p in enumerate(react['stretch_points'])
-                     if ((p >= row.i_R) and (p <= row.i_P))]
+        if row.i_P < row.i_R:
+            path_data = [(ind,p) for ind,p in enumerate(react['stretch_points'])
+                         if ((p <= row.i_R) and (p >= row.i_P))]
+        else:
+            path_data = [(ind,p) for ind,p in enumerate(react['stretch_points'])
+                         if ((p >= row.i_R) and (p <= row.i_P))]
+
         path_indices, cd_points = zip(*path_data)
         start = min(cd_points)
         end = max(cd_points)+ 1
