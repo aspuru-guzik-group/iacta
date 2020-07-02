@@ -232,13 +232,13 @@ def get_species_table(pathways, verbose=True, chemical_id="SMILES_i"):
                         species[smi] = {
                             'smiles':smi,
                             'E':row.E[k],
-                            'file':row.folder + "stable_%4.4i.xyz" % row.stretch_points[k],
+                            'file':row.folder + "/stable_%4.4i.xyz" % row.stretch_points[k],
                             'position':row.stretch_points[k]}
                 else:
                     species[smi] = {
                         'smiles':smi,
                         'E':row.E[k],
-                        'file':row.folder + "stable_%4.4i.xyz" % row.stretch_points[k],
+                        'file':row.folder + "/stable_%4.4i.xyz" % row.stretch_points[k],
                         'position':row.stretch_points[k]}
 
     if len(species) == 0:
