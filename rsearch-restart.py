@@ -62,7 +62,7 @@ if __name__ == "__main__":
         if args.w:
             # Delete the directory, make it and restart
             print("   👍 but that's fine! -w flag is on.")
-            print("   📁 %s is overwritten."% args.o)
+            print("   📁 %s is overwritten."% out_dir)
             shutil.rmtree(out_dir)
             os.makedirs(out_dir)
         else:
