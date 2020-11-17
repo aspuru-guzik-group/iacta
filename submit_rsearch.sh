@@ -13,4 +13,4 @@ export LOCALSCRATCH=$SLURM_TMPDIR
 export MINIGABE=$HOME/ts-search
 
 source activate ts-search
-python3.7 $MINIGABE/rsearch.py -t 40 $@
+python3 $MINIGABE/rsearch.py -t 40 $@
