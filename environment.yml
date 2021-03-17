@@ -1,0 +1,11 @@
+name: ts-search
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - pyyaml
+  - numpy
+  - scipy
+  - openbabel
+  - pandas

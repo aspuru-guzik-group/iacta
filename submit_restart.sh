@@ -5,13 +5,12 @@
 #SBATCH --time=8:00:00
 #SBATCH --job-name minigabe-restart
 
-module load NiaEnv/2018a
-module load intel
-module load python/3.6.4-anaconda5.1.0
+module load NiaEnv
+module load conda3
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export PATH=$HOME/xtb/bin:$PATH
 export LOCALSCRATCH=$SLURM_TMPDIR
 export MINIGABE=$HOME/ts-search
 
 source activate ts-search
-python3.7 $MINIGABE/rsearch-restart.py -t 40 $@
+python3 $MINIGABE/rsearch-restart.py -t 40 $@
