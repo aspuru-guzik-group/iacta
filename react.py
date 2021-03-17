@@ -316,6 +316,8 @@ def refine_structures(xtb, imtd,
             if energies[i] - parameters["E0"] < parameters["emax_global"] / 627.521773046:
                 out_structures += [structures[i]]
                 out_energies += [energies[i]]
+
+        print("        structures with E < Emax : %i" % len(out_structures))
         return out_structures, out_energies
 
 
