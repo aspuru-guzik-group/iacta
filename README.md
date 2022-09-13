@@ -3,7 +3,7 @@ This repository contains code for the paper: [Automatic Discovery of Chemical Re
 
 Original authors: Cyrille Lavigne, Gabe Gomes, Robert Pollice, Alán Aspuru-Guzik
 
-<img align="center" src="https://github.com/aspuru-guzik-group/iacta/blob/main/repo/TOC.png"/>
+<img align="center" src="https://github.com/aspuru-guzik-group/iacta/blob/master/repo/TOC.png"/>
 
 ## Prerequsites: 
 
