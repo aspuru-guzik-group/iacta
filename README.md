@@ -8,8 +8,21 @@ Original authors: Cyrille Lavigne, Gabe Gomes, Robert Pollice, Alán Aspuru-Guzi
 
 Use [Python 3.7 or up](https://www.python.org/download/releases/3.0/).
 
-You will need to install [openbabel](https://open-babel.readthedocs.io/en/latest/Installation/install.html) version >= 3.1.1 and the associated python bindings. The easiest is to do this on conda.
-Other required packages are numpy, pandas and yaml.
+Before being able to use the repository, you will need to install a few programs and packages. First, common packages that are required are `numpy` and `pandas`.
+
+Second, you will need to install [xtb](https://xtb-docs.readthedocs.io/en/latest/contents.html) version >= 6.3.0. Importantly, x
+
+Third, you will need to install [openbabel](https://open-babel.readthedocs.io/en/latest/Installation/install.html) version >= 3.1.1 and the associated python bindings. The easiest is to do this is via conda:
+
+```
+conda install -c conda-forge openbabel
+```
+
+Finally, you also need to install `yaml` and `pyaml`, again easiest to do via conda:
+
+```
+conda install -c conda-forge pyyaml
+```
 
 
 ## How to run: 
