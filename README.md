@@ -1,8 +1,9 @@
 # Automatic Discovery of Chemical Reactions Using Imposed Activation
 This repository contains code for the paper: [Automatic Discovery of Chemical Reactions Using Imposed Activation](https://doi.org/10.26434/chemrxiv.13008500.v2). 
 
-Original authors: Cyrille Lavigne, Gabe Gomes, Robert Pollice, Alán Aspuru-Guzik 
+Original authors: Cyrille Lavigne, Gabe Gomes, Robert Pollice, Alán Aspuru-Guzik
 
+<img align="center" src="https://github.com/aspuru-guzik-group/iacta/blob/main/repo/TOC.png"/>
 
 ## Prerequsites: 
 
