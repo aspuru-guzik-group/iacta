@@ -8,9 +8,9 @@ Original authors: Cyrille Lavigne, Gabe Gomes, Robert Pollice, Alán Aspuru-Guzi
 
 `iacta` needs [`python >= 3.7`](https://www.python.org/downloads/). Before being able to use the repository, you will need to install a few additional programs and packages. First, common packages that are required are `numpy` and `pandas`.
 
-Second, you will need to install [`xtb`](https://xtb-docs.readthedocs.io/en/latest/contents.html) `version >= 6.3.0`. Importantly, by default the `xtb` and `crest` binaries are assumed to be in `$PATH`.
+Second, you will need to install [`xtb version >= 6.3.0`](https://xtb-docs.readthedocs.io/en/latest/contents.html). Importantly, by default the `xtb` and `crest` binaries are assumed to be in `$PATH`.
 
-Third, you will need to install [`openbabel`](https://open-babel.readthedocs.io/en/latest/Installation/install.html) `version >= 3.1.1` and the associated python bindings. The easiest is to do this is via conda:
+Third, you will need to install [`openbabel version >= 3.1.1`](https://open-babel.readthedocs.io/en/latest/Installation/install.html) and the associated python bindings. The easiest is to do this is via conda:
 
 ```
 conda install -c conda-forge openbabel
