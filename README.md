@@ -6,7 +6,7 @@ Original authors: Cyrille Lavigne, Gabe Gomes, Robert Pollice, Alán Aspuru-Guzi
 
 ## Prerequsites: 
 
-`iacta` needs [python >= 3.7](https://www.python.org/downloads/). Before being able to use the repository, you will need to install a few additional programs and packages. First, common packages that are required are `numpy` and `pandas`.
+`iacta` needs [`python >= 3.7`](https://www.python.org/downloads/). Before being able to use the repository, you will need to install a few additional programs and packages. First, common packages that are required are `numpy` and `pandas`.
 
 Second, you will need to install [`xtb`](https://xtb-docs.readthedocs.io/en/latest/contents.html) version >= 6.3.0. Importantly, by default the `xtb` and `crest` binaries are assumed to be in `$PATH`.
 
