@@ -22,11 +22,17 @@ Finally, you also need to install `yaml` and `pyaml`, again easiest to do via co
 conda install -c conda-forge pyyaml
 ```
 
+Afterwards, simply clone the GitHub repository and installation is complete.
 
 ## How to run: 
 
-Clone the GitHub repository.
+There are two ways to run `iacta`. The easiest is via `yaml` input files. There are a few example input files for the case studies shown in the paper in the subdirectories of the `test-set` and `other-examples` directories. These input files are used with `rsearch-restart.py` for `iacta` simulations as follows:
 
+```
+python3 /path/to/ts-search/rsearch-restart.py /path/to/user.yaml -o path/to/output/
+```
+
+The second possibility is to use `rsearch.py`.
 
 ## Questions, problems?
 Make a github issue. Please be as clear and descriptive as possible. Please feel free to reach
