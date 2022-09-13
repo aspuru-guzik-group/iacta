@@ -24,6 +24,7 @@ conda install -c conda-forge pyyaml
 
 Afterwards, simply clone the GitHub repository and installation is complete.
 
+
 ## How to run: 
 
 There are two ways to run `iacta`. The easiest is via `yaml` input files. There are a few example input files for the case studies shown in the paper in the subdirectories of the `test-set` and `other-examples` directories. These input files are used with `rsearch-restart.py` for `iacta` simulations as follows:
@@ -32,11 +33,16 @@ There are two ways to run `iacta`. The easiest is via `yaml` input files. There 
 python3 /path/to/ts-search/rsearch-restart.py /path/to/user.yaml -o path/to/output/
 ```
 
-The second possibility is to use `rsearch.py`.
+The second possibility is to use `rsearch.py`. There is one XYZ file in the example input files for the case studies shown in the paper. It can be found in the subdirectory `test-set/Sn2MeI`. The `iacta` search can be initiated as follows:
 
-## Questions, problems?
-Make a github issue. Please be as clear and descriptive as possible. Please feel free to reach
-out in person: (gabegomes[AT]cmu[DOT]edu, r[DOT]pollice[AT]rug[DOT]nl)
+```
+python3 /path/to/ts-search/rsearch.py /path/to/initial.xyz 1 2 6.0 -o path/to/output/
+```
+
+For more detailed control over the input, please consult the help options `-h` for the `rsearch.py` and `rsearch-restart.py` scripts.
+
+## Questions or Problems?
+Please make a GitHub issue and be as clear and descriptive as possible. Feel free to reach out to: gabegomes[AT]cmu[DOT]edu and r[DOT]pollice[AT]rug[DOT]nl.
 
 
 ## License
