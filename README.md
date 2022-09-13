@@ -8,7 +8,7 @@ Originally by: Cyrille Lavigne, Gabe Gomes, Robert Pollice, Alán Aspuru-Guzik
 
 Use [Python 3.7 or up](https://www.python.org/download/releases/3.0/).
 You will need to separately install [openbabel](https://open-babel.readthedocs.io/en/latest/Installation/install.html) version >= 3.1.1 and the associated python bindings. The easiest is to do this on conda.
-Other required packages are numpy, pandas and yaml
+Other required packages are numpy, pandas and yaml.
 
 ## How to run: 
 
