@@ -63,3 +63,8 @@ Please make a GitHub issue and be as clear and descriptive as possible. Feel fre
 ## License
 
 The contents of the `iacta` repository are provided under the MIT license.
+
+
+**DOI:** [![DOI](https://zenodo.org/badge/249187129.svg)](https://zenodo.org/badge/latestdoi/249187129)
+
+
