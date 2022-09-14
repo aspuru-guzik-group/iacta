@@ -62,4 +62,4 @@ Please make a GitHub issue and be as clear and descriptive as possible. Feel fre
 
 ## License
 
-iacta is provided under the MIT license.
+The contents of the `iacta`repository are provided under the MIT license.
